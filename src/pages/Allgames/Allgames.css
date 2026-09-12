@@ -1291,330 +1291,6 @@
   }
 }
 
-.weekly-game-details {
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  gap: 7px;
-  margin-top: 1px;
-  animation: weeklyDetailsIn 0.8s cubic-bezier(0.22, 0.8, 0.25, 1) both;
-}
-
-.weekly-game-details h4 {
-  margin: 0;
-  color: white;
-  font-size: 24px;
-  line-height: 1;
-}
-
-.weekly-plays-label {
-  color: #d198f2;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-}
-
-@keyframes weeklyDetailsIn {
-  from {
-    opacity: 0;
-    transform: translateY(-12px) scale(0.94);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.weekly-play {
-  min-height: 38px;
-  padding: 0 22px;
-  border: 1px solid rgba(237, 199, 255, 0.78);
-  border-radius: 999px;
-  background: linear-gradient(135deg, #c46aff, #7c35df);
-  color: white;
-  font-size: 12px;
-  font-weight: 800;
-  box-shadow: 0 8px 24px rgba(142, 50, 232, 0.35), inset 0 1px rgba(255, 255, 255, 0.32);
-  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.weekly-play:hover {
-  transform: translateY(-2px);
-  background: linear-gradient(135deg, #d98aff, #914cff);
-  box-shadow: 0 10px 28px rgba(174, 69, 255, 0.48), inset 0 1px rgba(255, 255, 255, 0.42);
-}
-
-.games-browser-grid-heading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  margin: 54px 0 18px;
-  padding-top: 22px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  color: #a392b0;
-  font-size: 12px;
-  text-align: center;
-}
-
-.all-games-label {
-  position: relative;
-  display: inline-block;
-  padding-bottom: 9px;
-  background: linear-gradient(90deg, #f1c4ff, #c783ff 55%, #f0b6ff);
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  font-size: 18px;
-  font-weight: 900;
-  letter-spacing: 4px;
-  text-shadow: 0 0 18px rgba(207, 112, 255, 0.5);
-}
-
-.all-games-label::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #c783ff, transparent);
-  box-shadow: 0 0 12px rgba(207, 112, 255, 0.65);
-}
-
-.all-games-heading-stage {
-  position: relative;
-  min-width: 170px;
-  min-height: 36px;
-  text-align: center;
-}
-
-.all-games-heading-enter {
-  display: inline-block;
-  animation: allGamesHeadingIn 0.45s cubic-bezier(0.22, 0.8, 0.25, 1) both;
-}
-
-.all-games-heading-exit {
-  position: absolute;
-  inset: 0;
-  animation: allGamesHeadingOut 0.45s cubic-bezier(0.22, 0.8, 0.25, 1) both;
-}
-
-@keyframes allGamesHeadingIn {
-  from {
-    opacity: 0;
-    transform: translateX(42px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes allGamesHeadingOut {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-
-  to {
-    opacity: 0;
-    transform: translateX(-42px);
-  }
-}
-
-.all-games-cards-stage {
-  position: relative;
-}
-
-.all-games-cards-layer {
-  position: relative;
-}
-
-.all-games-cards-exit {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  animation: allGamesCardsOut 0.45s cubic-bezier(0.22, 0.8, 0.25, 1) both;
-  pointer-events: none;
-}
-
-.all-games-cards-enter {
-  animation: allGamesCardsIn 0.45s cubic-bezier(0.22, 0.8, 0.25, 1) both;
-}
-
-@keyframes allGamesCardsIn {
-  from {
-    opacity: 0;
-    transform: translateX(48px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes allGamesCardsOut {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-
-  to {
-    opacity: 0;
-    transform: translateX(-48px);
-  }
-}
-
-.clear-filters {
-  min-height: 34px;
-  padding: 0 14px;
-  border: 1px solid rgba(205, 115, 255, 0.62);
-  border-radius: 9px;
-  background: rgba(166, 67, 239, 0.16);
-  color: #e1b7ff;
-  font-size: 12px;
-  font-weight: 700;
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.clear-filters:hover:not(:disabled) {
-  background: rgba(166, 67, 239, 0.34);
-  color: white;
-  box-shadow: 0 0 18px rgba(174, 69, 255, 0.22);
-}
-
-.library-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.library-card {
-  position: relative;
-  min-height: 300px;
-  padding: 24px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 22px;
-  background: linear-gradient(145deg, rgba(73, 22, 115, 0.74), rgba(24, 8, 46, 0.92));
-  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
-}
-
-.library-card::before {
-  content: "";
-  position: absolute;
-  width: 210px;
-  height: 210px;
-  top: -90px;
-  right: -80px;
-  border-radius: 50%;
-  background: rgba(190, 74, 255, 0.24);
-  filter: blur(30px);
-}
-
-.library-card:hover {
-  transform: translateY(-6px);
-  border-color: rgba(201, 112, 255, 0.42);
-  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.28), 0 0 28px rgba(137, 47, 255, 0.15);
-}
-
-.library-card-top,
-.library-card h3,
-.library-card p,
-.library-card button,
-.library-icon {
-  position: relative;
-  z-index: 1;
-}
-
-.library-card-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.library-icon {
-  width: 68px;
-  height: 68px;
-  display: grid;
-  place-items: center;
-  margin: 28px 0 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 19px;
-  background: linear-gradient(145deg, rgba(117, 41, 180, 0.7), rgba(38, 13, 71, 0.85));
-  font-size: 35px;
-  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
-}
-
-.library-card:hover .rps-air-hand,
-.library-card:focus-within .rps-air-hand,
-.library-card:active .rps-air-hand {
-  animation: weeklyAirHandEnter 3.8s cubic-bezier(0.22, 0.8, 0.25, 1) infinite;
-}
-
-.library-card:hover .rps-air-hand-right,
-.library-card:focus-within .rps-air-hand-right,
-.library-card:active .rps-air-hand-right {
-  animation-delay: -1.25s;
-}
-
-.library-card:hover .rps-air-hand-bottom,
-.library-card:focus-within .rps-air-hand-bottom,
-.library-card:active .rps-air-hand-bottom {
-  animation-delay: -2.5s;
-}
-
-.library-card h3 {
-  margin: 0 0 8px;
-  font-size: 23px;
-}
-
-.library-card p {
-  min-height: 39px;
-  margin: 0;
-  color: #a696b1;
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.library-play {
-  min-height: 40px;
-  margin-top: 18px;
-  padding: 0 18px;
-  border: 1px solid rgba(237, 199, 255, 0.68);
-  border-radius: 11px;
-  background: linear-gradient(135deg, #c46aff, #7c35df);
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 800;
-  box-shadow: 0 7px 18px rgba(142, 50, 232, 0.25), inset 0 1px rgba(255, 255, 255, 0.28);
-  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.library-play:hover {
-  transform: translateY(-2px);
-  background: linear-gradient(135deg, #d98aff, #914cff);
-  box-shadow: 0 10px 23px rgba(174, 69, 255, 0.4), inset 0 1px rgba(255, 255, 255, 0.38);
-}
-
-.empty-games-state {
-  padding: 70px 20px;
-  text-align: center;
-  border: 1px dashed rgba(255, 255, 255, 0.14);
-  border-radius: 22px;
-  color: #9d8da9;
-}
-
-.empty-games-state > span {
-  color: #c36dff;
-  font-size: 34px;
-}
-
 .empty-games-state h3 {
   margin: 16px 0 8px;
   color: white;
@@ -1728,6 +1404,801 @@
 
   .library-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ================= SNAKE — each segment follows the head ================= */
+
+.weekly-game-card.is-active .snake-segment,
+.weekly-game-card.is-active .snake-head,
+.weekly-game-card:hover .snake-segment,
+.weekly-game-card:hover .snake-head {
+  animation: weeklySnakeBodyWave 1.15s ease-in-out infinite;
+}
+
+.weekly-game-card.is-active .snake-segment-two,
+.weekly-game-card:hover .snake-segment-two { animation-delay: -0.12s; }
+
+.weekly-game-card.is-active .snake-segment-three,
+.weekly-game-card:hover .snake-segment-three { animation-delay: -0.24s; }
+
+.weekly-game-card.is-active .snake-segment-four,
+.weekly-game-card:hover .snake-segment-four { animation-delay: -0.36s; }
+
+.weekly-game-card.is-active .snake-segment-five,
+.weekly-game-card:hover .snake-segment-five { animation-delay: -0.48s; }
+
+.weekly-game-card.is-active .snake-head,
+.weekly-game-card:hover .snake-head { animation-delay: -0.6s; }
+
+@keyframes weeklySnakeBodyWave {
+  0%, 100% { margin-top: 3px; transform: rotate(-8deg) scale(0.96); }
+  50% { margin-top: -4px; transform: rotate(8deg) scale(1.06); }
+}
+
+@keyframes weeklyThreeHands {
+  0%, 8% {
+    opacity: 0;
+    transform: translate3d(-16px, 5px, -12px) rotate(-18deg) scale(0.76);
+  }
+
+  22%, 68% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.86);
+  }
+
+  84%, 100% {
+    opacity: 0;
+    transform: translate3d(12px, -4px, -8px) rotate(12deg) scale(0.72);
+  }
+}
+
+.rps-air-logo {
+  display: block;
+  width: 58px;
+  height: 58px;
+  overflow: visible;
+  perspective: 220px;
+}
+
+.rps-air-hand {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+}
+
+.rps-air-palm {
+  fill: url("#rpsSkin");
+  stroke: #b96f3d;
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+}
+
+.rps-air-cuff {
+  fill: url("#rpsCuff");
+  stroke: #565662;
+  stroke-width: 0.8;
+}
+
+.weekly-game-card.is-active .rps-air-hand,
+.weekly-game-card:hover .rps-air-hand {
+  animation: weeklyAirHandEnter 3.8s cubic-bezier(0.22, 0.8, 0.25, 1) infinite;
+}
+
+.weekly-game-card.is-active .rps-air-hand-right,
+.weekly-game-card:hover .rps-air-hand-right {
+  animation-delay: -1.25s;
+}
+
+.weekly-game-card.is-active .rps-air-hand-bottom,
+.weekly-game-card:hover .rps-air-hand-bottom {
+  animation-delay: -2.5s;
+}
+
+@keyframes weeklyAirHandEnter {
+  0%, 8% {
+    opacity: 0;
+    transform: translate3d(-18px, 8px, -10px) rotate(-18deg) scale(0.72);
+  }
+
+  20%, 68% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.92);
+  }
+
+  84%, 100% {
+    opacity: 0;
+    transform: translate3d(15px, -5px, -8px) rotate(12deg) scale(0.7);
+  }
+}
+
+.rps-gesture-logo {
+  display: block;
+  width: 58px;
+  height: 58px;
+  overflow: visible;
+}
+
+.rps-gesture-cuff {
+  fill: url("#rpsCuff-Rock-Paper-Scissors");
+  stroke: #565662;
+  stroke-width: 0.8;
+}
+
+.rps-gesture-hand {
+  fill: url("#rpsSkin-Rock-Paper-Scissors");
+  stroke: #b96f3d;
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  opacity: 0;
+}
+
+.weekly-game-card.is-active .rps-gesture-hand,
+.weekly-game-card:hover .rps-gesture-hand,
+.library-card:hover .rps-gesture-hand,
+.library-card:focus-within .rps-gesture-hand,
+.library-card:active .rps-gesture-hand,
+.big-game-card:hover .rps-gesture-hand,
+.big-game-card:focus-within .rps-gesture-hand,
+.big-game-card:active .rps-gesture-hand,
+.carousel-card:hover .rps-gesture-hand,
+.carousel-card:focus-within .rps-gesture-hand,
+.carousel-card:active .rps-gesture-hand {
+  animation: rpsGestureCycle 4.2s ease-in-out infinite;
+}
+
+@keyframes rpsGestureCycle {
+  0%, 18% {
+    opacity: 1;
+    transform: rotate(-3deg) scale(1);
+  }
+
+  27%, 45% {
+    opacity: 0;
+    transform: rotate(4deg) scale(0.92);
+  }
+
+  54%, 70% {
+    opacity: 1;
+    transform: rotate(3deg) scale(1.03);
+  }
+
+  78%, 100% {
+    opacity: 0;
+    transform: rotate(-4deg) scale(0.92);
+  }
+}
+
+.rps-gesture-paper {
+  animation-delay: -1.45s !important;
+}
+
+.rps-gesture-scissors {
+  animation-delay: -2.85s !important;
+}
+
+.library-card:hover .unified-game-logo > *,
+.library-card:focus-within .unified-game-logo > *,
+.library-card:active .unified-game-logo > *,
+.big-game-card:hover .unified-game-logo > *,
+.big-game-card:focus-within .unified-game-logo > *,
+.big-game-card:active .unified-game-logo > *,
+.carousel-card:hover .unified-game-logo > *,
+.carousel-card:focus-within .unified-game-logo > *,
+.carousel-card:active .unified-game-logo > * {
+  animation-play-state: running;
+}
+
+.rps-emoji-logo {
+  position: relative;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.rps-emoji-logo > span {
+  position: absolute;
+  opacity: 0;
+  transform: scale(0.72) rotate(-10deg);
+}
+
+.rps-emoji-logo > .rps-emoji-fist {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1) rotate(0deg);
+}
+
+.library-card:hover .rps-emoji-logo > span,
+.library-card:focus-within .rps-emoji-logo > span,
+.library-card:active .rps-emoji-logo > span,
+.big-game-card:hover .rps-emoji-logo > span,
+.big-game-card:focus-within .rps-emoji-logo > span,
+.big-game-card:active .rps-emoji-logo > span,
+.carousel-card:hover .rps-emoji-logo > span,
+.carousel-card:focus-within .rps-emoji-logo > span,
+.carousel-card:active .rps-emoji-logo > span,
+.weekly-game-card.is-active .rps-emoji-logo > span {
+  animation-duration: 3s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.library-card:hover .rps-emoji-fist,
+.library-card:focus-within .rps-emoji-fist,
+.library-card:active .rps-emoji-fist,
+.big-game-card:hover .rps-emoji-fist,
+.big-game-card:focus-within .rps-emoji-fist,
+.big-game-card:active .rps-emoji-fist,
+.carousel-card:hover .rps-emoji-fist,
+.carousel-card:focus-within .rps-emoji-fist,
+.carousel-card:active .rps-emoji-fist,
+.weekly-game-card.is-active .rps-emoji-fist {
+  animation-name: rpsFistSlot;
+}
+
+.library-card:hover .rps-emoji-paper,
+.library-card:focus-within .rps-emoji-paper,
+.library-card:active .rps-emoji-paper,
+.big-game-card:hover .rps-emoji-paper,
+.big-game-card:focus-within .rps-emoji-paper,
+.big-game-card:active .rps-emoji-paper,
+.carousel-card:hover .rps-emoji-paper,
+.carousel-card:focus-within .rps-emoji-paper,
+.carousel-card:active .rps-emoji-paper,
+.weekly-game-card.is-active .rps-emoji-paper {
+  animation-name: rpsPaperSlot;
+}
+
+.library-card:hover .rps-emoji-scissors,
+.library-card:focus-within .rps-emoji-scissors,
+.library-card:active .rps-emoji-scissors,
+.big-game-card:hover .rps-emoji-scissors,
+.big-game-card:focus-within .rps-emoji-scissors,
+.big-game-card:active .rps-emoji-scissors,
+.carousel-card:hover .rps-emoji-scissors,
+.carousel-card:focus-within .rps-emoji-scissors,
+.carousel-card:active .rps-emoji-scissors,
+.weekly-game-card.is-active .rps-emoji-scissors {
+  animation-name: rpsScissorsSlot;
+}
+
+@keyframes rpsFistSlot {
+  0%,
+  12% {
+    opacity: 1;
+    transform: translateX(0) scale(1) rotate(0deg);
+  }
+
+  20%,
+  24% {
+    opacity: 0;
+    transform: translateX(-8px) scale(0.72) rotate(-12deg);
+  }
+
+  78% {
+    opacity: 0;
+    transform: translateX(12px) scale(0.72) rotate(12deg);
+  }
+
+  88%,
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1) rotate(0deg);
+  }
+}
+
+
+@keyframes rpsPaperSlot {
+  0%,
+  22% {
+    opacity: 0;
+    transform: translateX(12px) scale(0.72) rotate(12deg);
+  }
+
+  30%,
+  45% {
+    opacity: 1;
+    transform: translateX(0) scale(1.05) rotate(3deg);
+  }
+
+  53%,
+  100% {
+    opacity: 0;
+    transform: translateX(-8px) scale(0.72) rotate(-12deg);
+  }
+}
+
+
+@keyframes rpsScissorsSlot {
+  0%,
+  50% {
+    opacity: 0;
+    transform: translateX(12px) scale(0.72) rotate(12deg);
+  }
+
+  58%,
+  73% {
+    opacity: 1;
+    transform: translateX(0) scale(1.05) rotate(-3deg);
+  }
+
+  82%,
+  100% {
+    opacity: 0;
+    transform: translateX(-8px) scale(0.72) rotate(-12deg);
+  }
+}
+
+.library-card:hover .dice-cube,
+.library-card:focus-within .dice-cube,
+.library-card:active .dice-cube,
+.big-game-card:hover .dice-cube,
+.big-game-card:focus-within .dice-cube,
+.big-game-card:active .dice-cube,
+.carousel-card:hover .dice-cube,
+.carousel-card:focus-within .dice-cube,
+.carousel-card:active .dice-cube {
+  animation: weeklyDiceCubeRoll 1.7s cubic-bezier(0.25, 0.8, 0.3, 1) both;
+}
+
+.library-card:hover .snake-segment,
+.library-card:hover .snake-head,
+.big-game-card:hover .snake-segment,
+.big-game-card:hover .snake-head,
+.carousel-card:hover .snake-segment,
+.carousel-card:hover .snake-head,
+.library-card:focus-within .snake-segment,
+.library-card:focus-within .snake-head,
+.big-game-card:focus-within .snake-segment,
+.big-game-card:focus-within .snake-head,
+.carousel-card:focus-within .snake-segment,
+.carousel-card:focus-within .snake-head {
+  animation: weeklySnakeBodyWave 1.15s ease-in-out infinite;
+}
+
+.library-card:hover .tic-tac-logo-x,
+.big-game-card:hover .tic-tac-logo-x,
+.carousel-card:hover .tic-tac-logo-x,
+.library-card:focus-within .tic-tac-logo-x,
+.big-game-card:focus-within .tic-tac-logo-x,
+.carousel-card:focus-within .tic-tac-logo-x {
+  stroke-dasharray: 1;
+  animation: weeklyStrokeDraw 0.45s ease-out both;
+}
+
+.library-card:hover .ladder-coil-3d,
+.big-game-card:hover .ladder-coil-3d,
+.carousel-card:hover .ladder-coil-3d,
+.library-card:focus-within .ladder-coil-3d,
+.big-game-card:focus-within .ladder-coil-3d,
+.carousel-card:focus-within .ladder-coil-3d {
+  animation: weeklySnakeHeadTurn 1.35s ease-in-out infinite;
+}
+
+.library-card:hover .memory-card-flip,
+.big-game-card:hover .memory-card-flip,
+.carousel-card:hover .memory-card-flip,
+.library-card:focus-within .memory-card-flip,
+.big-game-card:focus-within .memory-card-flip,
+.carousel-card:focus-within .memory-card-flip {
+  animation: weeklyMemoryFlip3D 2.4s cubic-bezier(0.3, 0.7, 0.3, 1) infinite;
+}
+/* =========================================================
+   ALL GAME CARDS — AUTO LOGO ANIMATIONS
+   ========================================================= */
+
+/* ---------------- SNAKE ---------------- */
+
+.library-card .snake-segment,
+.library-card .snake-head {
+  animation: weeklySnakeBodyWave 1.15s ease-in-out infinite;
+}
+
+.library-card .snake-segment-two {
+  animation-delay: -0.12s;
+}
+
+.library-card .snake-segment-three {
+  animation-delay: -0.24s;
+}
+
+.library-card .snake-segment-four {
+  animation-delay: -0.36s;
+}
+
+.library-card .snake-segment-five {
+  animation-delay: -0.48s;
+}
+
+.library-card .snake-head {
+  animation-delay: -0.60s;
+}
+
+.library-card .snake-head::after {
+  animation: weeklySnakeTongueFlick 1.6s ease-in-out infinite;
+}
+
+.library-card .snake-head::before {
+  animation: weeklySnakeTongueFlick 1.6s ease-in-out 0.05s infinite;
+}
+
+
+/* ---------------- LUDO ---------------- */
+
+.library-card .dice-cube {
+  animation: weeklyDiceCubeRoll 3s cubic-bezier(0.25, 0.8, 0.3, 1) infinite;
+}
+
+.library-card .dice-pip {
+  animation: weeklyDicePipFlash 3s ease-out infinite;
+}
+
+
+/* ---------------- TIC TAC TOE ---------------- */
+
+/* Static background board/grid */
+.library-card .tic-tac-logo-grid {
+  stroke-dasharray: none !important;
+  stroke-dashoffset: 0 !important;
+  opacity: 1 !important;
+  animation: none !important;
+}
+
+
+/* X marks and winning line */
+.library-card .tic-tac-logo-x1,
+.library-card .tic-tac-logo-x2,
+.library-card .tic-tac-logo-x3,
+.library-card .tic-tac-logo-winline {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+}
+
+
+/* X1 */
+.library-card .tic-tac-logo-x1 {
+  animation: ticTacX1 7s ease-in-out infinite;
+}
+
+
+/* X2 */
+.library-card .tic-tac-logo-x2 {
+  animation: ticTacX2 7s ease-in-out infinite;
+}
+
+
+/* X3 */
+.library-card .tic-tac-logo-x3 {
+  animation: ticTacX3 7s ease-in-out infinite;
+}
+
+
+/* Winning line */
+.library-card .tic-tac-logo-winline {
+  animation: ticTacWin 7s ease-in-out infinite;
+}
+
+
+/* Keep complete logo static */
+.library-card .tic-tac-logo {
+  transform: none !important;
+  animation: none !important;
+}
+
+
+/* =========================================================
+   X 1
+   ========================================================= */
+
+@keyframes ticTacX1 {
+
+  /* Empty */
+  0%,
+  8% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+
+  /* Draw */
+  16%,
+  25% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Stay visible */
+  25%,
+  78% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Simply disappear */
+  86%,
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+
+/* =========================================================
+   X 2
+   ========================================================= */
+
+@keyframes ticTacX2 {
+
+  /* Wait for X1 */
+  0%,
+  22% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+
+  /* Draw */
+  30%,
+  39% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Stay visible */
+  39%,
+  75% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Simply disappear */
+  84%,
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+
+/* =========================================================
+   X 3
+   ========================================================= */
+
+@keyframes ticTacX3 {
+
+  /* Wait */
+  0%,
+  36% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+
+  /* Draw */
+  44%,
+  53% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Stay visible */
+  53%,
+  72% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Simply disappear */
+  82%,
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+
+/* =========================================================
+   WINNING LINE
+   ========================================================= */
+
+@keyframes ticTacWin {
+
+  /* Wait for all X's */
+  0%,
+  52% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+
+  /* Draw winning line */
+  58%,
+  66% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Stay visible */
+  66%,
+  74% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Simply disappear — NO reverse animation */
+  82%,
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .library-card .tic-tac-logo-grid,
+  .library-card .tic-tac-logo-x1,
+  .library-card .tic-tac-logo-x2,
+  .library-card .tic-tac-logo-x3,
+  .library-card .tic-tac-logo-winline,
+  .library-card .tic-tac-logo {
+    animation: none !important;
+  }
+
+  .library-card .tic-tac-logo-grid {
+    opacity: 1 !important;
+  }
+
+  .library-card .tic-tac-logo-x1,
+  .library-card .tic-tac-logo-x2,
+  .library-card .tic-tac-logo-x3,
+  .library-card .tic-tac-logo-winline {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ---------------- ROCK PAPER SCISSORS ---------------- */
+
+.library-card .rps-emoji-logo > span {
+  animation-duration: 3s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.library-card .rps-emoji-logo > .rps-emoji-fist {
+  animation-name: rpsFistSlot;
+}
+
+.library-card .rps-emoji-logo > .rps-emoji-paper {
+  animation-name: rpsPaperSlot;
+}
+
+.library-card:hover .rps-air-hand,
+.library-card:focus-within .rps-air-hand,
+.library-card:active .rps-air-hand {
+  animation: weeklyAirHandEnter 3.8s cubic-bezier(0.22, 0.8, 0.25, 1) infinite;
+}
+
+.library-card:hover .rps-air-hand-right,
+.library-card:focus-within .rps-air-hand-right,
+.library-card:active .rps-air-hand-right {
+  animation-delay: -1.25s;
+}
+
+.library-card:hover .rps-air-hand-bottom,
+.library-card:focus-within .rps-air-hand-bottom,
+.library-card:active .rps-air-hand-bottom {
+  animation-delay: -2.5s;
+}
+
+.library-card h3 {
+  margin: 0 0 8px;
+  font-size: 23px;
+}
+
+
+/* ---------------- SNAKE & LADDER ---------------- */
+
+.library-card .ladder-logo-shape {
+  animation: weeklyLadderSway 2.6s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.library-card .ladder-coil-3d {
+  animation: weeklySnakeHeadTurn 1.35s ease-in-out infinite;
+}
+
+.library-card .ladder-coil-bead,
+.library-card .ladder-coil-head {
+  animation: weeklyLadderSnakeMove 1.35s ease-in-out infinite;
+}
+
+.library-card .ladder-coil-bead:nth-child(2) {
+  animation-delay: -0.12s;
+}
+
+.library-card .ladder-coil-bead:nth-child(3) {
+  animation-delay: -0.24s;
+}
+
+.library-card .ladder-coil-bead:nth-child(4) {
+  animation-delay: -0.36s;
+}
+
+.library-card .ladder-coil-bead:nth-child(5) {
+  animation-delay: -0.48s;
+}
+
+.library-card .ladder-coil-bead:nth-child(6) {
+  animation-delay: -0.60s;
+}
+
+.library-card .ladder-coil-bead:nth-child(7) {
+  animation-delay: -0.72s;
+}
+
+.library-card .ladder-coil-bead:nth-child(8) {
+  animation-delay: -0.84s;
+}
+
+.library-card .ladder-coil-bead:nth-child(9) {
+  animation-delay: -0.96s;
+}
+
+.library-card .ladder-coil-head {
+  animation-delay: -1.08s;
+}
+
+
+/* ---------------- MEMORY ---------------- */
+
+.library-card .memory-card-flip {
+  animation: weeklyMemoryFlip3D 2.4s cubic-bezier(0.3, 0.7, 0.3, 1) infinite;
+}
+
+
+/* ---------------- 3D DEPTH ---------------- */
+
+.library-card .unified-game-logo {
+  perspective: 360px;
+}
+
+.library-card .game-logo,
+.library-card .game-mark,
+.library-card .ladder-3d-wrap,
+.library-card .dice-cube-scene {
+  transform-style: preserve-3d;
+}
+
+
+/* ---------------- REDUCED MOTION ---------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .library-card .dice-cube,
+  .library-card .dice-pip,
+  .library-card .snake-segment,
+  .library-card .snake-head,
+  .library-card .snake-head::after,
+  .library-card .snake-head::before,
+  .library-card .tic-tac-logo-grid,
+  .library-card .tic-tac-logo-x1,
+  .library-card .tic-tac-logo-x2,
+  .library-card .tic-tac-logo-x3,
+  .library-card .tic-tac-logo-winline,
+  .library-card .tic-tac-logo,
+  .library-card .ladder-logo-shape,
+  .library-card .ladder-coil-3d,
+  .library-card .ladder-coil-bead,
+  .library-card .ladder-coil-head,
+  .library-card .memory-card-flip {
+    animation: none;
   }
 }
 
