@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Game } from "../../Landingpage/gameData";
+import GameLogo from "./GameLogo";
 
 type AllGameCardsProps = {
   games: Game[];
@@ -54,7 +55,7 @@ function AllGameCards({ games, heading }: AllGameCardsProps) {
             <div className="library-card-top">
               <span className="game-category">{game.category}</span>
             </div>
-            <div className="library-icon">{game.icon}</div>
+            <div className="library-icon unified-game-logo"><GameLogo gameName={game.name} /></div>
             <h3>{game.name}</h3>
             <p>{game.description}</p>
             <button type="button" className="library-play">Play now</button>
