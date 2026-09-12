@@ -1931,8 +1931,10 @@
   transform: scale(0.72) rotate(-10deg);
 }
 
-.rps-emoji-fist {
+.rps-emoji-logo > .rps-emoji-fist {
   opacity: 1;
+  visibility: visible;
+  transform: scale(1) rotate(0deg);
 }
 
 .library-card:hover .rps-emoji-logo > span,
@@ -1990,21 +1992,70 @@
 }
 
 @keyframes rpsFistSlot {
-  0%, 18% { opacity: 1; transform: scale(1) rotate(0deg); }
-  24%, 30% { opacity: 0; transform: translateX(-8px) scale(0.72) rotate(-12deg); }
-  31%, 100% { opacity: 0; transform: translateX(-8px) scale(0.72) rotate(-12deg); }
+  0%,
+  12% {
+    opacity: 1;
+    transform: translateX(0) scale(1) rotate(0deg);
+  }
+
+  20%,
+  24% {
+    opacity: 0;
+    transform: translateX(-8px) scale(0.72) rotate(-12deg);
+  }
+
+  78% {
+    opacity: 0;
+    transform: translateX(12px) scale(0.72) rotate(12deg);
+  }
+
+  88%,
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1) rotate(0deg);
+  }
 }
+
 
 @keyframes rpsPaperSlot {
-  0%, 29% { opacity: 0; transform: translateX(8px) scale(0.72) rotate(12deg); }
-  35%, 52% { opacity: 1; transform: translateX(0) scale(1.05) rotate(3deg); }
-  58%, 64% { opacity: 0; transform: translateX(-8px) scale(0.72) rotate(-12deg); }
-  65%, 100% { opacity: 0; transform: translateX(-8px) scale(0.72) rotate(-12deg); }
+  0%,
+  22% {
+    opacity: 0;
+    transform: translateX(12px) scale(0.72) rotate(12deg);
+  }
+
+  30%,
+  45% {
+    opacity: 1;
+    transform: translateX(0) scale(1.05) rotate(3deg);
+  }
+
+  53%,
+  100% {
+    opacity: 0;
+    transform: translateX(-8px) scale(0.72) rotate(-12deg);
+  }
 }
 
+
 @keyframes rpsScissorsSlot {
-  0%, 63% { opacity: 0; transform: translateX(8px) scale(0.72) rotate(12deg); }
-  69%, 100% { opacity: 1; transform: translateX(0) scale(1.05) rotate(-3deg); }
+  0%,
+  50% {
+    opacity: 0;
+    transform: translateX(12px) scale(0.72) rotate(12deg);
+  }
+
+  58%,
+  73% {
+    opacity: 1;
+    transform: translateX(0) scale(1.05) rotate(-3deg);
+  }
+
+  82%,
+  100% {
+    opacity: 0;
+    transform: translateX(-8px) scale(0.72) rotate(-12deg);
+  }
 }
 
 .library-card:hover .dice-cube,
@@ -2060,4 +2111,398 @@
 .big-game-card:focus-within .memory-card-flip,
 .carousel-card:focus-within .memory-card-flip {
   animation: weeklyMemoryFlip3D 2.4s cubic-bezier(0.3, 0.7, 0.3, 1) infinite;
+}
+/* =========================================================
+   ALL GAME CARDS — AUTO LOGO ANIMATIONS
+   ========================================================= */
+
+/* ---------------- SNAKE ---------------- */
+
+.library-card .snake-segment,
+.library-card .snake-head {
+  animation: weeklySnakeBodyWave 1.15s ease-in-out infinite;
+}
+
+.library-card .snake-segment-two {
+  animation-delay: -0.12s;
+}
+
+.library-card .snake-segment-three {
+  animation-delay: -0.24s;
+}
+
+.library-card .snake-segment-four {
+  animation-delay: -0.36s;
+}
+
+.library-card .snake-segment-five {
+  animation-delay: -0.48s;
+}
+
+.library-card .snake-head {
+  animation-delay: -0.60s;
+}
+
+.library-card .snake-head::after {
+  animation: weeklySnakeTongueFlick 1.6s ease-in-out infinite;
+}
+
+.library-card .snake-head::before {
+  animation: weeklySnakeTongueFlick 1.6s ease-in-out 0.05s infinite;
+}
+
+
+/* ---------------- LUDO ---------------- */
+
+.library-card .dice-cube {
+  animation: weeklyDiceCubeRoll 3s cubic-bezier(0.25, 0.8, 0.3, 1) infinite;
+}
+
+.library-card .dice-pip {
+  animation: weeklyDicePipFlash 3s ease-out infinite;
+}
+
+
+/* ---------------- TIC TAC TOE ---------------- */
+
+/* Static background board/grid */
+.library-card .tic-tac-logo-grid {
+  stroke-dasharray: none !important;
+  stroke-dashoffset: 0 !important;
+  opacity: 1 !important;
+  animation: none !important;
+}
+
+
+/* X marks and winning line */
+.library-card .tic-tac-logo-x1,
+.library-card .tic-tac-logo-x2,
+.library-card .tic-tac-logo-x3,
+.library-card .tic-tac-logo-winline {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+}
+
+
+/* X1 */
+.library-card .tic-tac-logo-x1 {
+  animation: ticTacX1 7s ease-in-out infinite;
+}
+
+
+/* X2 */
+.library-card .tic-tac-logo-x2 {
+  animation: ticTacX2 7s ease-in-out infinite;
+}
+
+
+/* X3 */
+.library-card .tic-tac-logo-x3 {
+  animation: ticTacX3 7s ease-in-out infinite;
+}
+
+
+/* Winning line */
+.library-card .tic-tac-logo-winline {
+  animation: ticTacWin 7s ease-in-out infinite;
+}
+
+
+/* Keep complete logo static */
+.library-card .tic-tac-logo {
+  transform: none !important;
+  animation: none !important;
+}
+
+
+/* =========================================================
+   X 1
+   ========================================================= */
+
+@keyframes ticTacX1 {
+
+  /* Empty */
+  0%,
+  8% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+
+  /* Draw */
+  16%,
+  25% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Stay visible */
+  25%,
+  78% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Simply disappear */
+  86%,
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+
+/* =========================================================
+   X 2
+   ========================================================= */
+
+@keyframes ticTacX2 {
+
+  /* Wait for X1 */
+  0%,
+  22% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+
+  /* Draw */
+  30%,
+  39% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Stay visible */
+  39%,
+  75% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Simply disappear */
+  84%,
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+
+/* =========================================================
+   X 3
+   ========================================================= */
+
+@keyframes ticTacX3 {
+
+  /* Wait */
+  0%,
+  36% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+
+  /* Draw */
+  44%,
+  53% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Stay visible */
+  53%,
+  72% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Simply disappear */
+  82%,
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+
+/* =========================================================
+   WINNING LINE
+   ========================================================= */
+
+@keyframes ticTacWin {
+
+  /* Wait for all X's */
+  0%,
+  52% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+
+  /* Draw winning line */
+  58%,
+  66% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Stay visible */
+  66%,
+  74% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  /* Simply disappear — NO reverse animation */
+  82%,
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .library-card .tic-tac-logo-grid,
+  .library-card .tic-tac-logo-x1,
+  .library-card .tic-tac-logo-x2,
+  .library-card .tic-tac-logo-x3,
+  .library-card .tic-tac-logo-winline,
+  .library-card .tic-tac-logo {
+    animation: none !important;
+  }
+
+  .library-card .tic-tac-logo-grid {
+    opacity: 1 !important;
+  }
+
+  .library-card .tic-tac-logo-x1,
+  .library-card .tic-tac-logo-x2,
+  .library-card .tic-tac-logo-x3,
+  .library-card .tic-tac-logo-winline {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ---------------- ROCK PAPER SCISSORS ---------------- */
+
+.library-card .rps-emoji-logo > span {
+  animation-duration: 3s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.library-card .rps-emoji-logo > .rps-emoji-fist {
+  animation-name: rpsFistSlot;
+}
+
+.library-card .rps-emoji-logo > .rps-emoji-paper {
+  animation-name: rpsPaperSlot;
+}
+
+.library-card .rps-emoji-logo > .rps-emoji-scissors {
+  animation-name: rpsScissorsSlot;
+}
+
+
+/* ---------------- SNAKE & LADDER ---------------- */
+
+.library-card .ladder-logo-shape {
+  animation: weeklyLadderSway 2.6s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.library-card .ladder-coil-3d {
+  animation: weeklySnakeHeadTurn 1.35s ease-in-out infinite;
+}
+
+.library-card .ladder-coil-bead,
+.library-card .ladder-coil-head {
+  animation: weeklyLadderSnakeMove 1.35s ease-in-out infinite;
+}
+
+.library-card .ladder-coil-bead:nth-child(2) {
+  animation-delay: -0.12s;
+}
+
+.library-card .ladder-coil-bead:nth-child(3) {
+  animation-delay: -0.24s;
+}
+
+.library-card .ladder-coil-bead:nth-child(4) {
+  animation-delay: -0.36s;
+}
+
+.library-card .ladder-coil-bead:nth-child(5) {
+  animation-delay: -0.48s;
+}
+
+.library-card .ladder-coil-bead:nth-child(6) {
+  animation-delay: -0.60s;
+}
+
+.library-card .ladder-coil-bead:nth-child(7) {
+  animation-delay: -0.72s;
+}
+
+.library-card .ladder-coil-bead:nth-child(8) {
+  animation-delay: -0.84s;
+}
+
+.library-card .ladder-coil-bead:nth-child(9) {
+  animation-delay: -0.96s;
+}
+
+.library-card .ladder-coil-head {
+  animation-delay: -1.08s;
+}
+
+
+/* ---------------- MEMORY ---------------- */
+
+.library-card .memory-card-flip {
+  animation: weeklyMemoryFlip3D 2.4s cubic-bezier(0.3, 0.7, 0.3, 1) infinite;
+}
+
+
+/* ---------------- 3D DEPTH ---------------- */
+
+.library-card .unified-game-logo {
+  perspective: 360px;
+}
+
+.library-card .game-logo,
+.library-card .game-mark,
+.library-card .ladder-3d-wrap,
+.library-card .dice-cube-scene {
+  transform-style: preserve-3d;
+}
+
+
+/* ---------------- REDUCED MOTION ---------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .library-card .dice-cube,
+  .library-card .dice-pip,
+  .library-card .snake-segment,
+  .library-card .snake-head,
+  .library-card .snake-head::after,
+  .library-card .snake-head::before,
+  .library-card .tic-tac-logo-grid,
+  .library-card .tic-tac-logo-x1,
+  .library-card .tic-tac-logo-x2,
+  .library-card .tic-tac-logo-x3,
+  .library-card .tic-tac-logo-winline,
+  .library-card .tic-tac-logo,
+  .library-card .ladder-logo-shape,
+  .library-card .ladder-coil-3d,
+  .library-card .ladder-coil-bead,
+  .library-card .ladder-coil-head,
+  .library-card .memory-card-flip {
+    animation: none;
+  }
 }
