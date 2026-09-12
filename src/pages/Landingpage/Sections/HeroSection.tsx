@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Game } from "../gameData";
 import { navigateTo } from "../../../navigation";
+import GameLogo from "../../Allgames/Sections/GameLogo";
 
 type HeroSectionProps = {
   games: Game[];
@@ -92,10 +93,10 @@ function HeroSection({ games }: HeroSectionProps) {
 
       <div className="hero-visual">
         <div className="carousel-stage">
-          <div className="carousel-card far-card"><div className="back-card-content"><span>{secondNextGameData.category}</span><div className="back-card-icon">{secondNextGameData.icon}</div><strong>{secondNextGameData.name}</strong><p>{secondNextGameData.description}</p></div></div>
-          <div className="carousel-card next-card"><div className="back-card-content"><span>{nextGameData.category}</span><div className="back-card-icon">{nextGameData.icon}</div><strong>{nextGameData.name}</strong><p>{nextGameData.description}</p></div></div>
+          <div className="carousel-card far-card"><div className="back-card-content"><span>{secondNextGameData.category}</span><div className="back-card-icon unified-game-logo"><GameLogo gameName={secondNextGameData.name} /></div><strong>{secondNextGameData.name}</strong><p>{secondNextGameData.description}</p></div></div>
+          <div className="carousel-card next-card"><div className="back-card-content"><span>{nextGameData.category}</span><div className="back-card-icon unified-game-logo"><GameLogo gameName={nextGameData.name} /></div><strong>{nextGameData.name}</strong><p>{nextGameData.description}</p></div></div>
           <div key={`${currentIndex}-${direction}`} className={`carousel-card front-card ${isAnimating ? direction === "right" ? "front-exit-right" : "front-exit-left" : "front-enter"}`}>
-            <div className="front-card-icon">{currentGame.icon}</div>
+            <div className="front-card-icon unified-game-logo"><GameLogo gameName={currentGame.name} /></div>
             <div className="front-card-info"><span>{currentGame.category}</span><h2>{currentGame.name}</h2><p>{currentGame.description}</p></div>
             <button className="play-button">PLAY <span>→</span></button>
           </div>
