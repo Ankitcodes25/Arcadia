@@ -1,0 +1,455 @@
+/* =========================================
+   NAVBAR
+========================================= */
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  z-index: 1000;
+  background: #10051f;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.035);
+}
+
+.navbar-inner {
+  width: min(100% - 96px, 1800px);
+  height: 100%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  text-decoration: none;
+  color: white;
+}
+
+.brand-logo {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: transparent;
+  isolation: isolate;
+  overflow: visible;
+}
+
+.brand-letter {
+  position: relative;
+  z-index: 3;
+  color: white;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 2px 4px rgba(33, 5, 57, 0.42);
+  user-select: none;
+}
+
+.brand-ray {
+  position: absolute;
+  inset: -4px;
+  border-radius: 14px;
+  z-index: 2;
+  pointer-events: none;
+  background: conic-gradient(from 0deg, transparent 0deg 42deg, rgba(177, 76, 255, 0.25) 48deg, rgba(255, 255, 255, 1) 55deg, rgba(90, 220, 255, 1) 63deg, rgba(177, 76, 255, 0.65) 72deg, transparent 82deg 360deg);
+  animation: logoRay 2.4s linear infinite;
+  transform-origin: center;
+  will-change: transform;
+  filter: drop-shadow(0 0 5px rgba(190, 85, 255, 0.95)) drop-shadow(0 0 12px rgba(129, 65, 255, 0.65));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  padding: 2px;
+}
+
+@keyframes logoRay {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+
+/* =========================================
+   BRAND NAME
+========================================= */
+
+.brand-name {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 6px;
+
+  color: rgba(255, 255, 255, 0.95);
+
+  white-space: nowrap;
+}
+
+
+/* =========================================
+   NAVIGATION
+========================================= */
+
+.navbar-nav {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+
+  display: flex;
+  align-items: center;
+  gap: 34px;
+}
+
+.navbar-indicator {
+  position: absolute;
+  bottom: 1px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  opacity: 0;
+  border-radius: 999px;
+  background: #b95cff;
+  box-shadow:
+    0 0 6px #b95cff,
+    0 0 14px #a63cff,
+    0 0 28px rgba(166, 60, 255, 0.8);
+  pointer-events: none;
+  transition: width 0.32s ease, transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+}
+
+
+.navbar-nav a {
+  position: relative;
+
+  color: rgba(226, 211, 255, 0.78);
+
+  text-decoration: none;
+
+  font-size: 14px;
+  font-weight: 500;
+
+  padding: 12px 4px;
+
+  transition:
+    color 0.25s ease,
+    text-shadow 0.25s ease;
+}
+
+
+/* Bottom glow line */
+
+.navbar-nav a::after {
+  content: none;
+
+  position: absolute;
+
+  left: 4px;
+  bottom: 1px;
+
+  width: calc(100% - 8px);
+  height: 2px;
+
+  transform: scaleX(0);
+  transform-origin: center;
+
+  border-radius: 999px;
+
+  background: #b95cff;
+
+  box-shadow:
+    0 0 6px #b95cff,
+    0 0 14px #a63cff,
+    0 0 28px rgba(166, 60, 255, 0.8);
+
+  transition: width 0.3s ease;
+}
+
+
+/* Hover */
+
+.navbar-nav a:hover {
+  color: white;
+
+  text-shadow:
+    0 0 8px rgba(192, 103, 255, 0.85),
+    0 0 22px rgba(157, 60, 255, 0.65);
+}
+
+
+.navbar-nav a:hover::after {
+  transform: scaleX(1);
+}
+
+.navbar-nav a.active {
+  color: white;
+
+  text-shadow:
+    0 0 8px rgba(192, 103, 255, 0.85),
+    0 0 22px rgba(157, 60, 255, 0.65);
+}
+
+.navbar-nav a.active::after {
+  transform: none;
+}
+
+
+/* =========================================
+   RIGHT ACTIONS
+========================================= */
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  gap: 16px;
+}
+
+.auth-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-button,
+.avatar-button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.auth-button {
+  padding: 8px 4px;
+  border: 0;
+  background: transparent;
+  color: rgba(226, 211, 255, 0.82);
+  font-size: 13px;
+  font-weight: 600;
+  transition: color 0.25s ease, text-shadow 0.25s ease;
+}
+
+.auth-button:hover {
+  color: white;
+  text-shadow: 0 0 10px rgba(192, 103, 255, 0.85);
+}
+
+.auth-button-primary {
+  padding: 9px 14px;
+  border: 1px solid rgba(185, 92, 255, 0.55);
+  border-radius: 9px;
+  background: rgba(145, 67, 220, 0.22);
+  color: white;
+}
+
+.auth-button-primary:hover {
+  background: rgba(145, 67, 220, 0.4);
+}
+
+.auth-arrow {
+  display: inline-block;
+  margin-left: 3px;
+  font-size: 17px;
+  line-height: 0;
+  transform: translateY(1px);
+}
+
+.profile-menu-wrapper {
+  position: relative;
+}
+
+.avatar-button {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(217, 164, 255, 0.75);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #d67aff, #7137c9);
+  color: white;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 0 16px rgba(173, 93, 255, 0.35);
+}
+
+
+/* =========================================
+   TABLET
+========================================= */
+
+@media (max-width: 1000px) {
+
+  .navbar {
+    height: 60px;
+  }
+
+  .navbar-inner {
+    width: min(100% - 48px, 1800px);
+  }
+
+  .brand-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+
+  .brand-ray {
+    border-radius: 15px;
+  }
+
+  .brand-name {
+    font-size: 18px;
+    letter-spacing: 3px;
+  }
+
+  .navbar-nav {
+    gap: 32px;
+  }
+
+  .navbar-nav a {
+    font-size: 14px;
+  }
+
+}
+
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 700px) {
+
+  .navbar {
+    height: 64px;
+  }
+
+  .navbar-inner {
+    width: calc(100% - 28px);
+  }
+
+  .navbar-brand {
+    gap: 11px;
+  }
+
+  .brand-logo {
+    width: 40px;
+    height: 40px;
+
+    border-radius: 12px;
+  }
+
+  .brand-ray {
+    border-radius: 17px;
+    padding: 2px;
+  }
+
+  .brand-letter {
+    font-size: 20px;
+  }
+
+  .brand-name {
+    font-size: 17px;
+    letter-spacing: 3px;
+  }
+
+  .navbar-nav {
+    position: static;
+
+    transform: none;
+
+    gap: 18px;
+  }
+
+  .navbar-nav a {
+    font-size: 14px;
+    padding: 8px 2px;
+  }
+
+  .navbar-nav a::after {
+    bottom: -1px;
+  }
+
+}
+
+
+/* =========================================
+   SMALL MOBILE
+========================================= */
+
+@media (max-width: 520px) {
+
+  .navbar-inner {
+    width: calc(100% - 20px);
+  }
+
+  .brand-name {
+    font-size: 15px;
+    letter-spacing: 2px;
+  }
+
+  .navbar-nav {
+    gap: 10px;
+  }
+
+  .navbar-nav a {
+    font-size: 13px;
+  }
+
+  .navbar-actions {
+    gap: 8px;
+  }
+
+  .auth-actions {
+    gap: 5px;
+  }
+
+  .auth-button-primary {
+    padding-inline: 9px;
+  }
+}
+
+
+/* =========================================
+   VERY SMALL SCREENS
+========================================= */
+
+@media (max-width: 390px) {
+
+  .brand-name {
+    display: none;
+  }
+
+  .navbar-nav {
+    gap: 12px;
+  }
+
+  .navbar-nav a {
+    font-size: 12px;
+  }
+
+  .auth-button {
+    font-size: 11px;
+  }
+
+  .auth-button-primary {
+    padding-inline: 7px;
+  }
+}
+
+
+.brand-image {
+  position: relative;
+  z-index: 3;
+
+  width: 40px;
+  height: 40px;
+
+  display: block;
+
+  border-radius: 12px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 16px rgba(115, 42, 255, 0.22));
+}
