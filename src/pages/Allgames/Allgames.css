@@ -2364,3 +2364,334 @@
     animation: none;
   }
 }
+
+/* ================= SNAKE — each segment follows the head ================= */
+
+.weekly-game-card.is-active .snake-segment,
+.weekly-game-card.is-active .snake-head,
+.weekly-game-card:hover .snake-segment,
+.weekly-game-card:hover .snake-head {
+  animation: weeklySnakeBodyWave 1.15s ease-in-out infinite;
+}
+
+.weekly-game-card.is-active .snake-segment-two,
+.weekly-game-card:hover .snake-segment-two { animation-delay: -0.12s; }
+
+.weekly-game-card.is-active .snake-segment-three,
+.weekly-game-card:hover .snake-segment-three { animation-delay: -0.24s; }
+
+.weekly-game-card.is-active .snake-segment-four,
+.weekly-game-card:hover .snake-segment-four { animation-delay: -0.36s; }
+
+.weekly-game-card.is-active .snake-segment-five,
+.weekly-game-card:hover .snake-segment-five { animation-delay: -0.48s; }
+
+.weekly-game-card.is-active .snake-head,
+.weekly-game-card:hover .snake-head { animation-delay: -0.6s; }
+
+@keyframes weeklySnakeBodyWave {
+  0%, 100% { margin-top: 3px; transform: rotate(-8deg) scale(0.96); }
+  50% { margin-top: -4px; transform: rotate(8deg) scale(1.06); }
+}
+
+@keyframes weeklyThreeHands {
+  0%, 8% {
+    opacity: 0;
+    transform: translate3d(-16px, 5px, -12px) rotate(-18deg) scale(0.76);
+  }
+
+  22%, 68% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.86);
+  }
+
+  84%, 100% {
+    opacity: 0;
+    transform: translate3d(12px, -4px, -8px) rotate(12deg) scale(0.72);
+  }
+}
+
+.rps-air-logo {
+  display: block;
+  width: 58px;
+  height: 58px;
+  overflow: visible;
+  perspective: 220px;
+}
+
+.rps-air-hand {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+}
+
+.rps-air-palm {
+  fill: url("#rpsSkin");
+  stroke: #b96f3d;
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+}
+
+.rps-air-cuff {
+  fill: url("#rpsCuff");
+  stroke: #565662;
+  stroke-width: 0.8;
+}
+
+.weekly-game-card.is-active .rps-air-hand,
+.weekly-game-card:hover .rps-air-hand {
+  animation: weeklyAirHandEnter 3.8s cubic-bezier(0.22, 0.8, 0.25, 1) infinite;
+}
+
+.weekly-game-card.is-active .rps-air-hand-right,
+.weekly-game-card:hover .rps-air-hand-right {
+  animation-delay: -1.25s;
+}
+
+.weekly-game-card.is-active .rps-air-hand-bottom,
+.weekly-game-card:hover .rps-air-hand-bottom {
+  animation-delay: -2.5s;
+}
+
+@keyframes weeklyAirHandEnter {
+  0%, 8% {
+    opacity: 0;
+    transform: translate3d(-18px, 8px, -10px) rotate(-18deg) scale(0.72);
+  }
+
+  20%, 68% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.92);
+  }
+
+  84%, 100% {
+    opacity: 0;
+    transform: translate3d(15px, -5px, -8px) rotate(12deg) scale(0.7);
+  }
+}
+
+.rps-gesture-logo {
+  display: block;
+  width: 58px;
+  height: 58px;
+  overflow: visible;
+}
+
+.rps-gesture-cuff {
+  fill: url("#rpsCuff-Rock-Paper-Scissors");
+  stroke: #565662;
+  stroke-width: 0.8;
+}
+
+.rps-gesture-hand {
+  fill: url("#rpsSkin-Rock-Paper-Scissors");
+  stroke: #b96f3d;
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  opacity: 0;
+}
+
+.weekly-game-card.is-active .rps-gesture-hand,
+.weekly-game-card:hover .rps-gesture-hand,
+.library-card:hover .rps-gesture-hand,
+.library-card:focus-within .rps-gesture-hand,
+.library-card:active .rps-gesture-hand,
+.big-game-card:hover .rps-gesture-hand,
+.big-game-card:focus-within .rps-gesture-hand,
+.big-game-card:active .rps-gesture-hand,
+.carousel-card:hover .rps-gesture-hand,
+.carousel-card:focus-within .rps-gesture-hand,
+.carousel-card:active .rps-gesture-hand {
+  animation: rpsGestureCycle 4.2s ease-in-out infinite;
+}
+
+@keyframes rpsGestureCycle {
+  0%, 18% {
+    opacity: 1;
+    transform: rotate(-3deg) scale(1);
+  }
+
+  27%, 45% {
+    opacity: 0;
+    transform: rotate(4deg) scale(0.92);
+  }
+
+  54%, 70% {
+    opacity: 1;
+    transform: rotate(3deg) scale(1.03);
+  }
+
+  78%, 100% {
+    opacity: 0;
+    transform: rotate(-4deg) scale(0.92);
+  }
+}
+
+.rps-gesture-paper {
+  animation-delay: -1.45s !important;
+}
+
+.rps-gesture-scissors {
+  animation-delay: -2.85s !important;
+}
+
+.library-card:hover .unified-game-logo > *,
+.library-card:focus-within .unified-game-logo > *,
+.library-card:active .unified-game-logo > *,
+.big-game-card:hover .unified-game-logo > *,
+.big-game-card:focus-within .unified-game-logo > *,
+.big-game-card:active .unified-game-logo > *,
+.carousel-card:hover .unified-game-logo > *,
+.carousel-card:focus-within .unified-game-logo > *,
+.carousel-card:active .unified-game-logo > * {
+  animation-play-state: running;
+}
+
+.rps-emoji-logo {
+  position: relative;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.rps-emoji-logo > span {
+  position: absolute;
+  opacity: 0;
+  transform: scale(0.72) rotate(-10deg);
+}
+
+.rps-emoji-fist {
+  opacity: 1;
+}
+
+.library-card:hover .rps-emoji-logo > span,
+.library-card:focus-within .rps-emoji-logo > span,
+.library-card:active .rps-emoji-logo > span,
+.big-game-card:hover .rps-emoji-logo > span,
+.big-game-card:focus-within .rps-emoji-logo > span,
+.big-game-card:active .rps-emoji-logo > span,
+.carousel-card:hover .rps-emoji-logo > span,
+.carousel-card:focus-within .rps-emoji-logo > span,
+.carousel-card:active .rps-emoji-logo > span,
+.weekly-game-card.is-active .rps-emoji-logo > span {
+  animation-duration: 3s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.library-card:hover .rps-emoji-fist,
+.library-card:focus-within .rps-emoji-fist,
+.library-card:active .rps-emoji-fist,
+.big-game-card:hover .rps-emoji-fist,
+.big-game-card:focus-within .rps-emoji-fist,
+.big-game-card:active .rps-emoji-fist,
+.carousel-card:hover .rps-emoji-fist,
+.carousel-card:focus-within .rps-emoji-fist,
+.carousel-card:active .rps-emoji-fist,
+.weekly-game-card.is-active .rps-emoji-fist {
+  animation-name: rpsFistSlot;
+}
+
+.library-card:hover .rps-emoji-paper,
+.library-card:focus-within .rps-emoji-paper,
+.library-card:active .rps-emoji-paper,
+.big-game-card:hover .rps-emoji-paper,
+.big-game-card:focus-within .rps-emoji-paper,
+.big-game-card:active .rps-emoji-paper,
+.carousel-card:hover .rps-emoji-paper,
+.carousel-card:focus-within .rps-emoji-paper,
+.carousel-card:active .rps-emoji-paper,
+.weekly-game-card.is-active .rps-emoji-paper {
+  animation-name: rpsPaperSlot;
+}
+
+.library-card:hover .rps-emoji-scissors,
+.library-card:focus-within .rps-emoji-scissors,
+.library-card:active .rps-emoji-scissors,
+.big-game-card:hover .rps-emoji-scissors,
+.big-game-card:focus-within .rps-emoji-scissors,
+.big-game-card:active .rps-emoji-scissors,
+.carousel-card:hover .rps-emoji-scissors,
+.carousel-card:focus-within .rps-emoji-scissors,
+.carousel-card:active .rps-emoji-scissors,
+.weekly-game-card.is-active .rps-emoji-scissors {
+  animation-name: rpsScissorsSlot;
+}
+
+@keyframes rpsFistSlot {
+  0%, 18% { opacity: 1; transform: scale(1) rotate(0deg); }
+  24%, 30% { opacity: 0; transform: translateX(-8px) scale(0.72) rotate(-12deg); }
+  31%, 100% { opacity: 0; transform: translateX(-8px) scale(0.72) rotate(-12deg); }
+}
+
+@keyframes rpsPaperSlot {
+  0%, 29% { opacity: 0; transform: translateX(8px) scale(0.72) rotate(12deg); }
+  35%, 52% { opacity: 1; transform: translateX(0) scale(1.05) rotate(3deg); }
+  58%, 64% { opacity: 0; transform: translateX(-8px) scale(0.72) rotate(-12deg); }
+  65%, 100% { opacity: 0; transform: translateX(-8px) scale(0.72) rotate(-12deg); }
+}
+
+@keyframes rpsScissorsSlot {
+  0%, 63% { opacity: 0; transform: translateX(8px) scale(0.72) rotate(12deg); }
+  69%, 100% { opacity: 1; transform: translateX(0) scale(1.05) rotate(-3deg); }
+}
+
+.library-card:hover .dice-cube,
+.library-card:focus-within .dice-cube,
+.library-card:active .dice-cube,
+.big-game-card:hover .dice-cube,
+.big-game-card:focus-within .dice-cube,
+.big-game-card:active .dice-cube,
+.carousel-card:hover .dice-cube,
+.carousel-card:focus-within .dice-cube,
+.carousel-card:active .dice-cube {
+  animation: weeklyDiceCubeRoll 1.7s cubic-bezier(0.25, 0.8, 0.3, 1) both;
+}
+
+.library-card:hover .snake-segment,
+.library-card:hover .snake-head,
+.big-game-card:hover .snake-segment,
+.big-game-card:hover .snake-head,
+.carousel-card:hover .snake-segment,
+.carousel-card:hover .snake-head,
+.library-card:focus-within .snake-segment,
+.library-card:focus-within .snake-head,
+.big-game-card:focus-within .snake-segment,
+.big-game-card:focus-within .snake-head,
+.carousel-card:focus-within .snake-segment,
+.carousel-card:focus-within .snake-head {
+  animation: weeklySnakeBodyWave 1.15s ease-in-out infinite;
+}
+
+.library-card:hover .tic-tac-logo-x,
+.big-game-card:hover .tic-tac-logo-x,
+.carousel-card:hover .tic-tac-logo-x,
+.library-card:focus-within .tic-tac-logo-x,
+.big-game-card:focus-within .tic-tac-logo-x,
+.carousel-card:focus-within .tic-tac-logo-x {
+  stroke-dasharray: 1;
+  animation: weeklyStrokeDraw 0.45s ease-out both;
+}
+
+.library-card:hover .ladder-coil-3d,
+.big-game-card:hover .ladder-coil-3d,
+.carousel-card:hover .ladder-coil-3d,
+.library-card:focus-within .ladder-coil-3d,
+.big-game-card:focus-within .ladder-coil-3d,
+.carousel-card:focus-within .ladder-coil-3d {
+  animation: weeklySnakeHeadTurn 1.35s ease-in-out infinite;
+}
+
+.library-card:hover .memory-card-flip,
+.big-game-card:hover .memory-card-flip,
+.carousel-card:hover .memory-card-flip,
+.library-card:focus-within .memory-card-flip,
+.big-game-card:focus-within .memory-card-flip,
+.carousel-card:focus-within .memory-card-flip {
+  animation: weeklyMemoryFlip3D 2.4s cubic-bezier(0.3, 0.7, 0.3, 1) infinite;
+}
