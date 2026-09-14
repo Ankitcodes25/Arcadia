@@ -1185,7 +1185,7 @@ button {
   width: min(1400px, calc(100% - 96px));
 
   margin:
-    0 auto 110px;
+    0 auto 60px;
 }
 
 .section-heading {
@@ -1320,14 +1320,6 @@ button {
     rgba(174, 61, 255, 0.20);
 
   filter: blur(22px);
-}
-
-.game-number {
-  color: #765b89;
-
-  font-size: 12px;
-
-  font-weight: 850;
 }
 
 .big-game-icon {
@@ -2180,5 +2172,778 @@ footer p {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* =========================================================
+   CONTINUE PLAYING
+   ========================================================= */
+
+.continue-playing {
+  position: relative;
+  z-index: 2;
+  width: min(1400px, calc(100% - 96px));
+  margin: 18px auto 85px;
+}
+
+.continue-playing-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.continue-playing-label {
+  display: inline-block;
+  color: #bd62ff;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 3px;
+}
+
+.continue-playing-heading h2 {
+  margin: 8px 0 0;
+  color: #fff;
+  font-size: 36px;
+  font-weight: 850;
+  line-height: 1;
+  letter-spacing: -1.5px;
+}
+
+.continue-playing-heading p {
+  margin: 9px 0 0;
+  color: #91829d;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.continue-playing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.continue-game-card {
+  --card-border: rgba(255, 255, 255, 0.09);
+  position: relative;
+  min-height: 245px;
+  padding: 25px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  border-radius: 24px;
+  background: linear-gradient(145deg, #35105d, #1b092d);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.04);
+  transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.continue-game-card:hover {
+  transform: translateY(-7px);
+  border-color: rgba(201, 112, 255, 0.35);
+  box-shadow: 0 25px 65px rgba(0, 0, 0, 0.35), 0 0 30px rgba(137, 47, 255, 0.12);
+}
+
+.continue-game-glow {
+  position: absolute;
+  width: 230px;
+  height: 230px;
+  right: -80px;
+  top: -80px;
+  border-radius: 50%;
+  background: rgba(174, 61, 255, 0.20);
+  filter: blur(22px);
+  pointer-events: none;
+}
+
+.continue-game-top {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.continue-game-category {
+  color: #b879d2;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+/* RECENTLY PLAYED TAG */
+.continue-game-status {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 6px 12px;
+  border: 1px solid rgba(201, 112, 255, 0.55);
+  border-radius: 999px;
+  background: rgba(166, 67, 239, 0.28);
+  color: #f0d9ff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  line-height: 1;
+  box-shadow: 0 0 14px rgba(174, 69, 255, 0.35), inset 0 1px rgba(255, 255, 255, 0.15);
+}
+
+.continue-game-main {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 25px;
+}
+
+.continue-game-art {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  flex: 0 0 68px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 19px;
+  background: linear-gradient(145deg, rgba(117, 41, 180, 0.7), rgba(38, 13, 71, 0.85));
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
+  perspective: 300px;
+  overflow: visible;
+}
+
+.continue-game-art .game-logo,
+.continue-game-art .game-mark,
+.continue-game-art .ladder-3d-wrap,
+.continue-game-art .dice-cube-scene,
+.continue-game-art .rps-emoji-logo {
+  transform-style: preserve-3d;
+}
+
+/* Use the exact All Games animation keyframes on Continue cards. */
+.continue-game-art .dice-cube {
+  animation: weeklyDiceCubeRoll 3s cubic-bezier(0.25, 0.8, 0.3, 1) infinite;
+}
+
+.continue-game-art .dice-pip {
+  animation: weeklyDicePipFlash 3s ease-out infinite;
+}
+
+.continue-game-art .snake-segment,
+.continue-game-art .snake-head {
+  animation: weeklySnakeBodyWave 1.15s ease-in-out infinite;
+}
+
+.continue-game-art .snake-segment-two { animation-delay: -0.12s; }
+.continue-game-art .snake-segment-three { animation-delay: -0.24s; }
+.continue-game-art .snake-segment-four { animation-delay: -0.36s; }
+.continue-game-art .snake-segment-five { animation-delay: -0.48s; }
+
+.continue-game-art .snake-head::before {
+  animation: weeklySnakeTongueFlick 1.6s ease-in-out 0.05s infinite;
+}
+
+.continue-game-art .tic-tac-logo-x1,
+.continue-game-art .tic-tac-logo-x2,
+.continue-game-art .tic-tac-logo-x3,
+.continue-game-art .tic-tac-logo-winline {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+}
+
+.continue-game-art .tic-tac-logo-x1 { animation: ticTacX1 7s ease-in-out infinite; }
+.continue-game-art .tic-tac-logo-x2 { animation: ticTacX2 7s ease-in-out infinite; }
+.continue-game-art .tic-tac-logo-x3 { animation: ticTacX3 7s ease-in-out infinite; }
+.continue-game-art .tic-tac-logo-winline { animation: ticTacWin 7s ease-in-out infinite; }
+
+.continue-game-art .ladder-logo-shape {
+  animation: weeklyLadderSway 2.6s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.continue-game-art .ladder-coil-3d {
+  animation: weeklySnakeHeadTurn 1.35s ease-in-out infinite;
+}
+
+.continue-game-art .ladder-coil-bead,
+.continue-game-art .ladder-coil-head {
+  animation: weeklyLadderSnakeMove 1.35s ease-in-out infinite;
+}
+
+.continue-game-art .ladder-coil-bead:nth-child(2) { animation-delay: -0.12s; }
+.continue-game-art .ladder-coil-bead:nth-child(3) { animation-delay: -0.24s; }
+.continue-game-art .ladder-coil-bead:nth-child(4) { animation-delay: -0.36s; }
+.continue-game-art .ladder-coil-bead:nth-child(5) { animation-delay: -0.48s; }
+.continue-game-art .ladder-coil-bead:nth-child(6) { animation-delay: -0.60s; }
+.continue-game-art .ladder-coil-bead:nth-child(7) { animation-delay: -0.72s; }
+.continue-game-art .ladder-coil-bead:nth-child(8) { animation-delay: -0.84s; }
+.continue-game-art .ladder-coil-bead:nth-child(9) { animation-delay: -0.96s; }
+.continue-game-art .ladder-coil-head { animation-delay: -1.08s; }
+
+.continue-game-art .memory-card-flip {
+  animation: weeklyMemoryFlip3D 2.4s cubic-bezier(0.3, 0.7, 0.3, 1) infinite;
+}
+
+.continue-game-art .rps-emoji-logo > span {
+  animation-duration: 3s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.continue-game-art .rps-emoji-fist { animation-name: rpsFistSlot; }
+.continue-game-art .rps-emoji-paper { animation-name: rpsPaperSlot; }
+.continue-game-art .rps-emoji-scissors { animation-name: rpsScissorsSlot; }
+
+.continue-game-info {
+  min-width: 0;
+}
+
+.continue-game-info h3 {
+  margin: 0 0 8px;
+  color: #fff;
+  font-size: 27px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.continue-game-info p {
+  margin: 0;
+  color: #9788a5;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.continue-game-progress {
+  position: relative;
+  z-index: 2;
+  margin-top: 25px;
+}
+
+.continue-progress-track {
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.continue-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #a743f2, #c46aff, #d98aff);
+  box-shadow: 0 0 12px rgba(174, 69, 255, 0.55);
+  transform-origin: left center;
+  animation: continueProgressReveal 0.8s cubic-bezier(0.22, 0.8, 0.25, 1) both;
+}
+
+.continue-game-footer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.continue-game-button {
+  min-height: 42px;
+  padding: 0 20px;
+  border: 1px solid rgba(237, 199, 255, 0.72);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #c46aff, #7c35df);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 8px 20px rgba(142, 50, 232, 0.28), inset 0 1px rgba(255, 255, 255, 0.3);
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.continue-game-button span {
+  margin-left: 8px;
+  color: #fff;
+  transition: transform 0.2s ease;
+}
+
+.continue-game-button:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #d98aff, #914cff);
+  box-shadow: 0 11px 25px rgba(174, 69, 255, 0.42), inset 0 1px rgba(255, 255, 255, 0.4);
+}
+
+.continue-game-button:hover span {
+  transform: translateX(3px);
+}
+
+@keyframes continueProgressReveal {
+  from {
+    transform: scaleX(0);
+    opacity: 0.3;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+/* =========================================================
+   POPULAR — GAME LOGO BOX
+   ========================================================= */
+
+.big-game-icon.unified-game-logo {
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  margin: 30px 0 22px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 19px;
+  background: linear-gradient(145deg, rgba(117, 41, 180, 0.7), rgba(38, 13, 71, 0.85));
+  font-size: 35px;
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
+  perspective: 300px;
+  overflow: visible;
+}
+
+.big-game-icon.unified-game-logo .game-logo,
+.big-game-icon.unified-game-logo .game-mark,
+.big-game-icon.unified-game-logo .ladder-3d-wrap,
+.big-game-icon.unified-game-logo .dice-cube-scene,
+.big-game-icon.unified-game-logo .rps-emoji-logo {
+  transform-style: preserve-3d;
+}
+
+@media (max-width: 1100px) {
+  .continue-playing {
+    width: calc(100% - 56px);
+  }
+}
+
+@media (max-width: 700px) {
+  .continue-playing {
+    width: calc(100% - 32px);
+    margin-top: 10px;
+    margin-bottom: 75px;
+  }
+
+  .continue-playing-heading {
+    margin-bottom: 20px;
+  }
+
+  .continue-playing-heading h2 {
+    font-size: 30px;
+  }
+
+  .continue-playing-heading p {
+    font-size: 12px;
+  }
+
+  .continue-playing-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .continue-game-card {
+    min-height: 225px;
+    padding: 20px;
+    border-radius: 21px;
+  }
+
+  .continue-game-main {
+    gap: 15px;
+    margin-top: 21px;
+  }
+
+  .continue-game-art,
+  .big-game-icon.unified-game-logo {
+    width: 64px;
+    height: 64px;
+    flex-basis: 64px;
+    border-radius: 18px;
+  }
+
+  .continue-game-info h3 {
+    font-size: 21px;
+  }
+
+  .continue-game-info p {
+    font-size: 11px;
+  }
+
+  .continue-game-progress {
+    margin-top: 21px;
+  }
+
+  .continue-game-footer {
+    margin-top: 16px;
+  }
+
+  .continue-game-button {
+    min-height: 39px;
+    padding: 0 15px;
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .continue-progress-fill,
+  .continue-game-art .dice-cube,
+  .continue-game-art .dice-pip,
+  .continue-game-art .snake-segment,
+  .continue-game-art .snake-head,
+  .continue-game-art .snake-head::before,
+  .continue-game-art .tic-tac-logo-x1,
+  .continue-game-art .tic-tac-logo-x2,
+  .continue-game-art .tic-tac-logo-x3,
+  .continue-game-art .tic-tac-logo-winline,
+  .continue-game-art .ladder-logo-shape,
+  .continue-game-art .ladder-coil-3d,
+  .continue-game-art .ladder-coil-bead,
+  .continue-game-art .ladder-coil-head,
+  .continue-game-art .memory-card-flip,
+  .continue-game-art .rps-emoji-logo > span {
+    animation: none !important;
+  }
+}
+
+/* =========================================================
+   DAILY CHALLENGE
+========================================================= */
+
+.daily-challenge {
+  position: relative;
+  z-index: 2;
+  width: min(1400px, calc(100% - 96px));
+  margin: 18px auto 85px;
+}
+
+.daily-challenge-heading {
+  margin-bottom: 18px;
+}
+
+.daily-challenge-kicker {
+  display: inline-block;
+  color: #bd62ff;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 3px;
+}
+
+.daily-challenge-heading h2 {
+  margin: 8px 0 0;
+  color: #fff;
+  font-size: 36px;
+  font-weight: 850;
+  line-height: 1;
+  letter-spacing: -1.5px;
+}
+
+.daily-challenge-card {
+  position: relative;
+  padding: 32px 36px;
+  overflow: hidden;
+  border: 1px solid rgba(201, 112, 255, 0.35);
+  border-radius: 27px;
+  background: linear-gradient(120deg, #3d1466, #1b092d 70%);
+  box-shadow: 0 25px 65px rgba(0, 0, 0, 0.35), 0 0 40px rgba(174, 69, 255, 0.18);
+}
+
+.daily-challenge-glow {
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  right: -100px;
+  top: -130px;
+  border-radius: 50%;
+  background: rgba(196, 106, 255, 0.28);
+  filter: blur(40px);
+  pointer-events: none;
+}
+
+.daily-challenge-top {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.daily-challenge-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 207, 116, 0.55);
+  border-radius: 999px;
+  background: rgba(255, 190, 80, 0.12);
+  color: #ffcf74;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 1.5px;
+  box-shadow: 0 0 14px rgba(255, 190, 80, 0.25);
+}
+
+.daily-challenge-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px 7px 10px;
+  border: 1px solid rgba(233, 106, 255, 0.4);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(196, 106, 255, 0.22), rgba(124, 53, 223, 0.16));
+  color: #e9d3ff;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 0 16px rgba(196, 106, 255, 0.28), inset 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.daily-challenge-timer-icon {
+  font-size: 13px;
+  filter: drop-shadow(0 0 6px rgba(255, 207, 116, 0.7));
+  animation: dailyTimerTick 1.8s ease-in-out infinite;
+}
+
+.daily-challenge-timer-value {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 10px rgba(196, 106, 255, 0.35);
+}
+
+@keyframes dailyTimerTick {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-12deg); }
+  75% { transform: rotate(12deg); }
+}
+
+.daily-challenge-main {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-top: 22px;
+  flex-wrap: wrap;
+}
+
+.daily-challenge-art {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  flex: 0 0 84px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(117, 41, 180, 0.75), rgba(38, 13, 71, 0.9));
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25);
+  perspective: 300px;
+  overflow: visible;
+}
+
+.daily-challenge-art .game-logo,
+.daily-challenge-art .game-mark,
+.daily-challenge-art .ladder-3d-wrap,
+.daily-challenge-art .dice-cube-scene,
+.daily-challenge-art .rps-emoji-logo {
+  transform-style: preserve-3d;
+}
+
+/* Reuse the exact All Games animation keyframes on the Daily Challenge icon. */
+.daily-challenge-art .dice-cube {
+  animation: weeklyDiceCubeRoll 3s cubic-bezier(0.25, 0.8, 0.3, 1) infinite;
+}
+
+.daily-challenge-art .dice-pip {
+  animation: weeklyDicePipFlash 3s ease-out infinite;
+}
+
+.daily-challenge-art .snake-segment,
+.daily-challenge-art .snake-head {
+  animation: weeklySnakeBodyWave 1.15s ease-in-out infinite;
+}
+
+.daily-challenge-art .snake-segment-two { animation-delay: -0.12s; }
+.daily-challenge-art .snake-segment-three { animation-delay: -0.24s; }
+.daily-challenge-art .snake-segment-four { animation-delay: -0.36s; }
+.daily-challenge-art .snake-segment-five { animation-delay: -0.48s; }
+
+.daily-challenge-art .snake-head::before {
+  animation: weeklySnakeTongueFlick 1.6s ease-in-out 0.05s infinite;
+}
+
+.daily-challenge-art .tic-tac-logo-x1,
+.daily-challenge-art .tic-tac-logo-x2,
+.daily-challenge-art .tic-tac-logo-x3,
+.daily-challenge-art .tic-tac-logo-winline {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+}
+
+.daily-challenge-art .tic-tac-logo-x1 { animation: ticTacX1 7s ease-in-out infinite; }
+.daily-challenge-art .tic-tac-logo-x2 { animation: ticTacX2 7s ease-in-out infinite; }
+.daily-challenge-art .tic-tac-logo-x3 { animation: ticTacX3 7s ease-in-out infinite; }
+.daily-challenge-art .tic-tac-logo-winline { animation: ticTacWin 7s ease-in-out infinite; }
+
+.daily-challenge-art .ladder-logo-shape {
+  animation: weeklyLadderSway 2.6s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.daily-challenge-art .ladder-coil-3d {
+  animation: weeklySnakeHeadTurn 1.35s ease-in-out infinite;
+}
+
+.daily-challenge-art .ladder-coil-bead,
+.daily-challenge-art .ladder-coil-head {
+  animation: weeklyLadderSnakeMove 1.35s ease-in-out infinite;
+}
+
+.daily-challenge-art .ladder-coil-bead:nth-child(2) { animation-delay: -0.12s; }
+.daily-challenge-art .ladder-coil-bead:nth-child(3) { animation-delay: -0.24s; }
+.daily-challenge-art .ladder-coil-bead:nth-child(4) { animation-delay: -0.36s; }
+.daily-challenge-art .ladder-coil-bead:nth-child(5) { animation-delay: -0.48s; }
+.daily-challenge-art .ladder-coil-bead:nth-child(6) { animation-delay: -0.60s; }
+.daily-challenge-art .ladder-coil-bead:nth-child(7) { animation-delay: -0.72s; }
+.daily-challenge-art .ladder-coil-bead:nth-child(8) { animation-delay: -0.84s; }
+.daily-challenge-art .ladder-coil-bead:nth-child(9) { animation-delay: -0.96s; }
+.daily-challenge-art .ladder-coil-head { animation-delay: -1.08s; }
+
+.daily-challenge-art .memory-card-flip {
+  animation: weeklyMemoryFlip3D 2.4s cubic-bezier(0.3, 0.7, 0.3, 1) infinite;
+}
+
+.daily-challenge-art .rps-emoji-logo > span {
+  animation-duration: 3s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.daily-challenge-art .rps-emoji-fist { animation-name: rpsFistSlot; }
+.daily-challenge-art .rps-emoji-paper { animation-name: rpsPaperSlot; }
+.daily-challenge-art .rps-emoji-scissors { animation-name: rpsScissorsSlot; }
+
+.daily-challenge-info {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.daily-challenge-category {
+  color: #b879d2;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.daily-challenge-info h3 {
+  margin: 6px 0 6px;
+  color: #fff;
+  font-size: 26px;
+  font-weight: 850;
+  line-height: 1.1;
+}
+
+.daily-challenge-info p {
+  margin: 0;
+  color: #c9b8d6;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.daily-challenge-button {
+  flex: 0 0 auto;
+  min-height: 46px;
+  padding: 0 24px;
+  border: 1px solid rgba(237, 199, 255, 0.72);
+  border-radius: 13px;
+  background: linear-gradient(135deg, #c46aff, #7c35df);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 8px 20px rgba(142, 50, 232, 0.28), inset 0 1px rgba(255, 255, 255, 0.3);
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+
+.daily-challenge-button span {
+  display: inline-block;
+  margin-left: 8px;
+  transition: transform 0.2s ease;
+}
+
+.daily-challenge-button:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #d98aff, #914cff);
+  box-shadow: 0 11px 25px rgba(174, 69, 255, 0.42), inset 0 1px rgba(255, 255, 255, 0.4);
+}
+
+.daily-challenge-button:hover span {
+  transform: translateX(3px);
+}
+
+@media (max-width: 1100px) {
+  .daily-challenge {
+    width: calc(100% - 56px);
+  }
+}
+
+@media (max-width: 700px) {
+  .daily-challenge {
+    width: calc(100% - 32px);
+  }
+
+  .daily-challenge-card {
+    padding: 24px 22px;
+    border-radius: 21px;
+  }
+
+  .daily-challenge-main {
+    gap: 16px;
+  }
+
+  .daily-challenge-art {
+    width: 64px;
+    height: 64px;
+    flex-basis: 64px;
+    border-radius: 18px;
+  }
+
+  .daily-challenge-info h3 {
+    font-size: 21px;
+  }
+
+  .daily-challenge-button {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daily-challenge-timer-icon,
+  .daily-challenge-art .dice-pip,
+  .daily-challenge-art .snake-segment,
+  .daily-challenge-art .snake-head,
+  .daily-challenge-art .snake-head::before,
+  .daily-challenge-art .tic-tac-logo-x1,
+  .daily-challenge-art .tic-tac-logo-x2,
+  .daily-challenge-art .tic-tac-logo-x3,
+  .daily-challenge-art .tic-tac-logo-winline,
+  .daily-challenge-art .ladder-logo-shape,
+  .daily-challenge-art .ladder-coil-3d,
+  .daily-challenge-art .ladder-coil-bead,
+  .daily-challenge-art .ladder-coil-head,
+  .daily-challenge-art .memory-card-flip,
+  .daily-challenge-art .rps-emoji-logo > span {
+    animation: none !important;
   }
 }

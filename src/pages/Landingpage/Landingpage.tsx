@@ -2,8 +2,10 @@ import Footer from "../../components/Footer";
 import { games } from "./gameData";
 import HeroSection from "./Sections/HeroSection";
 import PopularGames from "./Sections/PopularGames";
-import AllGames from "./Sections/AllGames";
+//import AllGames from "./Sections/AllGames";
 import BottomCta from "./Sections/BottomCta";
+import ContinuePlaying from "./Sections/ContinuePlaying";
+import DailyChallenge from "./Sections/DailyChallenge";
 
 function LandingPage() {
   return (
@@ -15,6 +17,8 @@ function LandingPage() {
         <HeroSection games={games} />
         <PopularGames games={games} />
         {/* <AllGames games={games} /> */}
+        <ContinuePlaying />
+        <DailyChallenge games={games} />
         <BottomCta />
       </main>
       <Footer />
