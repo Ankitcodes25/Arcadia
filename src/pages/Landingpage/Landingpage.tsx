@@ -6,6 +6,7 @@ import PopularGames from "./Sections/PopularGames";
 import BottomCta from "./Sections/BottomCta";
 import ContinuePlaying from "./Sections/ContinuePlaying";
 import DailyChallenge from "./Sections/DailyChallenge";
+import Arcadion from "./Sections/Arcadion";
 
 function LandingPage() {
   return (
@@ -18,6 +19,7 @@ function LandingPage() {
         <PopularGames games={games} />
         {/* <AllGames games={games} /> */}
         <ContinuePlaying />
+        <Arcadion />
         <DailyChallenge games={games} />
         <BottomCta />
       </main>
