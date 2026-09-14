@@ -14,3 +14,23 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+
+## Backend (optional local)
+
+The project includes a minimal Express backend for JWT-based auth at `backend/`.
+
+Quick start:
+
+```bash
+cd backend
+npm install
+cp .env.example .env
+# edit .env to set JWT_SECRET
+npm run dev
+```
+
+Endpoints:
+- `POST /auth/register` { email, password, name }
+- `POST /auth/login` { email, password }
+- `GET /auth/me` (Bearer token required)
