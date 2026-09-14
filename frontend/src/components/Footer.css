@@ -1,0 +1,59 @@
+.footer-logo {
+	position: relative;
+	width: 28px;
+	height: 28px;
+	border-radius: 10px;
+	isolation: isolate;
+}
+
+.footer-logo img {
+	position: relative;
+	z-index: 2;
+	display: block;
+	width: 28px;
+	height: 28px;
+	border-radius: 10px;
+	filter: drop-shadow(0 6px 12px rgba(115, 42, 255, 0.24));
+}
+
+.footer-ray {
+	position: absolute;
+	inset: -4px;
+	z-index: 1;
+	padding: 2px;
+	border-radius: 12px;
+	pointer-events: none;
+	background: conic-gradient(
+		from 0deg,
+		transparent 0deg 42deg,
+		rgba(177, 76, 255, 0.25) 48deg,
+		rgba(255, 255, 255, 1) 55deg,
+		rgba(90, 220, 255, 1) 63deg,
+		rgba(177, 76, 255, 0.65) 72deg,
+		transparent 82deg 360deg
+	);
+	animation: footerLogoRay 2.4s linear infinite;
+	transform-origin: center;
+	will-change: transform;
+	filter:
+		drop-shadow(0 0 5px rgba(190, 85, 255, 0.95))
+		drop-shadow(0 0 12px rgba(129, 65, 255, 0.65));
+	-webkit-mask:
+		linear-gradient(#000 0 0) content-box,
+		linear-gradient(#000 0 0);
+	-webkit-mask-composite: xor;
+	mask:
+		linear-gradient(#000 0 0) content-box,
+		linear-gradient(#000 0 0);
+	mask-composite: exclude;
+}
+
+@keyframes footerLogoRay {
+	from {
+		transform: rotate(0deg);
+	}
+
+	to {
+		transform: rotate(360deg);
+	}
+}
