@@ -76,13 +76,6 @@ function getResetTokenIdentifier(req) {
   return `reset:${typeof body.token === 'string' ? body.token : 'missing'}`;
 }
 
-function getVerificationTokenIdentifier(req) {
-  const query = req.query && typeof req.query === 'object' ? req.query : {};
-  const body = req.body && typeof req.body === 'object' ? req.body : {};
-  const token = typeof query.token === 'string' ? query.token : body.token;
-  return `verification:${typeof token === 'string' ? token : 'missing'}`;
-}
-
 function hashRateLimitKey(scope, identifier, windowStart) {
   return crypto
     .createHmac('sha256', jwtSecret)
@@ -188,14 +181,6 @@ const policies = Object.freeze({
   logoutAll: [
     { scope: 'auth:logout-all:user', limit: 10, windowMs: 15 * MINUTE_MS, identifier: getUserIdentifier },
   ],
-  verifyEmail: [
-    { scope: 'auth:verify-email:ip', limit: 60, windowMs: HOUR_MS, identifier: getIpIdentifier },
-    { scope: 'auth:verify-email:token', limit: 30, windowMs: HOUR_MS, identifier: getVerificationTokenIdentifier },
-  ],
-  resendVerification: [
-    { scope: 'auth:resend-verification:ip', limit: 30, windowMs: HOUR_MS, identifier: getIpIdentifier },
-    { scope: 'auth:resend-verification:email', limit: 5, windowMs: HOUR_MS, identifier: getEmailIdentifier },
-  ],
   forgotPassword: [
     { scope: 'auth:forgot-password:ip', limit: 30, windowMs: HOUR_MS, identifier: getIpIdentifier },
     { scope: 'auth:forgot-password:email', limit: 5, windowMs: HOUR_MS, identifier: getEmailIdentifier },
@@ -229,6 +214,14 @@ const policies = Object.freeze({
   sessionManagement: [
     { scope: 'account:sessions:ip', limit: 120, windowMs: 15 * MINUTE_MS, identifier: getIpIdentifier },
     { scope: 'account:sessions:user', limit: 60, windowMs: 15 * MINUTE_MS, identifier: getUserIdentifier },
+  ],
+  preferences: [
+    { scope: 'account:preferences:ip', limit: 120, windowMs: 15 * MINUTE_MS, identifier: getIpIdentifier },
+    { scope: 'account:preferences:user', limit: 60, windowMs: 15 * MINUTE_MS, identifier: getUserIdentifier },
+  ],
+  accountDeletion: [
+    { scope: 'account:delete:ip', limit: 10, windowMs: HOUR_MS, identifier: getIpIdentifier },
+    { scope: 'account:delete:user', limit: 5, windowMs: HOUR_MS, identifier: getUserIdentifier },
   ],
   adminMutation: [
     { scope: 'admin:mutation:ip', limit: 120, windowMs: 15 * MINUTE_MS, identifier: getIpIdentifier },

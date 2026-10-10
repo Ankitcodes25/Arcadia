@@ -5,7 +5,6 @@ const { User } = require('./models/User');
 const { Session } = require('./models/Session');
 const { OAuthState } = require('./models/OAuthState');
 const { OAuthHandoff } = require('./models/OAuthHandoff');
-const { EmailVerificationToken } = require('./models/EmailVerificationToken');
 const { PasswordResetToken } = require('./models/PasswordResetToken');
 const { RateLimitBucket } = require('./models/RateLimitBucket');
 const { AdminMutationLock } = require('./models/AdminMutationLock');
@@ -40,13 +39,12 @@ async function startServer({ port = env.port, mongoUri = env.mongoUri } = {}) {
   await Session.init();
   await OAuthState.init();
   await OAuthHandoff.init();
-  await EmailVerificationToken.init();
   await PasswordResetToken.init();
   await RateLimitBucket.init();
   await AdminMutationLock.init();
 
   if (!isEmailConfigured()) {
-    console.warn('Transactional email delivery is disabled; configure SMTP before using verification or password-reset links.');
+    console.warn('Transactional email delivery is disabled; configure SMTP before sending password-reset links.');
   }
   if (!isGoogleOAuthConfigured()) {
     console.warn('Google OAuth is not configured; set the four server-side Google OAuth variables before using Google sign-in.');

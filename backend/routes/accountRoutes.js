@@ -15,6 +15,21 @@ router.use(authMiddleware);
 router.get('/profile', controller.getProfile);
 // GET /api/v1/account/settings
 router.get('/settings', controller.getSettings);
+// GET /api/v1/account/preferences
+// Sound and privacy preferences. Distinct from /settings, which is the account
+// profile read and stays read-only.
+router.get('/preferences', ...rateLimits.preferences, controller.getPreferences);
+// PATCH /api/v1/account/preferences
+// A partial write: only the keys that were sent are validated and applied.
+router.patch('/preferences', ...rateLimits.preferences, controller.updatePreferences);
+// POST /api/v1/account/preferences/reset
+// Writes the canonical defaults back and returns them. Preferences only:
+// identity, XP and match history are outside this endpoint by design.
+router.post('/preferences/reset', ...rateLimits.preferences, controller.resetPreferences);
+// DELETE /api/v1/account
+// Permanent account deletion. Requires the typed confirmation word plus
+// password re-authentication (Google-only accounts: typed confirmation only).
+router.delete('/', ...rateLimits.accountDeletion, controller.deleteAccount);
 // GET /api/v1/account/matches
 // The signed-in account's own completed matches. Read only: there is no route
 // that creates a match, so a client cannot report a result.

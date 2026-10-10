@@ -152,28 +152,6 @@ async function sendWelcomeBackEmail({ to, displayName }) {
   }
 }
 
-async function sendVerificationEmail({ to, token }) {
-  const config = getEmailConfig();
-  if (!config.configured) {
-    return { sent: false, reason: config.reason };
-  }
-
-  const link = buildActionUrl(
-    config.verificationUrl,
-    'verification_token',
-    token,
-  );
-  const safeLink = escapeHtml(link);
-  const expiryText = 'This verification link expires in 24 hours.';
-
-  return deliverEmail({
-    to,
-    subject: 'Verify your Arcadia email',
-    text: `Verify your Arcadia email by opening this link: ${link}\n\n${expiryText}`,
-    html: `<div style="font-family:Arial,sans-serif;background:#0b0316;color:#f5e7fa;padding:32px"><h1 style="color:#e06cff">ARCADIA</h1><p>Verify your email to secure your Arcadia account.</p><p><a href="${safeLink}" style="color:#e06cff">Verify email</a></p><p>${expiryText}</p></div>`,
-  });
-}
-
 async function sendPasswordResetEmail({ to, token }) {
   const config = getEmailConfig();
   if (!config.configured) {
@@ -199,7 +177,6 @@ async function sendPasswordResetEmail({ to, token }) {
 module.exports = {
   sendWelcomeEmail,
   sendWelcomeBackEmail,
-  sendVerificationEmail,
   sendPasswordResetEmail,
   setEmailTransportForTests,
   resetEmailTransportForTests,

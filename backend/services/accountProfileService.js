@@ -34,6 +34,11 @@ const {
   hashRefreshToken,
 } = require('../utils/refreshToken');
 const { revokeAllRefreshSessions } = require('./refreshSessionService');
+const {
+  getPreferences,
+  resolvePreferenceUpdates,
+  PREFERENCE_DEFAULTS,
+} = require('../utils/preferences');
 
 const USERNAME_CHANGE_COOLDOWN_MS = 60 * 1000;
 
@@ -78,6 +83,78 @@ async function getProfile(userId) {
 
 async function getSettings(userId) {
   return getProfile(userId);
+}
+
+/*
+ * The preferences resource.
+ *
+ * Every read goes through `getPreferences`, which re-validates each stored
+ * value against the canonical defaults, so a document written before the
+ * field existed — or corrupted in between — still answers with a legal
+ * preference set. Nothing here is derived on the client, and the privacy
+ * values are enforced by the same helpers the rest of the backend reads from,
+ * so the stored value and the enforced behaviour can never disagree.
+ */
+async function getAccountPreferences(userId) {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw createError('Account not found', 404);
+  }
+
+  return getPreferences(user);
+}
+
+/*
+ * A partial preference write: only the keys that were sent are validated and
+ * applied, in one update, so a rejected key leaves the stored set untouched.
+ */
+async function updateAccountPreferences({ userId, body }) {
+  const resolved = resolvePreferenceUpdates(body);
+  if (resolved.error) {
+    throw createError(resolved.error, 400);
+  }
+
+  const { updates } = resolved;
+  const guard = { _id: userId, status: ACCOUNT_STATUSES.ACTIVE };
+  const setDoc = {};
+  for (const [key, value] of Object.entries(updates)) {
+    setDoc[`preferences.${key}`] = value;
+  }
+
+  const user = await User.findOneAndUpdate(
+    guard,
+    { $set: setDoc },
+    { returnDocument: 'after' },
+  );
+  if (!user) {
+    throw createError('Account not found', 404);
+  }
+
+  return getPreferences(user);
+}
+
+/*
+ * Reset writes the canonical defaults back and reports exactly what the
+ * backend now stores. Only preferences are touched: progression, identity,
+ * matches and every other account record are outside this endpoint by design.
+ */
+async function resetAccountPreferences(userId) {
+  const guard = { _id: userId, status: ACCOUNT_STATUSES.ACTIVE };
+  const setDoc = {};
+  for (const [key, value] of Object.entries(PREFERENCE_DEFAULTS)) {
+    setDoc[`preferences.${key}`] = value;
+  }
+
+  const user = await User.findOneAndUpdate(
+    guard,
+    { $set: setDoc },
+    { returnDocument: 'after' },
+  );
+  if (!user) {
+    throw createError('Account not found', 404);
+  }
+
+  return getPreferences(user);
 }
 
 async function checkUsernameAvailability(username) {
@@ -584,4 +661,7 @@ module.exports = {
   listSessions,
   revokeSession,
   logoutOtherSessions,
+  getAccountPreferences,
+  updateAccountPreferences,
+  resetAccountPreferences,
 };

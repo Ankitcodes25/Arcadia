@@ -280,7 +280,6 @@ async function findOrCreateGoogleUser(identity, req) {
           'google.email': identity.email,
           'google.pictureUrl': identity.pictureUrl || null,
           'google.linkedAt': now,
-          emailVerified: true,
           lastLoginAt: now,
           ...metadata,
         },
@@ -290,7 +289,6 @@ async function findOrCreateGoogleUser(identity, req) {
     linkedUser.google.email = identity.email;
     linkedUser.google.pictureUrl = identity.pictureUrl || null;
     linkedUser.google.linkedAt = now;
-    linkedUser.emailVerified = true;
     linkedUser.lastLoginAt = now;
     Object.assign(linkedUser, metadata);
     return { user: linkedUser, created: false };
@@ -317,7 +315,6 @@ async function findOrCreateGoogleUser(identity, req) {
         : { type: AVATAR_TYPES.LOCAL, value: DEFAULT_LOCAL_AVATAR_ID },
       role: USER_ROLES.USER,
       status: ACCOUNT_STATUSES.ACTIVE,
-      emailVerified: true,
       google: {
         provider: GOOGLE_PROVIDER,
         subject: identity.googleId,

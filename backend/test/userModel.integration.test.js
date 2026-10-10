@@ -33,11 +33,9 @@ let hashSecureToken;
 let REFRESH_COOKIE_NAME;
 let OAuthState;
 let OAuthHandoff;
-let EmailVerificationToken;
 let PasswordResetToken;
 let RateLimitBucket;
 let AdminMutationLock;
-let accountActionService;
 let accountProfileService;
 let emailService;
 let LOCAL_AVATAR_IDS;
@@ -80,6 +78,7 @@ let isValidOAuthHandoffCode;
 let OAUTH_STATE_COOKIE_NAME;
 let googleMockPayload;
 let googleMockRequests;
+let preferencesUtils;
 
 before(async () => {
   mongoServer = await MongoMemoryServer.create();
@@ -98,7 +97,6 @@ before(async () => {
   process.env.SMTP_PORT = '587';
   process.env.SMTP_USER = 'test-user';
   process.env.SMTP_PASSWORD = 'test-password';
-  process.env.FRONTEND_EMAIL_VERIFICATION_URL = 'http://localhost:5173/';
   process.env.FRONTEND_PASSWORD_RESET_URL = 'http://localhost:5173/';
 
   mongoose = require('mongoose');
@@ -117,12 +115,11 @@ before(async () => {
   ({ REFRESH_COOKIE_NAME } = require('../config/refreshCookie'));
   ({ OAuthState } = require('../models/OAuthState'));
   ({ OAuthHandoff } = require('../models/OAuthHandoff'));
-  ({ EmailVerificationToken } = require('../models/EmailVerificationToken'));
   ({ PasswordResetToken } = require('../models/PasswordResetToken'));
   ({ RateLimitBucket } = require('../models/RateLimitBucket'));
   ({ AdminMutationLock } = require('../models/AdminMutationLock'));
-  accountActionService = require('../services/accountActionService');
   accountProfileService = require('../services/accountProfileService');
+  preferencesUtils = require('../utils/preferences');
   ({ LOCAL_AVATAR_IDS } = require('../config/avatar'));
   ({ USERNAME_CHANGE_COOLDOWN_MS } = accountProfileService);
   ({
@@ -176,7 +173,6 @@ before(async () => {
   await Session.syncIndexes();
   await OAuthState.syncIndexes();
   await OAuthHandoff.syncIndexes();
-  await EmailVerificationToken.syncIndexes();
   await PasswordResetToken.syncIndexes();
   await RateLimitBucket.syncIndexes();
   await AdminMutationLock.syncIndexes();
@@ -196,7 +192,6 @@ beforeEach(async () => {
   await RateLimitBucket.deleteMany({});
   await AdminMutationLock.deleteMany({});
   await PasswordResetToken.deleteMany({});
-  await EmailVerificationToken.deleteMany({});
   await OAuthHandoff.deleteMany({});
   await OAuthState.deleteMany({});
   await Session.deleteMany({});
@@ -412,11 +407,6 @@ async function createBootstrapTestAuthRecords(user, email, suffix) {
     tokenHash: `bootstrap-reset-${suffix}`,
     expiresAt,
   });
-  const emailVerificationToken = await EmailVerificationToken.create({
-    userId: user._id,
-    tokenHash: `bootstrap-verification-${suffix}`,
-    expiresAt,
-  });
   const windowStart = Math.floor(Date.now() / (10 * 60 * 1000)) * (10 * 60 * 1000);
   const userRateLimit = await RateLimitBucket.create({
     keyHash: hashBootstrapTestRateLimitKey(
@@ -443,7 +433,6 @@ async function createBootstrapTestAuthRecords(user, email, suffix) {
     session,
     oauthHandoff,
     passwordResetToken,
-    emailVerificationToken,
     userRateLimit,
     emailRateLimit,
   };
@@ -453,26 +442,22 @@ async function assertBootstrapAuthRecordsExist(userId, records) {
   assert.ok(await Session.findById(records.session._id));
   assert.ok(await OAuthHandoff.findById(records.oauthHandoff._id));
   assert.ok(await PasswordResetToken.findById(records.passwordResetToken._id));
-  assert.ok(await EmailVerificationToken.findById(records.emailVerificationToken._id));
   assert.ok(await RateLimitBucket.findById(records.userRateLimit._id));
   assert.ok(await RateLimitBucket.findById(records.emailRateLimit._id));
   assert.equal(await Session.countDocuments({ userId }), 1);
   assert.equal(await OAuthHandoff.countDocuments({ userId }), 1);
   assert.equal(await PasswordResetToken.countDocuments({ userId }), 1);
-  assert.equal(await EmailVerificationToken.countDocuments({ userId }), 1);
 }
 
 async function assertBootstrapAuthRecordsDeleted(userId, records) {
   assert.equal(await Session.findById(records.session._id), null);
   assert.equal(await OAuthHandoff.findById(records.oauthHandoff._id), null);
   assert.equal(await PasswordResetToken.findById(records.passwordResetToken._id), null);
-  assert.equal(await EmailVerificationToken.findById(records.emailVerificationToken._id), null);
   assert.equal(await RateLimitBucket.findById(records.userRateLimit._id), null);
   assert.equal(await RateLimitBucket.findById(records.emailRateLimit._id), null);
   assert.equal(await Session.countDocuments({ userId }), 0);
   assert.equal(await OAuthHandoff.countDocuments({ userId }), 0);
   assert.equal(await PasswordResetToken.countDocuments({ userId }), 0);
-  assert.equal(await EmailVerificationToken.countDocuments({ userId }), 0);
 }
 
 function assertNoSensitiveFields(payload) {
@@ -484,8 +469,6 @@ function assertNoSensitiveFields(payload) {
     'refreshTokenHash',
     'resetToken',
     'resetTokenHash',
-    'verificationToken',
-    'verificationTokenHash',
     'GOOGLE_CLIENT_SECRET',
     'SMTP_PASSWORD',
     'JWT_SECRET',
@@ -679,7 +662,6 @@ test('does not select password hashes unless explicitly requested and safe seria
       'createdAt',
       'displayName',
       'email',
-      'emailVerified',
       'googleAvatarAvailable',
       'googleAvatarUrl',
       'id',
@@ -784,7 +766,6 @@ test('admin bootstrap replaces only the exact USER and all of its auth/security 
     passwordHash: 'old-user-password-hash',
     role: USER_ROLES.USER,
     status: ACCOUNT_STATUSES.ACTIVE,
-    emailVerified: true,
   });
   const oldUserId = oldUser._id;
   const targetRecords = await createBootstrapTestAuthRecords(oldUser, normalizedEmail, 'target');
@@ -1688,7 +1669,6 @@ test('verified Google identity creates a USER and completes through a one-time h
     assert.ok(user);
     assert.equal(user.role, USER_ROLES.USER);
     assert.equal(user.status, ACCOUNT_STATUSES.ACTIVE);
-    assert.equal(user.emailVerified, true);
     assert.equal(user.passwordHash, undefined);
     assert.equal(user.google.provider, 'GOOGLE');
     assert.equal(user.google.subject, 'google-subject-123');
@@ -1911,7 +1891,7 @@ test('password signup sends exactly one welcome email with the configured fronte
     assert.match(welcomeEmails[0].text, /ENTER ARCADIA → http:\/\/localhost:5173\//);
     assert.match(welcomeEmails[0].html, /WELCOME TO ARCADIA/);
     assert.equal(getEmailsWithSubject(WELCOME_BACK_SUBJECT).length, 0);
-    assert.equal(getEmailsWithSubject('Verify your Arcadia email').length, 1);
+    assert.equal(emailMessages.length, 1, 'signup sends only the welcome email');
   } finally {
     await stopHttpServer(server);
   }
@@ -1967,7 +1947,7 @@ test('new Google OAuth signup sends one welcome and no welcome-back email', asyn
     assert.equal(callback.response.status, 302);
     assert.equal(getEmailsWithSubject(WELCOME_SUBJECT).length, 1);
     assert.equal(getEmailsWithSubject(WELCOME_BACK_SUBJECT).length, 0);
-    assert.equal(getEmailsWithSubject('Verify your Arcadia email').length, 0);
+    assert.equal(emailMessages.length, 1, 'a Google signup sends only the welcome email');
     assert.equal(getEmailsWithSubject(WELCOME_SUBJECT)[0].to, 'oauth-user@example.com');
   } finally {
     await stopHttpServer(server);
@@ -2164,34 +2144,183 @@ test('failed Google authentication does not send a welcome email', async () => {
   }
 });
 
-test('registration creates an unverified account and stores only a verification-token hash', async () => {
+test('a freshly registered account is active immediately and needs no verification step', async () => {
   const server = await startHttpServer();
 
   try {
     const registered = await requestJson(server, '/api/v1/auth/register', {
       method: 'POST',
       body: {
-        name: 'Verify User',
+        name: 'Instant Player',
         email: 'verify-registration@example.com',
         password: 'verify-registration-password',
       },
     });
 
     assert.equal(registered.response.status, 201);
-    assert.equal(registered.body.user.emailVerified, false);
-    assert.equal(registered.body.verificationEmailSent, true);
+    assert.equal(registered.body.user.status, ACCOUNT_STATUSES.ACTIVE);
+
+    // No verification state of any kind rides along on the response.
+    assert.equal(registered.body.user.emailVerified, undefined);
+    assert.equal(registered.body.verificationEmailSent, undefined);
     assert.equal(registered.body.verificationToken, undefined);
 
-    const user = await User.findOne({ email: 'verify-registration@example.com' }).select('+passwordHash');
-    assert.equal(user.emailVerified, false);
-    assert.equal(user.passwordHash.includes('verify-registration-password'), false);
+    // Signup composes the welcome mail only; no verification email exists.
+    assert.equal(emailMessages.length, 1);
+    assert.equal(emailMessages[0].subject, WELCOME_SUBJECT);
 
-    const rawToken = getEmailToken(emailMessages[0], 'verification_token');
-    assert.ok(rawToken);
-    const stored = await EmailVerificationToken.findOne({ userId: user._id }).select('+tokenHash');
-    assert.equal(stored.tokenHash, hashSecureToken(rawToken));
-    assert.notEqual(stored.tokenHash, rawToken);
-    assert.equal(stored.toJSON().tokenHash, undefined);
+    // The stored document carries no verification fields at all.
+    const stored = await User.collection.findOne({ email: 'verify-registration@example.com' });
+    assert.ok(stored);
+    assert.equal(Object.hasOwn(stored, 'emailVerified'), false);
+    assert.equal(Object.hasOwn(stored, 'verificationEmailRequestedAt'), false);
+    assert.equal(stored.passwordHash.includes('verify-registration-password'), false);
+
+    // The session issued at signup already works, so there is nothing to wait for.
+    const me = await requestJson(server, '/api/v1/auth/me', {
+      headers: { authorization: `Bearer ${registered.body.token}` },
+    });
+    assert.equal(me.response.status, 200);
+
+    // And a brand-new login works straight away as well.
+    const loggedIn = await requestJson(server, '/api/v1/auth/login', {
+      method: 'POST',
+      body: {
+        email: 'verify-registration@example.com',
+        password: 'verify-registration-password',
+      },
+    });
+    assert.equal(loggedIn.response.status, 200);
+    assert.equal(loggedIn.body.user.status, ACCOUNT_STATUSES.ACTIVE);
+    assert.equal(loggedIn.body.user.emailVerified, undefined);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('an account that still stores pre-existing verification leftovers can log in and play', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const registered = await requestJson(server, '/api/v1/auth/register', {
+      method: 'POST',
+      body: {
+        name: 'Legacy Unverified',
+        email: 'legacy-unverified@example.com',
+        password: 'legacy-unverified-password',
+      },
+    });
+    assert.equal(registered.response.status, 201);
+
+    // Simulate a document written before verification was removed: the fields
+    // are still sitting in storage, and nothing in the schema reads them back.
+    await User.collection.updateOne(
+      { email: 'legacy-unverified@example.com' },
+      {
+        $set: {
+          emailVerified: false,
+          verificationEmailRequestedAt: new Date('2024-01-01T00:00:00.000Z'),
+        },
+      },
+    );
+
+    const loggedIn = await requestJson(server, '/api/v1/auth/login', {
+      method: 'POST',
+      body: {
+        email: 'legacy-unverified@example.com',
+        password: 'legacy-unverified-password',
+      },
+    });
+
+    assert.equal(loggedIn.response.status, 200);
+    assert.equal(loggedIn.body.user.status, ACCOUNT_STATUSES.ACTIVE);
+    assert.equal(loggedIn.body.user.emailVerified, undefined);
+
+    const me = await requestJson(server, '/api/v1/auth/me', {
+      headers: { authorization: `Bearer ${loggedIn.body.token}` },
+    });
+    assert.equal(me.response.status, 200);
+    assert.equal(me.body.emailVerified, undefined);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('the verify-email and resend-verification endpoints no longer exist', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const verifyGet = await requestJson(server, '/api/v1/auth/verify-email?token=anything');
+    const verifyPost = await requestJson(server, '/api/v1/auth/verify-email', {
+      method: 'POST',
+      body: { token: 'anything' },
+    });
+    const resend = await requestJson(server, '/api/v1/auth/resend-verification', {
+      method: 'POST',
+      body: { email: 'legacy-unverified@example.com' },
+    });
+
+    assert.equal(verifyGet.response.status, 404);
+    assert.equal(verifyPost.response.status, 404);
+    assert.equal(resend.response.status, 404);
+
+    // The compatibility mount drops them too, while reset still answers.
+    const compatResend = await requestJson(server, '/auth/resend-verification', {
+      method: 'POST',
+      body: { email: 'legacy-unverified@example.com' },
+    });
+    const compatVerify = await requestJson(server, '/auth/verify-email');
+    assert.equal(compatResend.response.status, 404);
+    assert.equal(compatVerify.response.status, 404);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('a password signup cannot take over an email that already belongs to a Google account', async () => {
+  const server = await startHttpServer();
+
+  try {
+    await User.create({
+      email: 'google-owned@example.com',
+      name: 'Google Owned',
+      role: USER_ROLES.USER,
+      status: ACCOUNT_STATUSES.ACTIVE,
+      google: {
+        provider: GOOGLE_PROVIDER,
+        subject: 'google-owned-subject',
+        email: 'google-owned@example.com',
+      },
+    });
+
+    const registered = await requestJson(server, '/api/v1/auth/register', {
+      method: 'POST',
+      body: {
+        name: 'Impostor',
+        email: ' GOOGLE-OWNED@EXAMPLE.COM ',
+        password: 'impostor-password-123',
+      },
+    });
+
+    assert.equal(registered.response.status, 409);
+    assert.equal(registered.body.error, 'Unable to create an account with those details');
+
+    // No account was created, no credential was attached and no link was made.
+    assert.equal(await User.countDocuments({ email: 'google-owned@example.com' }), 1);
+    const googleUser = await User.findOne({ email: 'google-owned@example.com' }).select('+passwordHash');
+    assert.equal(googleUser.google.subject, 'google-owned-subject');
+    assert.equal(googleUser.passwordHash, undefined);
+    assert.equal(googleUser.status, ACCOUNT_STATUSES.ACTIVE);
+
+    // The Google account itself still signs in exactly as before.
+    setGoogleMock(googlePayload({ sub: 'google-owned-subject', email: 'google-owned@example.com' }));
+    const started = await startGoogleOAuth(server);
+    const callback = await completeGoogleCallback(server, {
+      state: started.state,
+      stateCookie: started.stateCookie,
+    });
+    assert.equal(callback.response.status, 302);
+    assert.equal(await User.countDocuments({ email: 'google-owned@example.com' }), 1);
   } finally {
     await stopHttpServer(server);
   }
@@ -2206,7 +2335,6 @@ test('registration remains successful when email delivery is not configured', as
     'SMTP_PORT',
     'SMTP_USER',
     'SMTP_PASSWORD',
-    'FRONTEND_EMAIL_VERIFICATION_URL',
     'FRONTEND_PASSWORD_RESET_URL',
   ];
   const savedEmailEnvironment = Object.fromEntries(
@@ -2228,8 +2356,7 @@ test('registration remains successful when email delivery is not configured', as
     });
 
     assert.equal(registered.response.status, 201);
-    assert.equal(registered.body.verificationEmailSent, false);
-    assert.equal(registered.body.verificationToken, undefined);
+    assert.equal(emailMessages.length, 0);
     assert.ok(await User.exists({ email: 'no-email-provider@example.com' }));
   } finally {
     for (const [name, value] of Object.entries(savedEmailEnvironment)) {
@@ -2239,103 +2366,6 @@ test('registration remains successful when email delivery is not configured', as
         process.env[name] = value;
       }
     }
-    await stopHttpServer(server);
-  }
-});
-
-test('email verification consumes a token once and rejects invalid, expired, and missing tokens', async () => {
-  const server = await startHttpServer();
-
-  try {
-    const registered = await requestJson(server, '/api/v1/auth/register', {
-      method: 'POST',
-      body: {
-        name: 'Verify Flow',
-        email: 'verify-flow@example.com',
-        password: 'verify-flow-password',
-      },
-    });
-    const rawToken = getEmailToken(emailMessages[0], 'verification_token');
-    const verified = await requestJson(server, `/api/v1/auth/verify-email?token=${encodeURIComponent(rawToken)}`);
-    assert.equal(verified.response.status, 200);
-    assert.equal(verified.body.token, undefined);
-
-    const verifiedUser = await User.findById(registered.body.user.id);
-    assert.equal(verifiedUser.emailVerified, true);
-
-    const replay = await requestJson(server, `/api/v1/auth/verify-email?token=${encodeURIComponent(rawToken)}`);
-    assert.equal(replay.response.status, 400);
-
-    const invalid = await requestJson(server, '/api/v1/auth/verify-email?token=arc_verify_invalid');
-    assert.equal(invalid.response.status, 400);
-    const missing = await requestJson(server, '/api/v1/auth/verify-email');
-    assert.equal(missing.response.status, 400);
-
-    const expiredUser = await authService.register({
-      name: 'Expired Verification',
-      email: 'expired-verification@example.com',
-      password: 'expired-verification-password',
-    });
-    const expiredIssue = await accountActionService.issueVerificationForUser(expiredUser.user.id);
-    const expiredRecord = await EmailVerificationToken.findOne({ userId: expiredUser.user.id, consumedAt: null });
-    await EmailVerificationToken.updateOne({ _id: expiredRecord._id }, { $set: { expiresAt: new Date(Date.now() - 1000) } });
-    const expired = await requestJson(server, `/api/v1/auth/verify-email?token=${encodeURIComponent(emailMessages.at(-1).text.match(/verification_token=([^&\s]+)/)[1])}`);
-    assert.equal(expired.response.status, 400);
-    assert.equal(expiredIssue.sent, true);
-  } finally {
-    await stopHttpServer(server);
-  }
-});
-
-test('resend verification is generic, rate-limited, and invalidates old tokens', async () => {
-  const server = await startHttpServer();
-
-  try {
-    const registered = await requestJson(server, '/api/v1/auth/register', {
-      method: 'POST',
-      body: {
-        name: 'Resend User',
-        email: 'resend-verification@example.com',
-        password: 'resend-verification-password',
-      },
-    });
-    const firstToken = getEmailToken(emailMessages[0], 'verification_token');
-    const firstRecord = await EmailVerificationToken.findOne({ tokenHash: hashSecureToken(firstToken) });
-    await EmailVerificationToken.collection.updateOne(
-      { _id: firstRecord._id },
-      { $set: { createdAt: new Date(Date.now() - 120000), consumedAt: new Date(Date.now() - 120000) } },
-    );
-    await User.updateOne(
-      { _id: registered.body.user.id },
-      { $set: { verificationEmailRequestedAt: new Date(Date.now() - 120000) } },
-    );
-
-    const resent = await requestJson(server, '/api/v1/auth/resend-verification', {
-      method: 'POST',
-      body: { email: ' RESEND-VERIFICATION@EXAMPLE.COM ' },
-    });
-    assert.equal(resent.response.status, 200);
-    assert.equal(resent.body.message, 'If the account is eligible, a verification email has been sent.');
-
-    const secondToken = getEmailToken(emailMessages.at(-1), 'verification_token');
-    assert.notEqual(secondToken, firstToken);
-    const oldVerification = await requestJson(server, `/api/v1/auth/verify-email?token=${encodeURIComponent(firstToken)}`);
-    assert.equal(oldVerification.response.status, 400);
-
-    const cooldown = await requestJson(server, '/api/v1/auth/resend-verification', {
-      method: 'POST',
-      body: { email: 'resend-verification@example.com' },
-    });
-    assert.equal(cooldown.response.status, 200);
-    assert.equal(cooldown.body.message, resent.body.message);
-
-    const unknown = await requestJson(server, '/api/v1/auth/resend-verification', {
-      method: 'POST',
-      body: { email: 'unknown-resend@example.com' },
-    });
-    assert.deepEqual(unknown.body, cooldown.body);
-    assert.ok(registered.body.user.id);
-  } finally {
     await stopHttpServer(server);
   }
 });
@@ -2486,7 +2516,6 @@ test('Google-only accounts do not receive a fake password reset token', async ()
       name: 'Google Reset User',
       role: USER_ROLES.USER,
       status: ACCOUNT_STATUSES.ACTIVE,
-      emailVerified: true,
       google: {
         provider: GOOGLE_PROVIDER,
         subject: 'google-reset-subject',
@@ -2518,15 +2547,12 @@ test('account-action routes are available through the compatibility auth mount',
     assert.equal(forgot.response.status, 200);
     assert.equal(forgot.body.message, 'If the account is eligible, a password reset email has been sent.');
 
+    // The removed verification actions are not mounted here either.
     const resend = await requestJson(server, '/auth/resend-verification', {
       method: 'POST',
       body: { email: 'compatibility@example.com' },
     });
-    assert.equal(resend.response.status, 200);
-    assert.equal(resend.body.message, 'If the account is eligible, a verification email has been sent.');
-
-    const verify = await requestJson(server, '/auth/verify-email');
-    assert.equal(verify.response.status, 400);
+    assert.equal(resend.response.status, 404);
   } finally {
     await stopHttpServer(server);
   }
@@ -3336,7 +3362,6 @@ test('password change verifies the current password, revokes sessions, and never
         email: 'google-password-change@example.com',
         pictureUrl: 'https://lh3.googleusercontent.com/a/google-password-user',
       },
-      emailVerified: true,
     });
     const googleToken = signAccessToken(googleUser);
     const googleResponse = await requestJson(server, '/api/v1/account/change-password', {
@@ -6177,6 +6202,586 @@ test('the account creation date is not a server-side filter input', async () => 
     );
     assert.equal(response.response.status, 200, 'an unknown parameter is simply ignored');
     assert.equal(response.body.total, 0, 'and it does not filter anything');
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+/* ==================================================================
+   Account preferences
+
+   Sound and privacy preferences live on their own resource. The tests
+   below pin down three things that must never regress: the canonical
+   defaults an untouched account reads back, the fact that every value is
+   validated server-side, and that reset touches nothing but preferences.
+   ================================================================== */
+
+test('preferences default safely for an existing account and are never exposed elsewhere', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const account = await registerAndLogin(server, 'prefs-default@example.com');
+    const headers = { authorization: `Bearer ${account.loggedIn.body.token}` };
+
+    const preferences = await requestJson(server, '/api/v1/account/preferences', { headers });
+    assert.equal(preferences.response.status, 200);
+    assert.deepEqual(preferences.body.preferences, {
+      soundEffects: true,
+      soundVolume: 100,
+      profileVisibility: 'PUBLIC',
+      leaderboardVisibility: 'SHOW',
+    }, 'an account that never set preferences reads the canonical defaults');
+    assertNoSensitiveFields(preferences.body);
+
+    // The preferences subdocument must not ride along on the auth or profile
+    // reads, so there is no second surface that could leak or overwrite it.
+    const me = await requestJson(server, '/api/v1/auth/me', { headers });
+    assert.equal(me.response.status, 200);
+    assert.equal(
+      JSON.stringify(me.body).includes('preferences'),
+      false,
+      'the auth/me payload carries no preferences subdocument',
+    );
+
+    const profile = await requestJson(server, '/api/v1/account/profile', { headers });
+    assert.equal(profile.response.status, 200);
+    assert.equal(
+      JSON.stringify(profile.body).includes('leaderboardVisibility'),
+      false,
+      'the profile payload carries no preference values',
+    );
+
+    // /settings stays the read-only account profile it always was.
+    const settings = await requestJson(server, '/api/v1/account/settings', { headers });
+    assert.equal(settings.response.status, 200);
+    assert.equal(settings.body.settings.email, 'prefs-default@example.com');
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('preferences validate every field server-side and reject unknown keys', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const account = await registerAndLogin(server, 'prefs-validate@example.com');
+    const headers = { authorization: `Bearer ${account.loggedIn.body.token}` };
+
+    const invalidWrites = [
+      { soundEffects: 'yes' },
+      { soundEffects: 1 },
+      { soundVolume: 101 },
+      { soundVolume: -1 },
+      { soundVolume: 50.5 },
+      { soundVolume: 'loud' },
+      { profileVisibility: 'SOMEWHERE' },
+      { profileVisibility: 'public' },
+      { leaderboardVisibility: 'MAYBE' },
+      { totalXp: 99999 },
+      { role: 'ADMIN' },
+      { status: 'DELETED' },
+    ];
+
+    for (const body of invalidWrites) {
+      const rejected = await requestJson(server, '/api/v1/account/preferences', {
+        method: 'PATCH',
+        headers,
+        body,
+      });
+      assert.equal(rejected.response.status, 400, `${JSON.stringify(body)} is rejected`);
+      assert.ok(rejected.body.error, 'a rejection carries an error message');
+    }
+
+    // An empty write is a no-op that must not silently rewrite the record.
+    const empty = await requestJson(server, '/api/v1/account/preferences', {
+      method: 'PATCH',
+      headers,
+      body: {},
+    });
+    assert.equal(empty.response.status, 400);
+
+    // A non-object body is rejected rather than coerced.
+    const notAnObject = await requestJson(server, '/api/v1/account/preferences', {
+      method: 'PATCH',
+      headers,
+      body: ['soundEffects'],
+    });
+    assert.equal(notAnObject.response.status, 400);
+
+    // Nothing above was applied: the stored set is still the defaults.
+    const after = await requestJson(server, '/api/v1/account/preferences', { headers });
+    assert.deepEqual(after.body.preferences, {
+      soundEffects: true,
+      soundVolume: 100,
+      profileVisibility: 'PUBLIC',
+      leaderboardVisibility: 'SHOW',
+    });
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('preferences persist partial writes and the backend is the only source of truth', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const account = await registerAndLogin(server, 'prefs-persist@example.com');
+    const headers = { authorization: `Bearer ${account.loggedIn.body.token}` };
+
+    const first = await requestJson(server, '/api/v1/account/preferences', {
+      method: 'PATCH',
+      headers,
+      body: { soundEffects: false, soundVolume: 40 },
+    });
+    assert.equal(first.response.status, 200);
+    assert.deepEqual(first.body.preferences, {
+      soundEffects: false,
+      soundVolume: 40,
+      profileVisibility: 'PUBLIC',
+      leaderboardVisibility: 'SHOW',
+    }, 'a partial write applies only the keys sent');
+
+    // A second partial write leaves the untouched keys exactly as they were.
+    const second = await requestJson(server, '/api/v1/account/preferences', {
+      method: 'PATCH',
+      headers,
+      body: { profileVisibility: 'NO_ONE' },
+    });
+    assert.deepEqual(second.body.preferences, {
+      soundEffects: false,
+      soundVolume: 40,
+      profileVisibility: 'NO_ONE',
+      leaderboardVisibility: 'SHOW',
+    });
+
+    // A fresh read agrees with the last write, so the modal can trust it.
+    const reread = await requestJson(server, '/api/v1/account/preferences', { headers });
+    assert.deepEqual(reread.body.preferences, second.body.preferences);
+    assertNoSensitiveFields(reread.body);
+
+    // Boundary values the server accepts.
+    const bounds = await requestJson(server, '/api/v1/account/preferences', {
+      method: 'PATCH',
+      headers,
+      body: { soundVolume: 0 },
+    });
+    assert.equal(bounds.body.preferences.soundVolume, 0);
+    const top = await requestJson(server, '/api/v1/account/preferences', {
+      method: 'PATCH',
+      headers,
+      body: { soundVolume: 100 },
+    });
+    assert.equal(top.body.preferences.soundVolume, 100);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('resetting preferences restores the defaults and touches nothing else', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const account = await registerAndLogin(server, 'prefs-reset@example.com');
+    const userId = account.registered.body.user.id;
+    const headers = { authorization: `Bearer ${account.loggedIn.body.token}` };
+
+    // Give the account real progression and a match so reset has something
+    // it must NOT delete, plus a username so identity is non-default too.
+    await recordArcadionResult(userId);
+    await Match.create({
+      userId,
+      game: XP_EARNING_GAME,
+      opponentType: OPPONENT_TYPES.ARCADION,
+      result: MATCH_RESULTS.WIN,
+      completedAt: new Date('2026-05-01T12:00:00.000Z'),
+    });
+    clearUsernameCooldown(userId);
+    const named = await requestJson(server, '/api/v1/account/username', {
+      method: 'PATCH',
+      headers,
+      body: { username: 'prefs-reset-player' },
+    });
+    assert.equal(named.response.status, 200);
+
+    // Move every preference away from its default first.
+    const changed = await requestJson(server, '/api/v1/account/preferences', {
+      method: 'PATCH',
+      headers,
+      body: {
+        soundEffects: false,
+        soundVolume: 5,
+        profileVisibility: 'NO_ONE',
+        leaderboardVisibility: 'HIDE',
+      },
+    });
+    assert.deepEqual(changed.body.preferences, {
+      soundEffects: false,
+      soundVolume: 5,
+      profileVisibility: 'NO_ONE',
+      leaderboardVisibility: 'HIDE',
+    });
+
+    const beforeXp = (await User.findById(userId)).totalXp;
+
+    const reset = await requestJson(server, '/api/v1/account/preferences/reset', {
+      method: 'POST',
+      headers,
+    });
+    assert.equal(reset.response.status, 200);
+    assert.deepEqual(reset.body.preferences, {
+      soundEffects: true,
+      soundVolume: 100,
+      profileVisibility: 'PUBLIC',
+      leaderboardVisibility: 'SHOW',
+    }, 'reset returns the canonical defaults from the backend');
+
+    // Progression, identity, matches and the account itself all survive.
+    const stored = await User.findById(userId);
+    assert.equal(stored.totalXp, beforeXp, 'reset never touches XP');
+    assert.equal(stored.username, 'prefs-reset-player', 'reset never touches the username');
+    assert.equal(stored.status, ACCOUNT_STATUSES.ACTIVE, 'the account is still active');
+    assert.equal(await Match.countDocuments({ userId }), 1, 'reset never touches match history');
+
+    // The session is still valid, because reset is not a sign-out.
+    const stillMe = await requestJson(server, '/api/v1/auth/me', { headers });
+    assert.equal(stillMe.response.status, 200);
+
+    // And the reset is persisted, not just echoed.
+    const reread = await requestJson(server, '/api/v1/account/preferences', { headers });
+    assert.deepEqual(reread.body.preferences, {
+      soundEffects: true,
+      soundVolume: 100,
+      profileVisibility: 'PUBLIC',
+      leaderboardVisibility: 'SHOW',
+    });
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+/* ==================================================================
+   Privacy enforcement
+
+   These assertions exercise the shared helpers the rest of the backend
+   reads from, so the stored preference and the enforced behaviour can
+   never drift apart. Arcadia has no friendship graph yet, so `FRIENDS`
+   fails closed rather than open.
+   ================================================================== */
+
+test('profile visibility is enforced by the shared helper and fails closed for FRIENDS', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const owner = await registerAndLogin(server, 'privacy-owner@example.com');
+    const other = await registerAndLogin(server, 'privacy-other@example.com');
+    const ownerId = owner.registered.body.user.id;
+    const otherId = other.registered.body.user.id;
+    const headers = { authorization: `Bearer ${owner.loggedIn.body.token}` };
+
+    const ownerDoc = () => User.findById(ownerId);
+
+    // PUBLIC: any other signed-in account, and an anonymous caller, may view.
+    assert.equal(preferencesUtils.canViewProfile(await ownerDoc(), otherId), true);
+    assert.equal(preferencesUtils.canViewProfile(await ownerDoc(), null), true);
+    // The owner always may, whatever the setting.
+    assert.equal(preferencesUtils.canViewProfile(await ownerDoc(), ownerId), true);
+
+    await requestJson(server, '/api/v1/account/preferences', {
+      method: 'PATCH',
+      headers,
+      body: { profileVisibility: 'FRIENDS' },
+    });
+
+    // No friendship model exists, so FRIENDS denies every other viewer.
+    assert.equal(
+      preferencesUtils.canViewProfile(await ownerDoc(), otherId),
+      false,
+      'FRIENDS fails closed while there is no friendship graph to check',
+    );
+    assert.equal(preferencesUtils.canViewProfile(await ownerDoc(), null), false);
+    assert.equal(preferencesUtils.canViewProfile(await ownerDoc(), ownerId), true);
+
+    await requestJson(server, '/api/v1/account/preferences', {
+      method: 'PATCH',
+      headers,
+      body: { profileVisibility: 'NO_ONE' },
+    });
+
+    assert.equal(preferencesUtils.canViewProfile(await ownerDoc(), otherId), false);
+    assert.equal(preferencesUtils.canViewProfile(await ownerDoc(), null), false);
+    assert.equal(preferencesUtils.canViewProfile(await ownerDoc(), ownerId), true);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('a hidden account leaves the public leaderboard without losing its progression', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const hidden = await registerAndLogin(server, 'privacy-hidden@example.com');
+    const shown = await registerAndLogin(server, 'privacy-shown@example.com');
+    const hiddenId = hidden.registered.body.user.id;
+    const shownId = shown.registered.body.user.id;
+    const hiddenHeaders = { authorization: `Bearer ${hidden.loggedIn.body.token}` };
+
+    // Both accounts earn real progression, so hiding is distinguishable from
+    // simply having nothing to show.
+    await recordArcadionResult(hiddenId);
+    await recordArcadionResult(shownId);
+    const xpBeforeHide = (await User.findById(hiddenId)).totalXp;
+    assert.ok(xpBeforeHide > 0, 'the hidden account genuinely earned XP first');
+
+    // Before hiding, both accounts match the public leaderboard filter.
+    const filter = preferencesUtils.getPublicLeaderboardFilter();
+    const beforeIds = (await User.find(filter)).map((doc) => String(doc._id));
+    assert.ok(beforeIds.includes(hiddenId), 'the account is listed before it hides');
+    assert.ok(beforeIds.includes(shownId), 'the other account is listed too');
+
+    await requestJson(server, '/api/v1/account/preferences', {
+      method: 'PATCH',
+      headers: hiddenHeaders,
+      body: { leaderboardVisibility: 'HIDE' },
+    });
+
+    // The filter is what excludes it, not a deleted or zeroed record.
+    const afterIds = (await User.find(filter)).map((doc) => String(doc._id));
+    assert.equal(afterIds.includes(hiddenId), false, 'a hidden account is excluded');
+    assert.ok(afterIds.includes(shownId), 'the other account is unaffected');
+
+    // Exclusion never costs progression: the XP and the account are intact.
+    const stored = await User.findById(hiddenId);
+    assert.ok(stored, 'the account still exists');
+    assert.equal(stored.totalXp, xpBeforeHide, 'hiding never touches XP');
+    assert.equal(stored.status, ACCOUNT_STATUSES.ACTIVE);
+
+    // And a hidden account can see itself and un-hide just as before.
+    const unhidden = await requestJson(server, '/api/v1/account/preferences', {
+      method: 'PATCH',
+      headers: hiddenHeaders,
+      body: { leaderboardVisibility: 'SHOW' },
+    });
+    assert.equal(unhidden.body.preferences.leaderboardVisibility, 'SHOW');
+    const restoredIds = (await User.find(preferencesUtils.getPublicLeaderboardFilter()))
+      .map((doc) => String(doc._id));
+    assert.ok(restoredIds.includes(hiddenId), 'SHOW puts the account back');
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+/* ==================================================================
+   Account deletion
+
+   These tests run only against the ephemeral in-memory database the suite
+   already uses; they never touch a real environment. They pin down the
+   safeguards: the typed confirmation word, password re-authentication for
+   password accounts, complete cleanup of the caller's own data, and the
+   guarantee that no other account's data is ever removed.
+   ================================================================== */
+
+test('account deletion demands the typed confirmation word and the account password', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const account = await registerAndLogin(server, 'delete-guard@example.com');
+    const other = await registerAndLogin(server, 'delete-guard-other@example.com');
+    const userId = account.registered.body.user.id;
+    const otherId = other.registered.body.user.id;
+    const headers = { authorization: `Bearer ${account.loggedIn.body.token}` };
+
+    // Wrong confirmation word: rejected, and nothing is touched.
+    const wrongWord = await requestJson(server, '/api/v1/account', {
+      method: 'DELETE',
+      headers,
+      body: { confirmation: 'delete', password: 'session-password-123' },
+    });
+    assert.equal(wrongWord.response.status, 400);
+    assert.ok(await User.findById(userId), 'a wrong confirmation word deletes nothing');
+
+    // Missing confirmation entirely.
+    const noWord = await requestJson(server, '/api/v1/account', {
+      method: 'DELETE',
+      headers,
+      body: { password: 'session-password-123' },
+    });
+    assert.equal(noWord.response.status, 400);
+    assert.ok(await User.findById(userId));
+
+    // Right word, missing password: rejected before any destructive step.
+    const noPassword = await requestJson(server, '/api/v1/account', {
+      method: 'DELETE',
+      headers,
+      body: { confirmation: 'DELETE' },
+    });
+    assert.equal(noPassword.response.status, 400);
+    assert.ok(await User.findById(userId), 'a password account must re-authenticate');
+
+    // Right word, wrong password: 401, account intact.
+    const wrongPassword = await requestJson(server, '/api/v1/account', {
+      method: 'DELETE',
+      headers,
+      body: { confirmation: 'DELETE', password: 'not-the-password' },
+    });
+    assert.equal(wrongPassword.response.status, 401);
+    assert.ok(await User.findById(userId), 'a wrong password deletes nothing');
+
+    // Unsupported fields are rejected outright, so no extra key can smuggle
+    // a target account into the request. The id below is a real other user,
+    // which proves the caller can never point the deletion at anyone else.
+    const extraField = await requestJson(server, '/api/v1/account', {
+      method: 'DELETE',
+      headers,
+      body: { confirmation: 'DELETE', password: 'session-password-123', userId: otherId },
+    });
+    assert.equal(extraField.response.status, 400);
+    assert.ok(await User.findById(userId), 'the caller is still intact');
+    assert.ok(await User.findById(otherId), 'and so is the account it tried to name');
+
+    // Every rejected attempt left the session usable, proving no partial
+    // state was written along the way.
+    const stillMe = await requestJson(server, '/api/v1/auth/me', { headers });
+    assert.equal(stillMe.response.status, 200);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('a confirmed deletion removes the account and all of its own data only', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const victim = await registerAndLogin(server, 'delete-victim@example.com');
+    const bystander = await registerAndLogin(server, 'delete-bystander@example.com');
+    const victimId = victim.registered.body.user.id;
+    const bystanderId = bystander.registered.body.user.id;
+    const victimHeaders = { authorization: `Bearer ${victim.loggedIn.body.token}` };
+    const bystanderHeaders = { authorization: `Bearer ${bystander.loggedIn.body.token}` };
+
+    // Build up real owned data for the account that is about to be deleted.
+    await recordArcadionResult(victimId);
+    await Match.create({
+      userId: victimId,
+      game: XP_EARNING_GAME,
+      opponentType: OPPONENT_TYPES.ARCADION,
+      result: MATCH_RESULTS.WIN,
+      completedAt: new Date('2026-05-02T12:00:00.000Z'),
+    });
+    await PasswordResetToken.create({
+      userId: victimId,
+      // The suite only needs rows that belong to the account; the hash is a
+      // syntactically valid token digest, and nothing here verifies it.
+      tokenHash: hashSecureToken(`arc_reset_${'a'.repeat(43)}`),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    });
+    // The bystander owns data too, which must survive untouched.
+    await recordArcadionResult(bystanderId);
+    await Match.create({
+      userId: bystanderId,
+      game: XP_EARNING_GAME,
+      opponentType: OPPONENT_TYPES.ARCADION,
+      result: MATCH_RESULTS.WIN,
+      completedAt: new Date('2026-05-03T12:00:00.000Z'),
+    });
+
+    const sessionsBefore = await Session.countDocuments({ userId: victimId });
+    assert.ok(sessionsBefore > 0, 'the account has live sessions before deletion');
+
+    const deleted = await requestJson(server, '/api/v1/account', {
+      method: 'DELETE',
+      headers: victimHeaders,
+      body: { confirmation: 'DELETE', password: 'session-password-123' },
+    });
+    assert.equal(deleted.response.status, 200);
+    assert.ok(deleted.body.message, 'the deletion reports a confirmation message');
+
+    // The account itself is gone.
+    assert.equal(await User.findById(victimId), null, 'the user document is deleted');
+
+    // Every record owned by the account is gone: no orphans are left behind.
+    assert.equal(await Session.countDocuments({ userId: victimId }), 0, 'sessions removed');
+    assert.equal(await Match.countDocuments({ userId: victimId }), 0, 'matches removed');
+    assert.equal(
+      await PasswordResetToken.countDocuments({ userId: victimId }),
+      0,
+      'reset tokens removed',
+    );
+    assert.equal(await OAuthHandoff.countDocuments({ userId: victimId }), 0, 'handoffs removed');
+
+    // The stale access token is dead: the user no longer exists to load.
+    const stale = await requestJson(server, '/api/v1/auth/me', { headers: victimHeaders });
+    assert.equal(stale.response.status, 401, 'the old token can no longer authenticate');
+
+    // A refresh attempt is refused too, so no credential outlives the account.
+    const refreshed = await requestJson(server, '/api/v1/auth/refresh', {
+      method: 'POST',
+      body: {},
+    });
+    assert.ok(
+      refreshed.response.status === 401 || refreshed.response.status === 400,
+      `refresh after deletion is refused (got ${refreshed.response.status})`,
+    );
+
+    // The refresh cookie is cleared on the deleting response: `clearCookie`
+    // emits an expired, empty cookie for the name rather than omitting it.
+    const setCookie = deleted.response.headers.get('set-cookie') || '';
+    const refreshClear = setCookie
+      .split(/,(?=[^;]+=)/)
+      .find((part) => part.trim().startsWith(`${REFRESH_COOKIE_NAME}=`));
+    assert.ok(refreshClear, 'the deletion response addresses the refresh cookie');
+    assert.match(
+      refreshClear,
+      new RegExp(`^${REFRESH_COOKIE_NAME}=;`),
+      'and it clears it to an empty value',
+    );
+    assert.match(
+      refreshClear,
+      /expires=Thu, 01 Jan 1970/i,
+      'with an expiry in the past, so the browser drops it',
+    );
+
+    // The bystander is completely untouched.
+    const bystanderStored = await User.findById(bystanderId);
+    assert.ok(bystanderStored, 'the other account still exists');
+    assert.ok(bystanderStored.totalXp > 0, 'the other account keeps its progression');
+    assert.equal(await Match.countDocuments({ userId: bystanderId }), 1, 'its match survives');
+    const bystanderStillMe = await requestJson(server, '/api/v1/auth/me', {
+      headers: bystanderHeaders,
+    });
+    assert.equal(bystanderStillMe.response.status, 200, 'the other session still works');
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('a Google-only account can delete itself with the typed confirmation alone', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const google = await signInWithGoogle(server);
+    const headers = { authorization: `Bearer ${google.token}` };
+
+    // No local password exists for a Google account, so there is nothing to
+    // re-enter: the typed confirmation word is the only gate. This is the
+    // documented limitation of the current architecture.
+    const missingWord = await requestJson(server, '/api/v1/account', {
+      method: 'DELETE',
+      headers,
+      body: {},
+    });
+    assert.equal(missingWord.response.status, 400);
+    assert.ok(await User.findById(google.userId), 'no confirmation word deletes nothing');
+
+    const deleted = await requestJson(server, '/api/v1/account', {
+      method: 'DELETE',
+      headers,
+      body: { confirmation: 'DELETE' },
+    });
+    assert.equal(deleted.response.status, 200);
+    assert.equal(await User.findById(google.userId), null, 'the Google account is deleted');
+
+    const stale = await requestJson(server, '/api/v1/auth/me', { headers });
+    assert.equal(stale.response.status, 401, 'its token is dead too');
   } finally {
     await stopHttpServer(server);
   }

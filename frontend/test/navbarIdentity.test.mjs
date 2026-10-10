@@ -142,7 +142,6 @@ function navbarUser(overrides = {}) {
     progression: progression(),
     role: "USER",
     status: "ACTIVE",
-    emailVerified: true,
     createdAt: "2026-09-14T10:00:00.000Z",
     updatedAt: null,
     lastLoginAt: null,
@@ -170,11 +169,11 @@ function authValue(user) {
     login: async () => true,
     register: async () => true,
     forgotPassword: async () => "sent",
-    resendVerification: async () => "sent",
     submitPasswordReset: async () => true,
     changePassword: async () => ({ success: true, message: "" }),
     revokeSession: async () => ({ current: false, message: "" }),
     logoutOtherSessions: async () => ({ revokedCount: 0, message: "" }),
+    deleteAccount: async () => ({ success: true }),
     loginWithGoogle: () => {},
     logout: async () => ({ success: true }),
     logoutAll: async () => ({ success: true }),
@@ -439,7 +438,6 @@ function profileFixture(overrides = {}) {
     progression: progression(),
     role: "USER",
     status: "ACTIVE",
-    emailVerified: true,
     // Midday UTC keeps the local-time rendering on the same calendar day in any
     // timezone the suite might run in.
     createdAt: "2026-09-24T12:00:00.000Z",
@@ -796,8 +794,26 @@ test("Settings and Logout from the Profile Popup keep working", async () => {
   const settings = await renderNavbar(navbarUser());
   await click(q(".avatar-button"));
   await click(qa(".profile-popup-item").find((node) => node.textContent.includes("Settings")));
-  assert.ok(q(".profile-popup.settings-open"), "the settings panel still opens in place");
+
+  /*
+   * Settings now opens as its own modal layer portaled above the popup
+   * rather than expanding the popup in place. The popup stays mounted
+   * underneath, which is what makes the modal's close a back action.
+   */
+  assert.ok(q(".settings-backdrop"), "the settings modal opens as its own layer");
+  assert.ok(
+    q('.settings-backdrop .settings-modal[role="dialog"]'),
+    "and it is a real dialog, not an inline panel",
+  );
   assert.ok(q(".profile-popup"), "and the popup is not torn down");
+
+  // Escape closes only the top layer: the modal, leaving the popup open.
+  await act(async () => {
+    window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  });
+  assert.equal(q(".settings-backdrop"), null, "escape closes the settings modal");
+  assert.ok(q(".profile-popup"), "but the popup stays open underneath");
+
   await settings();
 
   // Logout closes the popup, which is the pre-existing behaviour.

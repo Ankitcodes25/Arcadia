@@ -11,6 +11,7 @@
     "dev": "nodemon server.js",
     "provision:admin": "node scripts/provision-admin.js",
     "backfill:player-ids": "node scripts/backfill-player-ids.js",
+    "migrate:drop-email-verification": "node scripts/drop-email-verification.js",
     "test": "node --test test/userModel.integration.test.js",
     "check": "node scripts/check-syntax.js"
   },

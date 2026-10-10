@@ -39,28 +39,6 @@ function AccountActionPanel() {
     return null;
   }
 
-  if (accountAction.kind === "verification") {
-    const isLoading = accountAction.status === "loading";
-    const isSuccess = accountAction.status === "success";
-
-    return (
-      <section className="account-action-panel" aria-live="polite">
-        <div className="account-action-kicker">ARCADIA ACCOUNT</div>
-        <h2>{isLoading ? "Verifying your email…" : isSuccess ? "Email verified" : "Verification unsuccessful"}</h2>
-        <p>
-          {accountAction.message || (isLoading
-            ? "Please wait while we confirm your email address."
-            : "This verification link is invalid, expired, or has already been used.")}
-        </p>
-        {!isLoading && (
-          <button type="button" className="account-action-button" onClick={dismissAccountAction}>
-            {isSuccess ? "Continue" : "Close"}
-          </button>
-        )}
-      </section>
-    );
-  }
-
   if (accountAction.status === "success") {
     const handleContinueToLogin = () => {
       clearPasswordState();
