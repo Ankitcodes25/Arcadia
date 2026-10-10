@@ -99,7 +99,6 @@ function modalProps(overrides = {}) {
     onSwitchMode: () => {},
     onClearError: () => oauthClears.push(true),
     onForgotPassword: async () => "sent",
-    onResendVerification: async () => "sent",
     isSubmitting: false,
     error: null,
     ...overrides,

@@ -32,7 +32,6 @@ type LoginSignupModalProps = {
   onSwitchMode: () => void;
   onClearError: () => void;
   onForgotPassword: (email: string) => Promise<string>;
-  onResendVerification: (email: string) => Promise<string>;
   isSubmitting: boolean;
   error: string | null;
   /** Google sign-in warning, shown inside the still-open modal. */
@@ -42,7 +41,7 @@ type LoginSignupModalProps = {
 };
 
 type ModalView = "form" | "forgot";
-type WorkingAction = "forgot" | "resend" | null;
+type WorkingAction = "forgot" | null;
 
 /* eye / eye-off icon for the password field toggle */
 function EyeIcon({ open }: { open: boolean }) {
@@ -63,6 +62,28 @@ function EyeIcon({ open }: { open: boolean }) {
   );
 }
 
+/* Google's official four-colour "G" mark. */
+function GoogleLogo() {
+  return (
+    <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
+/* The same cross the Settings, My Profile and Avatars dialogs carry, so a
+   close affordance never changes shape from one dialog to the next. */
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 5 19 19M19 5 5 19" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function LoginSignupModal({
   authMode,
   onClose,
@@ -71,7 +92,6 @@ function LoginSignupModal({
   onSwitchMode,
   onClearError,
   onForgotPassword,
-  onResendVerification,
   isSubmitting,
   error,
   oauthError = null,
@@ -179,28 +199,6 @@ function LoginSignupModal({
     });
   }
 
-  async function handleResendVerification() {
-    onClearError();
-    setLocalError(null);
-    setInfoMessage(null);
-
-    if (!email.trim()) {
-      setLocalError("Enter your email address first.");
-      return;
-    }
-
-    setWorkingAction("resend");
-    try {
-      setInfoMessage(await onResendVerification(email.trim()));
-    } catch (requestError) {
-      setLocalError(requestError instanceof Error
-        ? requestError.message
-        : "Unable to request a verification email. Please try again.");
-    } finally {
-      setWorkingAction(null);
-    }
-  }
-
   const isForgotView = view === "forgot";
   const title = isForgotView
     ? "Reset your password"
@@ -220,7 +218,7 @@ function LoginSignupModal({
   return createPortal(
     <div className="auth-modal-backdrop" role="presentation" onMouseDown={isBusy ? undefined : onClose}>
       <section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" onMouseDown={(event) => event.stopPropagation()}>
-        <button type="button" className="auth-modal-close" aria-label="Close authentication dialog" onClick={onClose} disabled={isBusy}>×</button>
+        <button type="button" className="auth-modal-close" aria-label="Close authentication dialog" onClick={onClose} disabled={isBusy}><CloseIcon /></button>
         {oauthError && (
           <div
             className={`auth-modal-notice${isOauthErrorFading ? ` ${NOTICE_FADING_CLASS}` : ""}`}
@@ -291,7 +289,6 @@ function LoginSignupModal({
             <div className="auth-form-options">
               <div className="auth-form-links">
                 <button type="button" className="auth-link" disabled={isBusy} onClick={() => { onClearError(); setView("forgot"); setLocalError(null); setInfoMessage(null); }}>Forgot Password?</button>
-                <button type="button" className="auth-link" disabled={isBusy} onClick={() => void handleResendVerification()}>Resend verification</button>
               </div>
             </div>
           )}
@@ -301,7 +298,7 @@ function LoginSignupModal({
           <button type="submit" className="auth-submit" disabled={isBusy}>{workingAction ? "Sending…" : isSubmitting ? (authMode === "login" ? "Logging in…" : "Creating account…") : (isForgotView ? "Send reset link" : authMode === "login" ? "Log In" : "Create Account")}</button>
         </form>
         {isGoogleAuthEnabled && !isForgotView && <div className="auth-divider"><span>OR</span></div>}
-        {isGoogleAuthEnabled && !isForgotView && <button type="button" className="auth-google" onClick={onGoogleLogin} disabled={isBusy}><strong>G</strong> {authMode === "login" ? "Continue with Google" : "Sign up with Google"}</button>}
+        {isGoogleAuthEnabled && !isForgotView && <button type="button" className="auth-google" onClick={onGoogleLogin} disabled={isBusy}><GoogleLogo /><span>{authMode === "login" ? "Continue with Google" : "Sign up with Google"}</span></button>}
         {!isForgotView && <p className="auth-bottom-switch">{authMode === "login" ? "Don't have an account?" : "Already have an account?"} <button type="button" className="auth-link" onClick={onSwitchMode} disabled={isBusy}>{authMode === "login" ? "Sign up" : "Log in"}</button></p>}
       </section>
     </div>,

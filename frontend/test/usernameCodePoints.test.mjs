@@ -478,7 +478,6 @@ async function renderSignup() {
     onSwitchMode: () => {},
     onClearError: () => {},
     onForgotPassword: async () => "sent",
-    onResendVerification: async () => "sent",
     isSubmitting: false,
     error: null,
   }));
@@ -501,7 +500,6 @@ async function renderOnboarding() {
       email: "user@example.com",
       role: "USER",
       status: "ACTIVE",
-      emailVerified: true,
       createdAt: null,
       updatedAt: null,
       lastLoginAt: null,
@@ -603,7 +601,6 @@ test("the My Profile username editor shares the same field behaviour", async () 
       },
       role: "USER",
       status: "ACTIVE",
-      emailVerified: true,
       createdAt: "2026-09-14T10:00:00.000Z",
       updatedAt: null,
       lastLoginAt: null,

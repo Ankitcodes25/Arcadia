@@ -43,16 +43,23 @@ type AuthContextValue = {
   authErrorKind: AuthErrorKind | null;
   authMode: AuthMode | null;
   accountAction: AccountAction | null;
+  /**
+   * Raised by a confirmed password change and cleared again when the reader
+   * acknowledges it. The change signs every session out server-side, so this
+   * flag is what carries the confirmation across that sign-out instead of
+   * leaving the reader on a signed-out screen with no explanation.
+   */
+  passwordChangeSuccess: boolean;
   openAuthMode: (mode: AuthMode) => void;
   closeAuthMode: () => void;
   clearError: () => void;
   dismissAccountAction: () => void;
+  dismissPasswordChangeSuccess: () => void;
   updateUser: (user: AuthUser) => void;
   updateProfile: (changes: ProfileUpdate) => Promise<ProfileUpdateResult>;
   login: (values: LoginValues) => Promise<boolean>;
   register: (values: RegisterValues) => Promise<boolean>;
   forgotPassword: (email: string) => Promise<string>;
-  resendVerification: (email: string) => Promise<string>;
   submitPasswordReset: (password: string, confirmation: string) => Promise<boolean>;
   changePassword: (
     currentPassword: string,
@@ -61,6 +68,12 @@ type AuthContextValue = {
   ) => Promise<{ success: boolean; message: string }>;
   revokeSession: (sessionId: string) => Promise<RevokeSessionResponse>;
   logoutOtherSessions: () => Promise<LogoutOtherSessionsResponse>;
+  /**
+   * Permanently deletes the signed-in account. On success local auth is
+   * cleared without a signed-out broadcast error, because the account no
+   * longer exists anywhere and there is nothing left to sign out of.
+   */
+  deleteAccount: (values: { confirmation: string; password?: string }) => Promise<LogoutResult>;
   loginWithGoogle: () => void;
   logout: () => Promise<LogoutResult>;
   logoutAll: () => Promise<LogoutResult>;
@@ -92,6 +105,7 @@ function AuthProvider({ children }: AuthProviderProps) {
   const [authErrorKind, setAuthErrorKind] = useState<AuthErrorKind | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [accountAction, setAccountAction] = useState<AccountAction | null>(null);
+  const [passwordChangeSuccess, setPasswordChangeSuccess] = useState(false);
   const refreshPromiseRef = useRef<Promise<AuthResponse | null> | null>(null);
   const generationRef = useRef(0);
   const channelRef = useRef<BroadcastChannel | null>(null);
@@ -250,7 +264,6 @@ function AuthProvider({ children }: AuthProviderProps) {
     const {
       code,
       error,
-      verificationToken,
       resetToken,
       ambiguous,
     } = consumeAuthQuery();
@@ -259,31 +272,6 @@ function AuthProvider({ children }: AuthProviderProps) {
       if (ambiguous) {
         clearLocalAuth();
         setVisibleError("Multiple account links were provided. Start again from one link.", "form");
-      } else if (verificationToken) {
-        setAccountAction({
-          kind: "verification",
-          status: "loading",
-          message: "",
-        });
-
-        try {
-          const response = await authApi.verifyEmail(verificationToken);
-          setAccountAction((current) => current?.kind === "verification"
-            ? { ...current, status: "success", message: response.message }
-            : current);
-        } catch (requestError) {
-          setAccountAction((current) => current?.kind === "verification"
-            ? {
-              ...current,
-              status: "error",
-              message: getAuthErrorMessage(
-                requestError,
-                "Email verification could not be completed. Please request a new link.",
-              ),
-            }
-            : current);
-        }
-        await refresh();
       } else if (resetToken) {
         setAccountAction({
           kind: "reset",
@@ -367,11 +355,6 @@ function AuthProvider({ children }: AuthProviderProps) {
     return response.message;
   }, []);
 
-  const resendVerification = useCallback(async (email: string) => {
-    const response = await authApi.resendVerification(email);
-    return response.message;
-  }, []);
-
   const submitPasswordReset = useCallback(async (password: string, confirmation: string) => {
     const currentAction = accountAction;
     if (currentAction?.kind !== "reset") return false;
@@ -421,7 +404,19 @@ function AuthProvider({ children }: AuthProviderProps) {
     const generation = generationRef.current;
     try {
       const response = await authApi.changePassword({ currentPassword, newPassword });
-      if (generation === generationRef.current) clearLocalAuth();
+      if (generation === generationRef.current) {
+        /*
+         * A password change is meant to end every session: the backend bumps
+         * the token version, revokes the refresh sessions and clears the
+         * refresh cookie in the same response, so nothing is left to sign out
+         * of and no second logout request is made here. Local auth goes with
+         * them, and the confirmation is raised in the same commit — that is
+         * what lets the success dialog still appear once the signed-out
+         * surface has replaced Settings.
+         */
+        clearLocalAuth();
+        setPasswordChangeSuccess(true);
+      }
       return { success: true, message: response.message };
     } catch (requestError) {
       return {
@@ -449,6 +444,36 @@ function AuthProvider({ children }: AuthProviderProps) {
     const pending = refreshPromiseRef.current;
     if (pending) await pending;
   }, []);
+
+  /*
+   * Permanent account deletion.
+   *
+   * Success clears local auth silently — no error banner, because the account
+   * is gone and there is nothing to report — which unmounts every protected
+   * surface and lands the browser on the logged-out screen. A failure leaves
+   * the session exactly as it was: the account still exists, so signing the
+   * user out of a live account would be wrong.
+   */
+  const deleteAccount = useCallback(async (values: { confirmation: string; password?: string }) => {
+    setIsSubmitting(true);
+    generationRef.current += 1;
+    await waitForRefresh();
+    try {
+      await authApi.deleteAccount(values);
+      clearLocalAuth();
+      return { success: true };
+    } catch (requestError) {
+      return {
+        success: false,
+        message: getAuthErrorMessage(
+          requestError,
+          "Your account could not be deleted. Please try again.",
+        ),
+      };
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [clearLocalAuth, waitForRefresh]);
 
   const logout = useCallback(async () => {
     setIsSubmitting(true);
@@ -499,6 +524,16 @@ function AuthProvider({ children }: AuthProviderProps) {
 
   const dismissAccountAction = useCallback(() => setAccountAction(null), []);
 
+  /*
+   * Dismissing the confirmation touches auth state only: it never restores the
+   * session the change ended, so a dismissed dialog still leaves the reader
+   * signed out.
+   */
+  const dismissPasswordChangeSuccess = useCallback(
+    () => setPasswordChangeSuccess(false),
+    [],
+  );
+
   const value = useMemo<AuthContextValue>(() => ({
     user,
     isAuthenticated: Boolean(user && user.status === "ACTIVE"),
@@ -508,20 +543,22 @@ function AuthProvider({ children }: AuthProviderProps) {
     authErrorKind,
     authMode,
     accountAction,
+    passwordChangeSuccess,
     openAuthMode,
     closeAuthMode,
     clearError,
     dismissAccountAction,
+    dismissPasswordChangeSuccess,
     updateUser,
     updateProfile,
     login,
     register,
     forgotPassword,
-    resendVerification,
     submitPasswordReset,
     changePassword,
     revokeSession,
     logoutOtherSessions,
+    deleteAccount,
     loginWithGoogle,
     logout,
     logoutAll,
@@ -534,7 +571,9 @@ function AuthProvider({ children }: AuthProviderProps) {
     changePassword,
     clearError,
     closeAuthMode,
+    deleteAccount,
     dismissAccountAction,
+    dismissPasswordChangeSuccess,
     forgotPassword,
     isLoading,
     isSubmitting,
@@ -544,9 +583,9 @@ function AuthProvider({ children }: AuthProviderProps) {
     logoutAll,
     logoutOtherSessions,
     openAuthMode,
+    passwordChangeSuccess,
     refresh,
     register,
-    resendVerification,
     revokeSession,
     submitPasswordReset,
     updateProfile,

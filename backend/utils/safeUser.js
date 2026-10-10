@@ -75,7 +75,6 @@ function toSafeUser(user) {
     status: Object.values(ACCOUNT_STATUSES).includes(source.status)
       ? source.status
       : ACCOUNT_STATUSES.ACTIVE,
-    emailVerified: Boolean(source.emailVerified),
     createdAt: source.createdAt || null,
     updatedAt: source.updatedAt || null,
     lastLoginAt: source.lastLoginAt || null,

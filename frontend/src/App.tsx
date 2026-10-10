@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { shouldShowGlobalAuthNotice } from "./auth/authUtils";
 import { NOTICE_FADING_CLASS, useAutoDismissNotice } from "./auth/authNotice";
 import AccountActionPanel from "./auth/AccountActionPanel";
+import PasswordChangeSuccessModal from "./auth/PasswordChangeSuccessModal";
 import AuthLoading from "./auth/AuthLoading";
 import UsernameOnboarding from "./auth/UsernameOnboarding";
 
@@ -45,7 +46,7 @@ function AuthNotice() {
 function AppContent() {
   const getLocationKey = () => {
     const url = new URL(window.location.href);
-    const authKeys = ["oauth_code", "oauth_error", "verification_token", "reset_token"];
+    const authKeys = ["oauth_code", "oauth_error", "reset_token"];
     authKeys.forEach((key) => url.searchParams.delete(key));
     const fragment = new URLSearchParams(url.hash.startsWith("#") ? url.hash.slice(1) : url.hash);
     authKeys.forEach((key) => fragment.delete(key));
@@ -129,6 +130,14 @@ function App() {
   return (
     <AuthProvider>
       <AppContent />
+      {/*
+        Deliberately outside AppContent instead of inside Settings: a confirmed
+        password change signs the session out, so by the time this confirmation
+        has to appear AppContent may be rendering the signed-out surface — or
+        one of its early returns — and Settings has already unmounted with the
+        profile popup.
+      */}
+      <PasswordChangeSuccessModal />
     </AuthProvider>
   );
 }

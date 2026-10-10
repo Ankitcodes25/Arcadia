@@ -1,5 +1,4 @@
 const authService = require('../services/authService');
-const accountActionService = require('../services/accountActionService');
 const emailService = require('../services/emailService');
 const refreshSessionService = require('../services/refreshSessionService');
 const { revokeAllUserSessions } = require('../services/userSecurityService');
@@ -52,19 +51,14 @@ async function register(req, res, next) {
     const validationError = validateRegistration(req.body);
     if (validationError) return res.status(400).json({ error: validationError });
 
+    // Signup is final: the account is created ACTIVE and the session is issued
+    // immediately, so there is no pending state to wait on and no email to
+    // confirm before the player can log in.
     const result = await authService.register(req.body);
-    let verificationEmailSent = false;
-
-    try {
-      const verification = await accountActionService.issueVerificationForUser(result.user.id);
-      verificationEmailSent = verification.sent;
-    } catch {
-      // Account creation is not blocked by an unavailable email provider.
-    }
 
     await sendWelcomeAfterSignup(result.user);
     await issueRefreshCookie(res, result.user.id, req);
-    return res.status(201).json({ ...result, verificationEmailSent });
+    return res.status(201).json(result);
   } catch (error) {
     return next(error);
   }

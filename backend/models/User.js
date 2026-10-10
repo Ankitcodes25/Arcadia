@@ -8,6 +8,10 @@ const {
   USERNAME_MAX_LENGTH,
   getUsernameValidationError,
 } = require('../utils/username');
+const {
+  PROFILE_VISIBILITY,
+  LEADERBOARD_VISIBILITY,
+} = require('../utils/preferences');
 
 const USER_ROLES = Object.freeze({
   USER: 'USER',
@@ -134,6 +138,43 @@ const userSchema = new mongoose.Schema(
       },
     },
     /*
+     * Account preferences.
+     *
+     * These are display and privacy choices, never identity or progression
+     * data. Each key carries its canonical default here AND in
+     * `utils/preferences.js`: the schema defaults apply to new accounts, while
+     * `getPreferences` re-validates and merges for accounts created before this
+     * subdocument existed, so no migration is required.
+     *
+     * `toSafeUser` deliberately does not expose this subdocument, so it never
+     * rides along on `/auth/me` or any profile response; the only read surface
+     * is the dedicated preferences endpoint.
+     */
+    preferences: {
+      soundEffects: {
+        type: Boolean,
+        default: true,
+      },
+      soundVolume: {
+        type: Number,
+        default: 100,
+        validate: {
+          validator: (value) => Number.isInteger(value) && value >= 0 && value <= 100,
+          message: 'soundVolume must be a whole number between 0 and 100',
+        },
+      },
+      profileVisibility: {
+        type: String,
+        enum: Object.values(PROFILE_VISIBILITY),
+        default: PROFILE_VISIBILITY.PUBLIC,
+      },
+      leaderboardVisibility: {
+        type: String,
+        enum: Object.values(LEADERBOARD_VISIBILITY),
+        default: LEADERBOARD_VISIBILITY.SHOW,
+      },
+    },
+    /*
      * The only stored progression value. Level, title, badge and progress are
      * always derived from it through `utils/progression.js`, so they can never
      * drift apart. It is never read from a request body: XP is granted only by
@@ -165,10 +206,6 @@ const userSchema = new mongoose.Schema(
       default: ACCOUNT_STATUSES.ACTIVE,
       required: true,
       index: true,
-    },
-    emailVerified: {
-      type: Boolean,
-      default: false,
     },
     google: {
       provider: {
@@ -214,11 +251,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: 512,
-      default: null,
-    },
-    verificationEmailRequestedAt: {
-      type: Date,
-      select: false,
       default: null,
     },
     passwordResetRequestedAt: {

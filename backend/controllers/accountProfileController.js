@@ -1,4 +1,5 @@
 const accountProfileService = require('../services/accountProfileService');
+const accountActionService = require('../services/accountActionService');
 const matchHistoryService = require('../services/matchHistoryService');
 const {
   getRefreshToken,
@@ -156,6 +157,66 @@ async function logoutOtherSessions(req, res, next) {
   }
 }
 
+/*
+ * Account preferences: sound and privacy.
+ *
+ * Every response is the preference set the backend actually stored — read
+ * through the validating merge or returned by the write — so the frontend
+ * only ever renders backend-confirmed values. Nothing is derived client side.
+ */
+async function getPreferences(req, res, next) {
+  preventAccountResponseCaching(res);
+  try {
+    const preferences = await accountProfileService.getAccountPreferences(req.user.id);
+    return res.json({ preferences });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function updatePreferences(req, res, next) {
+  preventAccountResponseCaching(res);
+  try {
+    const preferences = await accountProfileService.updateAccountPreferences({
+      userId: req.user.id,
+      body: req.body,
+    });
+    return res.json({ preferences });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function resetPreferences(req, res, next) {
+  preventAccountResponseCaching(res);
+  try {
+    const preferences = await accountProfileService.resetAccountPreferences(req.user.id);
+    return res.json({ preferences });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/*
+ * Permanent account deletion. The account id always comes from the verified
+ * access token, never from the request, so a caller can only ever delete
+ * itself. The refresh cookie is cleared here so the browser drops it in the
+ * same round trip that destroys the sessions behind it.
+ */
+async function deleteAccount(req, res, next) {
+  preventAccountResponseCaching(res);
+  try {
+    const result = await accountActionService.deleteAccount({
+      userId: req.user.id,
+      body: req.body,
+    });
+    clearRefreshCookie(res);
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   checkUsernameAvailability,
   getProfile,
@@ -168,4 +229,8 @@ module.exports = {
   listSessions,
   revokeSession,
   logoutOtherSessions,
+  getPreferences,
+  updatePreferences,
+  resetPreferences,
+  deleteAccount,
 };

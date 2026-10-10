@@ -96,7 +96,6 @@ export type AuthUser = {
   progression: Progression;
   role: AuthRole;
   status: AuthStatus;
-  emailVerified: boolean;
   createdAt: string | null;
   updatedAt: string | null;
   lastLoginAt: string | null;
@@ -125,7 +124,6 @@ export type ProfileUpdateResult = {
 export type AuthResponse = {
   token: string;
   user: AuthUser;
-  verificationEmailSent?: boolean;
 };
 
 export type AuthFormValues = {
@@ -149,6 +147,35 @@ export type AccountProfileResponse = {
 export type AccountSettingsResponse = {
   settings: AccountProfileUser;
 };
+
+/* ------------------------------------------------------------------
+   Account preferences
+
+   Sound and privacy choices, persisted by the backend. Every value here is
+   only ever written by a preferences endpoint response: the modal renders
+   what the server confirms and never a locally invented default.
+   ------------------------------------------------------------------ */
+
+/** Who else may view the account's profile. Enforced server-side. */
+export type ProfileVisibility = "PUBLIC" | "FRIENDS" | "NO_ONE";
+
+/** Whether the account appears on the public leaderboard. Enforced server-side. */
+export type LeaderboardVisibility = "SHOW" | "HIDE";
+
+export type AccountPreferences = {
+  soundEffects: boolean;
+  /** 0–100, whole numbers only. The backend rejects anything else. */
+  soundVolume: number;
+  profileVisibility: ProfileVisibility;
+  leaderboardVisibility: LeaderboardVisibility;
+};
+
+export type AccountPreferencesResponse = {
+  preferences: AccountPreferences;
+};
+
+/** Only the keys actually changed are sent; the backend applies them together. */
+export type AccountPreferencesUpdate = Partial<AccountPreferences>;
 
 /* ------------------------------------------------------------------
    Match history
@@ -239,14 +266,9 @@ export type LogoutOtherSessionsResponse = {
 };
 
 export type AccountAction =
-  | {
-      kind: "verification";
-      status: "loading" | "success" | "error";
-      message: string;
-    }
-  | {
-      kind: "reset";
-      status: "form" | "submitting" | "success" | "error";
-      token: string;
-      message: string;
-    };
+  {
+    kind: "reset";
+    status: "form" | "submitting" | "success" | "error";
+    token: string;
+    message: string;
+  };
