@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AuthUser } from "../auth/authTypes";
-import AccountSettingsPanel from "../auth/AccountSettingsPanel";
+import SettingsModal from "../pages/Settings/SettingsModal";
 import AvatarPreview from "../pages/Myprofile/AvatarPreview";
 import CopyButton from "../auth/CopyButton";
 import { getUserProgressionView } from "../auth/progression";
@@ -126,16 +126,22 @@ function ProfilePopupModal({
   isLoggingOut,
 }: ProfilePopupModalProps) {
   const popupRef = useRef<HTMLDivElement>(null);
+  /*
+   * Settings opens as its own modal layer above this menu, the same way My
+   * Profile does, so the flag is tracked here to suspend the document
+   * listeners while that layer is on top.
+   */
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const isLayerOpen = isMyProfileOpen || settingsOpen;
 
   useEffect(() => {
     /*
-     * While My Profile is open the menu is inert. It is not dismissed and it
-     * does not claim the Escape key, because both of those belong to the layer
-     * on top of it. The menu is still mounted, so it is simply still there when
-     * My Profile closes.
+     * While My Profile or Settings is open the menu is inert. It is not
+     * dismissed and it does not claim the Escape key, because both of those
+     * belong to the layer on top of it. The menu is still mounted, so it is
+     * simply still there when the layer closes.
      */
-    if (isMyProfileOpen) return;
+    if (isLayerOpen) return;
 
     const handlePointerDown = (event: PointerEvent) => {
       if (!popupRef.current?.contains(event.target as Node)) onClose();
@@ -150,7 +156,7 @@ function ProfilePopupModal({
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isMyProfileOpen, onClose]);
+  }, [isLayerOpen, onClose]);
 
   // The badge and title come from the progression the backend already sent. The
   // same eligibility rule My Profile and the Avatar Modal use is applied here, so
@@ -188,7 +194,7 @@ function ProfilePopupModal({
   return (
     <div
       ref={popupRef}
-      className={`profile-popup ${settingsOpen ? "settings-open" : ""}`}
+      className="profile-popup"
       role="menu"
       aria-label="Profile menu"
       /* A click inside the menu is never a request to dismiss the menu, and
@@ -197,8 +203,8 @@ function ProfilePopupModal({
     >
       <div className="profile-popup-header">
         {/*
-          The identity block deliberately shows no email address and no
-          verification state. The permanent Player ID leads because it is the
+          The identity block deliberately shows no email address. The
+          permanent Player ID leads because it is the
           one identifier that can never change, the username is the account's
           visible name, and the badge title underneath is the existing
           progression value.
@@ -277,7 +283,12 @@ function ProfilePopupModal({
         </button>
       </div>
 
-      {settingsOpen && <AccountSettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {/*
+        Settings is a modal layer portaled above this menu, not an expansion
+        of it. The popup stays mounted underneath, which is what makes the
+        modal's close a back action that returns to this menu.
+      */}
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

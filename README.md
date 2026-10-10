@@ -37,7 +37,7 @@ cp .env.example .env
 npm start
 ```
 
-For production, set `NODE_ENV=production`, an explicit HTTPS `FRONTEND_URL` (and any additional origins in `CORS_ORIGIN`), a high-entropy `JWT_SECRET`, a TLS-protected `MONGODB_URI`, Google OAuth server credentials, and SMTP delivery for verification/reset messages. Production startup fails closed when those required values are absent or unsafe. Cross-site frontend/API deployments should use `COOKIE_SAME_SITE=none`; same-site deployments should prefer `lax` or `strict`.
+For production, set `NODE_ENV=production`, an explicit HTTPS `FRONTEND_URL` (and any additional origins in `CORS_ORIGIN`), a high-entropy `JWT_SECRET`, a TLS-protected `MONGODB_URI`, Google OAuth server credentials, and SMTP delivery for password-reset messages. Production startup fails closed when those required values are absent or unsafe. Cross-site frontend/API deployments should use `COOKIE_SAME_SITE=none`; same-site deployments should prefer `lax` or `strict`.
 
 The frontend requires `VITE_API_URL` for production builds. Set `VITE_GOOGLE_AUTH_ENABLED=true` only when the backend Google OAuth routes are configured. Configure the static host to serve `index.html` for SPA routes and to send `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, and a clickjacking protection header.
 

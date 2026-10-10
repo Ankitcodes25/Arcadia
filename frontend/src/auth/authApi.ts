@@ -1,5 +1,7 @@
 import type {
   AccountProfileResponse,
+  AccountPreferencesResponse,
+  AccountPreferencesUpdate,
   AccountSessionsResponse,
   AccountSettingsResponse,
   AuthMessageResponse,
@@ -161,7 +163,6 @@ function isAuthUser(value: unknown): value is AuthUser {
     && (value.role === "USER" || value.role === "ADMIN")
     && ["ACTIVE", "SUSPENDED", "DELETED"].includes(String(value.status))
     && (value.authProvider === "PASSWORD" || value.authProvider === "GOOGLE")
-    && typeof value.emailVerified === "boolean"
     && isRecord(value.avatar)
     && (value.avatar.type === "local" || value.avatar.type === "google")
     && typeof value.avatar.value === "string"
@@ -322,22 +323,6 @@ export const authApi = {
     );
   },
 
-  verifyEmail(token: string) {
-    return request<AuthMessageResponse>(
-      "/api/v1/auth/verify-email",
-      { method: "POST", body: { token } },
-      { skipAuth: true, skipAuthRefresh: true, credentials: "omit" },
-    );
-  },
-
-  resendVerification(email: string) {
-    return request<AuthMessageResponse>(
-      "/api/v1/auth/resend-verification",
-      { method: "POST", body: { email } },
-      { skipAuth: true, skipAuthRefresh: true, credentials: "omit" },
-    );
-  },
-
   forgotPassword(email: string) {
     return request<AuthMessageResponse>(
       "/api/v1/auth/forgot-password",
@@ -366,6 +351,55 @@ export const authApi = {
     return request<AccountSettingsResponse>(
       "/api/v1/account/settings",
       {},
+      { credentials: "omit" },
+    );
+  },
+
+  /*
+   * Account preferences (sound + privacy). Every response is the stored set
+   * the backend confirmed, so the Settings modal only ever renders persisted
+   * values. Writes send only the changed keys and the backend validates and
+   * applies them together.
+   */
+  getPreferences() {
+    return request<AccountPreferencesResponse>(
+      "/api/v1/account/preferences",
+      {},
+      { credentials: "omit" },
+    );
+  },
+
+  updatePreferences(changes: AccountPreferencesUpdate) {
+    const body: Record<string, unknown> = {};
+    if (changes.soundEffects !== undefined) body.soundEffects = changes.soundEffects;
+    if (changes.soundVolume !== undefined) body.soundVolume = changes.soundVolume;
+    if (changes.profileVisibility !== undefined) body.profileVisibility = changes.profileVisibility;
+    if (changes.leaderboardVisibility !== undefined) body.leaderboardVisibility = changes.leaderboardVisibility;
+
+    return request<AccountPreferencesResponse>(
+      "/api/v1/account/preferences",
+      { method: "PATCH", body },
+      { credentials: "omit" },
+    );
+  },
+
+  resetPreferences() {
+    return request<AccountPreferencesResponse>(
+      "/api/v1/account/preferences/reset",
+      { method: "POST" },
+      { credentials: "omit" },
+    );
+  },
+
+  /*
+   * Permanent account deletion. The confirmation word plus the password (for
+   * password accounts) are re-verified server-side; the account id is never
+   * sent, because it comes from the access token.
+   */
+  deleteAccount(values: { confirmation: string; password?: string }) {
+    return request<AuthMessageResponse>(
+      "/api/v1/account",
+      { method: "DELETE", body: values },
       { credentials: "omit" },
     );
   },

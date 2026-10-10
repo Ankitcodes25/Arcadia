@@ -6,7 +6,6 @@ const REQUIRED_SMTP_VARIABLES = [
   'SMTP_PORT',
   'SMTP_USER',
   'SMTP_PASSWORD',
-  'FRONTEND_EMAIL_VERIFICATION_URL',
   'FRONTEND_PASSWORD_RESET_URL',
 ];
 
@@ -53,10 +52,7 @@ function getEmailConfig(source = process.env) {
   }
 
   const nodeEnv = source.NODE_ENV || process.env.NODE_ENV || 'development';
-  if (
-    !isHttpUrl(values.FRONTEND_EMAIL_VERIFICATION_URL, nodeEnv)
-    || !isHttpUrl(values.FRONTEND_PASSWORD_RESET_URL, nodeEnv)
-  ) {
+  if (!isHttpUrl(values.FRONTEND_PASSWORD_RESET_URL, nodeEnv)) {
     return Object.freeze({ configured: false, provider, reason: 'invalid_configuration' });
   }
 
@@ -73,7 +69,6 @@ function getEmailConfig(source = process.env) {
     port,
     user: values.SMTP_USER,
     password: values.SMTP_PASSWORD,
-    verificationUrl: values.FRONTEND_EMAIL_VERIFICATION_URL,
     resetUrl: values.FRONTEND_PASSWORD_RESET_URL,
     frontendUrl,
   });

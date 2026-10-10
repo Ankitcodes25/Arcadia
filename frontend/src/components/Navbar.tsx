@@ -76,7 +76,6 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
     login,
     register,
     forgotPassword,
-    resendVerification,
     loginWithGoogle,
     logout,
   } = useAuth();
@@ -605,7 +604,6 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
           onGoogleLogin={handleGoogleLogin}
           onClearError={clearError}
           onForgotPassword={forgotPassword}
-          onResendVerification={resendVerification}
           onSwitchMode={() =>
             openAuthMode(
               authMode === "login"

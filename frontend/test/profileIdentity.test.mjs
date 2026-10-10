@@ -21,7 +21,6 @@ const user = {
   email: "user@example.com",
   role: "USER",
   status: "ACTIVE",
-  emailVerified: true,
   createdAt: null,
   updatedAt: null,
   lastLoginAt: null,

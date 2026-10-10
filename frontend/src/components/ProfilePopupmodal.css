@@ -2,8 +2,8 @@
    PROFILE POPUP
 
    A compact account menu. The identity block leads with the permanent Player
-   ID, then the username, then the progression badge title; no email address or
-   verification state is shown. The menu below it is the approved, fixed set of
+   ID, then the username, then the progression badge title; no email address
+   is shown. The menu below it is the approved, fixed set of
    options, with Logout kept visually distinct as the destructive action.
 
    The treatment stays in the Arcadia purple/neon family: a luminous border, a
@@ -51,10 +51,6 @@
 /* The WebKit half of the scrollbar suppression described above. */
 .profile-popup::-webkit-scrollbar {
   display: none;
-}
-
-.profile-popup.settings-open {
-  width: min(430px, calc(100vw - 28px));
 }
 
 /*

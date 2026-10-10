@@ -1,7 +1,7 @@
 import { AuthApiError } from "./authApi";
 import type { AuthErrorKind, AuthMode, AuthUser } from "./authTypes";
 
-const AUTH_KEYS = ["oauth_code", "oauth_error", "verification_token", "reset_token"] as const;
+const AUTH_KEYS = ["oauth_code", "oauth_error", "reset_token"] as const;
 type AuthKey = (typeof AUTH_KEYS)[number];
 
 export function getAuthErrorMessage(error: unknown, fallback: string) {
@@ -76,7 +76,6 @@ export function consumeAuthQuery() {
   return {
     code: values.oauth_code || null,
     error: values.oauth_error || null,
-    verificationToken: values.verification_token || null,
     resetToken: values.reset_token || null,
     ambiguous,
   };

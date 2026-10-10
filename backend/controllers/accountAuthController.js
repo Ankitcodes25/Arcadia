@@ -5,30 +5,6 @@ function preventTokenResponseCaching(res) {
   res.set('Cache-Control', 'no-store');
 }
 
-async function verifyEmail(req, res, next) {
-  preventTokenResponseCaching(res);
-  try {
-    const token = req.method === 'GET'
-      ? (typeof req.query.token === 'string' ? req.query.token : null)
-      : req.body && typeof req.body.token === 'string' ? req.body.token : null;
-    const result = await accountActionService.verifyEmailToken(token);
-    return res.json(result);
-  } catch (error) {
-    return next(error);
-  }
-}
-
-async function resendVerification(req, res, next) {
-  preventTokenResponseCaching(res);
-  try {
-    const email = req.body && typeof req.body.email === 'string' ? req.body.email : '';
-    const result = await accountActionService.resendVerification(email, req.body);
-    return res.json(result);
-  } catch (error) {
-    return next(error);
-  }
-}
-
 async function forgotPassword(req, res, next) {
   preventTokenResponseCaching(res);
   try {
@@ -58,8 +34,6 @@ async function resetPassword(req, res, next) {
 }
 
 module.exports = {
-  verifyEmail,
-  resendVerification,
   forgotPassword,
   resetPassword,
 };

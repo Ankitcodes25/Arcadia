@@ -5,7 +5,6 @@ const { User, USER_ROLES, ACCOUNT_STATUSES } = require('../models/User');
 const { Session } = require('../models/Session');
 const { OAuthHandoff } = require('../models/OAuthHandoff');
 const { PasswordResetToken } = require('../models/PasswordResetToken');
-const { EmailVerificationToken } = require('../models/EmailVerificationToken');
 const { RateLimitBucket } = require('../models/RateLimitBucket');
 const { AdminMutationLock } = require('../models/AdminMutationLock');
 const normalizeEmail = require('../utils/normalizeEmail');
@@ -33,7 +32,6 @@ const USER_RATE_LIMIT_ROUTES = Object.freeze([
 const EMAIL_RATE_LIMIT_ROUTES = Object.freeze([
   'auth:register:email',
   'auth:login:email',
-  'auth:resend-verification:email',
   'auth:forgot-password:email',
 ]);
 const OWNED_RATE_LIMIT_ROUTES = Object.freeze([
@@ -82,7 +80,6 @@ async function initializeBootstrapModels() {
   await Session.init();
   await OAuthHandoff.init();
   await PasswordResetToken.init();
-  await EmailVerificationToken.init();
   await RateLimitBucket.init();
   await AdminMutationLock.init();
 }
@@ -155,7 +152,6 @@ async function deleteOwnedRateLimitBuckets(buckets, session) {
 async function deleteUserOwnedAuthenticationRecords(userId, normalizedEmail, session) {
   await queryWithSession(OAuthHandoff.deleteMany({ userId }), session);
   await queryWithSession(PasswordResetToken.deleteMany({ userId }), session);
-  await queryWithSession(EmailVerificationToken.deleteMany({ userId }), session);
   await queryWithSession(Session.deleteMany({ userId }), session);
 
   const rateLimitBuckets = await findOwnedRateLimitBuckets(userId, normalizedEmail, session);
@@ -195,7 +191,6 @@ function buildAdminDocument({ normalizedEmail, normalizedName, passwordHash, adm
     passwordHash,
     role: USER_ROLES.ADMIN,
     status: ACCOUNT_STATUSES.ACTIVE,
-    emailVerified: true,
   };
 }
 
@@ -368,14 +363,12 @@ function getStagedBootstrapEmail(userId) {
 async function loadFallbackRecordSnapshot(userId, normalizedEmail) {
   const oauthHandoffs = await OAuthHandoff.collection.find({ userId }).toArray();
   const passwordResetTokens = await PasswordResetToken.collection.find({ userId }).toArray();
-  const emailVerificationTokens = await EmailVerificationToken.collection.find({ userId }).toArray();
   const sessions = await Session.collection.find({ userId }).toArray();
   const rateLimitBuckets = await findOwnedRateLimitBuckets(userId, normalizedEmail);
 
   return {
     oauthHandoffs,
     passwordResetTokens,
-    emailVerificationTokens,
     sessions,
     rateLimitBuckets,
   };
@@ -388,9 +381,6 @@ async function deleteFallbackRecordSnapshot(snapshot) {
   await PasswordResetToken.collection.deleteMany({
     _id: { $in: snapshot.passwordResetTokens.map((record) => record._id) },
   });
-  await EmailVerificationToken.collection.deleteMany({
-    _id: { $in: snapshot.emailVerificationTokens.map((record) => record._id) },
-  });
   await Session.collection.deleteMany({
     _id: { $in: snapshot.sessions.map((record) => record._id) },
   });
@@ -401,7 +391,6 @@ async function restoreFallbackRecords(snapshot) {
   const collections = [
     [OAuthHandoff.collection, snapshot.oauthHandoffs],
     [PasswordResetToken.collection, snapshot.passwordResetTokens],
-    [EmailVerificationToken.collection, snapshot.emailVerificationTokens],
     [snapshot.rateLimitBuckets.length ? RateLimitBucket.collection : null, snapshot.rateLimitBuckets],
     [Session.collection, snapshot.sessions],
   ];
@@ -443,14 +432,12 @@ async function verifyFallbackRollback({
     const recordCounts = await Promise.all([
       OAuthHandoff.collection.countDocuments({ _id: { $in: recordSnapshot.oauthHandoffs.map((r) => r._id) } }),
       PasswordResetToken.collection.countDocuments({ _id: { $in: recordSnapshot.passwordResetTokens.map((r) => r._id) } }),
-      EmailVerificationToken.collection.countDocuments({ _id: { $in: recordSnapshot.emailVerificationTokens.map((r) => r._id) } }),
       Session.collection.countDocuments({ _id: { $in: recordSnapshot.sessions.map((r) => r._id) } }),
       RateLimitBucket.collection.countDocuments({ _id: { $in: recordSnapshot.rateLimitBuckets.map((r) => r._id) } }),
     ]);
     if (recordCounts.some((count, index) => count !== [
       recordSnapshot.oauthHandoffs.length,
       recordSnapshot.passwordResetTokens.length,
-      recordSnapshot.emailVerificationTokens.length,
       recordSnapshot.sessions.length,
       recordSnapshot.rateLimitBuckets.length,
     ][index])) {
@@ -550,7 +537,6 @@ async function provisionAdminWithFallback({
   let recordSnapshot = {
     oauthHandoffs: [],
     passwordResetTokens: [],
-    emailVerificationTokens: [],
     sessions: [],
     rateLimitBuckets: [],
   };

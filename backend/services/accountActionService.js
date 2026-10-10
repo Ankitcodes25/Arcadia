@@ -1,24 +1,25 @@
-const { EmailVerificationToken } = require('../models/EmailVerificationToken');
 const { PasswordResetToken } = require('../models/PasswordResetToken');
 const { User, ACCOUNT_STATUSES, GOOGLE_PROVIDER } = require('../models/User');
 const { Session } = require('../models/Session');
+const { OAuthHandoff } = require('../models/OAuthHandoff');
+const { Match } = require('../models/Match');
 const normalizeEmail = require('../utils/normalizeEmail');
 const {
-  generateVerificationToken,
   generatePasswordResetToken,
   isValidSecureToken,
   hashSecureToken,
   verifySecureTokenHash,
 } = require('../utils/secureToken');
-const { getPasswordValidationError } = require('../utils/passwordPolicy');
+const {
+  getPasswordValidationError,
+  getBcryptByteLengthError,
+} = require('../utils/passwordPolicy');
 const { hashPassword } = require('../utils/bcrypt');
+const bcrypt = require('bcryptjs');
 const emailService = require('./emailService');
 
-const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
-const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000;
 const RESET_REQUEST_COOLDOWN_MS = 60 * 1000;
-const GENERIC_VERIFICATION_MESSAGE = 'If the account is eligible, a verification email has been sent.';
 const GENERIC_RESET_MESSAGE = 'If the account is eligible, a password reset email has been sent.';
 
 function createError(message, statusCode) {
@@ -39,106 +40,6 @@ function assertOnlyKeys(body, allowedKeys) {
   if (Object.keys(body).some((key) => !allowedKeys.includes(key))) {
     throw createError('Request contains unsupported fields', 400);
   }
-}
-
-async function issueVerificationForUser(userId) {
-  await EmailVerificationToken.init();
-  const now = new Date();
-  const cutoff = new Date(now.getTime() - VERIFICATION_RESEND_COOLDOWN_MS);
-  const user = await User.findOneAndUpdate(
-    {
-      _id: userId,
-      status: ACCOUNT_STATUSES.ACTIVE,
-      emailVerified: { $ne: true },
-      'google.provider': { $ne: GOOGLE_PROVIDER },
-      $or: [
-        { verificationEmailRequestedAt: null },
-        { verificationEmailRequestedAt: { $exists: false } },
-        { verificationEmailRequestedAt: { $lte: cutoff } },
-      ],
-    },
-    { $set: { verificationEmailRequestedAt: now } },
-    { returnDocument: 'after' },
-  );
-
-  if (!user) {
-    return { sent: false, reason: 'not_eligible' };
-  }
-
-  await EmailVerificationToken.updateMany(
-    { userId, consumedAt: null },
-    { $set: { consumedAt: now } },
-  );
-
-  const rawToken = generateVerificationToken();
-  await EmailVerificationToken.create({
-    userId,
-    tokenHash: hashSecureToken(rawToken),
-    expiresAt: new Date(now.getTime() + VERIFICATION_TOKEN_TTL_MS),
-  });
-
-  let delivery = { sent: false, reason: 'delivery_failed' };
-  try {
-    delivery = await emailService.sendVerificationEmail({ to: user.email, token: rawToken });
-  } catch {
-    delivery = { sent: false, reason: 'delivery_failed' };
-  }
-
-  return {
-    sent: Boolean(delivery && delivery.sent === true),
-    reason: delivery && delivery.reason ? delivery.reason : 'delivery_failed',
-  };
-}
-
-async function verifyEmailToken(rawToken) {
-  if (!isValidSecureToken(rawToken) || !rawToken.startsWith('arc_verify_')) {
-    throw createError('Invalid or expired verification token', 400);
-  }
-
-  const now = new Date();
-  const tokenRecord = await EmailVerificationToken.findOneAndUpdate(
-    {
-      tokenHash: hashSecureToken(rawToken),
-      consumedAt: null,
-      expiresAt: { $gt: now },
-    },
-    { $set: { consumedAt: now } },
-    { returnDocument: 'after' },
-  ).select('+tokenHash');
-
-  if (!tokenRecord || !verifySecureTokenHash(rawToken, tokenRecord.tokenHash)) {
-    throw createError('Invalid or expired verification token', 400);
-  }
-
-  const user = await User.findById(tokenRecord.userId);
-  if (!user) {
-    throw createError('Invalid or expired verification token', 400);
-  }
-  if (user.status !== ACCOUNT_STATUSES.ACTIVE) {
-    throw createError('Account is inactive', 403);
-  }
-
-  if (!user.emailVerified) {
-    await User.updateOne({ _id: user._id }, { $set: { emailVerified: true } });
-  }
-
-  return { message: 'Email verified successfully.' };
-}
-
-async function resendVerification(email, body) {
-  if (body !== undefined) assertOnlyKeys(body, ['email']);
-  const normalizedEmail = normalizeEmail(email);
-  if (!normalizeEmail.isValidEmail(normalizedEmail)) {
-    return { message: GENERIC_VERIFICATION_MESSAGE };
-  }
-
-  const user = await User.findOne({ email: normalizedEmail });
-  if (!user || user.status !== ACCOUNT_STATUSES.ACTIVE || user.emailVerified || user.google?.provider === GOOGLE_PROVIDER) {
-    return { message: GENERIC_VERIFICATION_MESSAGE };
-  }
-
-  await issueVerificationForUser(user._id);
-  return { message: GENERIC_VERIFICATION_MESSAGE };
 }
 
 async function issuePasswordResetForUser(userId) {
@@ -268,17 +169,121 @@ async function resetPassword({ token, password, body } = {}) {
   return { message: 'Password reset successfully. You can now log in.' };
 }
 
+/*
+ * Permanent account deletion.
+ *
+ * This is a hard delete of this one account and everything that hangs off it,
+ * gated behind two independent checks that must BOTH pass:
+ *
+ *  1. The caller types the literal confirmation word, which rules out a
+ *     mis-click or a stray form submission ever destroying an account.
+ *  2. The caller re-authenticates with the account password. A Google-only
+ *     account has no local password to re-enter (its credential lives with the
+ *     identity provider and there is no Google re-prompt wired into Arcadia
+ *     yet), so for those the typed confirmation is the only gate. That is a
+ *     documented limitation of the current architecture, not a design goal:
+ *     adding an OAuth re-prompt would close it without changing this flow.
+ *
+ * The order below is deliberate and fail-safe. Sessions and tokens are revoked
+ * FIRST, so an interruption leaves a live account that is merely signed out
+ * everywhere rather than a half-deleted one that still answers tokens. The user
+ * document is deleted LAST, guarded by the tokenVersion written in step one, so
+ * a concurrent session cannot resurrect data the cleanup already removed.
+ *
+ * Ownership is never inferred from the request beyond the verified access
+ * token: every delete is scoped to the authenticated user's own id, so no
+ * other account's rows — including an opponent's public display name on a
+ * shared match row — are ever touched.
+ */
+const ACCOUNT_DELETION_CONFIRMATION = 'DELETE';
+
+async function deleteAccount({ userId, body }) {
+  assertOnlyKeys(body, ['confirmation', 'password']);
+
+  if (body.confirmation !== ACCOUNT_DELETION_CONFIRMATION) {
+    throw createError('Type DELETE to confirm account deletion', 400);
+  }
+
+  const user = await User.findById(userId).select('+passwordHash');
+  if (!user || user.status !== ACCOUNT_STATUSES.ACTIVE) {
+    throw createError('Account not found', 404);
+  }
+
+  /*
+   * Re-authentication. Password accounts must prove the credential; Google
+   * accounts cannot re-enter a local password, so the typed confirmation is
+   * the only gate for them (documented above).
+   */
+  if (user.passwordHash) {
+    if (typeof body.password !== 'string' || body.password === '') {
+      throw createError('Enter your password to confirm deletion', 400);
+    }
+
+    const passwordLengthError = getBcryptByteLengthError(body.password);
+    if (passwordLengthError) {
+      throw createError('Password is incorrect', 401);
+    }
+
+    const passwordMatches = await bcrypt.compare(body.password, user.passwordHash);
+    if (!passwordMatches) {
+      throw createError('Password is incorrect', 401);
+    }
+  } else if (body.password !== undefined && body.password !== null && body.password !== '') {
+    // A password was supplied for an account that has none. That is never a
+    // valid credential here, so it is rejected rather than ignored.
+    throw createError('Password is incorrect', 401);
+  }
+
+  const now = new Date();
+
+  // 1. Invalidate every credential this account holds anywhere.
+  const deletion = await User.findOneAndUpdate(
+    { _id: user._id, status: ACCOUNT_STATUSES.ACTIVE },
+    { $inc: { tokenVersion: 1 } },
+    { returnDocument: 'after' },
+  ).select('+passwordHash');
+  if (!deletion) {
+    throw createError('Account not found', 404);
+  }
+
+  await Session.updateMany(
+    { userId: user._id, revokedAt: null },
+    {
+      $set: { revokedAt: now },
+      $unset: { rotationClaimId: 1, rotationClaimExpiresAt: 1 },
+    },
+  );
+  await PasswordResetToken.updateMany(
+    { userId: user._id, consumedAt: null },
+    { $set: { consumedAt: now } },
+  );
+
+  // 2. Remove every record owned by this account. Nothing here is another
+  //    account's data: match rows carry a public opponent label, never a
+  //    reference to the other player's document, so deleting this account's
+  //    rows leaves every other account's history intact.
+  await Session.deleteMany({ userId: user._id });
+  await PasswordResetToken.deleteMany({ userId: user._id });
+  await OAuthHandoff.deleteMany({ userId: user._id });
+  await Match.deleteMany({ userId: user._id });
+
+  // 3. Delete the account itself, guarded so a concurrent status change (an
+  //    admin suspension racing this write) cannot be overwritten.
+  const removed = await User.deleteOne({ _id: user._id, status: ACCOUNT_STATUSES.ACTIVE });
+  if (removed.deletedCount !== 1) {
+    throw createError('Account could not be deleted; please try again', 409);
+  }
+
+  return { message: 'Your account and all of its data have been permanently deleted.' };
+}
+
 module.exports = {
-  VERIFICATION_TOKEN_TTL_MS,
   RESET_TOKEN_TTL_MS,
-  VERIFICATION_RESEND_COOLDOWN_MS,
   RESET_REQUEST_COOLDOWN_MS,
-  GENERIC_VERIFICATION_MESSAGE,
   GENERIC_RESET_MESSAGE,
-  issueVerificationForUser,
-  verifyEmailToken,
-  resendVerification,
+  ACCOUNT_DELETION_CONFIRMATION,
   issuePasswordResetForUser,
   forgotPassword,
   resetPassword,
+  deleteAccount,
 };

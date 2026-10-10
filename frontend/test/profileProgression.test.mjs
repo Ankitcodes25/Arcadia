@@ -75,7 +75,6 @@ function accountProfile(overrides = {}) {
     progression: progression(),
     role: "USER",
     status: "ACTIVE",
-    emailVerified: true,
     createdAt: "2026-09-14T10:00:00.000Z",
     updatedAt: null,
     lastLoginAt: null,

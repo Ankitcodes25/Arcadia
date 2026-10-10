@@ -1,17 +1,12 @@
 const crypto = require('node:crypto');
 
 const TOKEN_BYTES = 32;
-const VERIFICATION_PREFIX = 'arc_verify_';
 const RESET_PREFIX = 'arc_reset_';
-const TOKEN_PATTERN = /^(?:arc_verify_|arc_reset_)[A-Za-z0-9_-]{43}$/;
+const TOKEN_PATTERN = /^arc_reset_[A-Za-z0-9_-]{43}$/;
 const HASH_PATTERN = /^[a-f0-9]{64}$/i;
 
 function generateSecureToken(prefix) {
   return `${prefix}${crypto.randomBytes(TOKEN_BYTES).toString('base64url')}`;
-}
-
-function generateVerificationToken() {
-  return generateSecureToken(VERIFICATION_PREFIX);
 }
 
 function generatePasswordResetToken() {
@@ -41,7 +36,6 @@ function verifySecureTokenHash(value, expectedHash) {
 }
 
 module.exports = {
-  generateVerificationToken,
   generatePasswordResetToken,
   isValidSecureToken,
   hashSecureToken,
