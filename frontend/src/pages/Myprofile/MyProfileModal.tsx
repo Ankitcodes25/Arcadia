@@ -409,6 +409,7 @@ function MyProfileModal({
           </div>
         </div>
 
+        <div className="mpm-body">
         {/* A save failure is reported inside the Username Modal, which is where
             the edit is made. This notice is only for a failed profile load. */}
         {loadError && (
@@ -706,6 +707,7 @@ function MyProfileModal({
             </div>
           </div>
         </section>
+        </div>
       </div>
 
       {isUsernameModalOpen && (

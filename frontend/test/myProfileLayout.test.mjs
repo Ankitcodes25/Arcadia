@@ -114,11 +114,21 @@ test("each Account Info item has its own icon and the active tone is a green acc
   assert.match(active[0].value, /#6ee7b7/i, "a restrained green");
 });
 
-test("the modal still scrolls internally and stays centred", () => {
+test("the profile body scrolls below a fixed header and stays centred", () => {
   assert.deepEqual(
-    declarationsFor(".mpm-modal", "overflow-y").map((e) => e.value),
+    declarationsFor(".mpm-modal", "overflow").map((e) => e.value),
+    ["hidden"],
+    "the modal clips overflow instead of scrolling the header",
+  );
+  assert.deepEqual(
+    declarationsFor(".mpm-body", "overflow-y").map((e) => e.value),
     ["auto"],
-    "vertical scrolling is unchanged",
+    "the profile body scrolls internally",
+  );
+  assert.deepEqual(
+    declarationsFor(".mpm-header", "flex").map((e) => e.value),
+    ["none"],
+    "the header stays outside the scroll area",
   );
   assert.deepEqual(
     declarationsFor(".mpm-backdrop", "justify-content").map((e) => e.value),
