@@ -136,7 +136,7 @@
 	min-height: 0;
 	overflow-y: auto;
 	overflow-x: hidden;
-	padding: 18px 0 0;
+	padding: 18px 0 16px;
 	scrollbar-width: thin;
 	scrollbar-color: rgba(224, 105, 255, 0.5) transparent;
 	scrollbar-gutter: stable;
@@ -626,7 +626,7 @@
 	align-items: center;
 	justify-content: space-between;
 	gap: 14px;
-	margin-top: 4px;
+	margin-top: 0;
 }
 
 .hsm-status {
@@ -642,15 +642,15 @@
 
 .hsm-submit {
 	flex: none;
-	height: 44px;
-	padding: 0 24px;
+	height: 40px;
+	padding: 0 20px;
 	border: 0;
 	border-radius: 12px;
 	background: linear-gradient(90deg, #d83bff, #863bff);
 	box-shadow: 0 8px 22px rgba(147, 51, 234, 0.35);
 	color: white;
 	font: inherit;
-	font-size: 14px;
+	font-size: 13px;
 	font-weight: 800;
 	cursor: pointer;
 	transition: filter 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
@@ -698,7 +698,7 @@
 	.hsm-quick-btn { flex-direction: row; justify-content: flex-start; gap: 10px; min-height: 48px; padding: 8px 12px; text-align: left; }
 	.hsm-modal { padding: 0 14px 18px; }
 	.hsm-header { padding: 16px 0 14px; }
-	.hsm-body { padding: 14px 0 0; }
+	.hsm-body { padding: 14px 0 14px; }
 	.hsm-header h2 { font-size: 16px; letter-spacing: 0.8px; }
 	.hsm-form-footer { flex-direction: column-reverse; align-items: stretch; }
 	.hsm-submit { width: 100%; }
