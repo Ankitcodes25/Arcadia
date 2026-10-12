@@ -5,6 +5,7 @@ import AvatarPreview from "../pages/Myprofile/AvatarPreview";
 import CopyButton from "../auth/CopyButton";
 import { getUserProgressionView } from "../auth/progression";
 import { getBadgeDisplay, getCompletedMatches } from "../auth/tierEligibility";
+import HelpSupportModal from "../pages/HelpandSupport/HelpSupportModal";
 import "./ProfilePopupmodal.css";
 
 type ProfilePopupModalProps = {
@@ -42,7 +43,7 @@ const MENU_ITEMS = [
   { key: "leaderboards", label: "Leaderboards", Icon: TrophyIcon, action: "leaderboard" },
   { key: "match-history", label: "Match History", Icon: HistoryIcon, action: "match-history" },
   { key: "settings", label: "Settings", Icon: GearIcon, action: "settings" },
-  { key: "help", label: "Help & Support", Icon: HelpIcon, action: "close" },
+  { key: "help", label: "Help & Support", Icon: HelpIcon, action: "help" },
 ] as const;
 
 function HistoryIcon() {
@@ -132,7 +133,8 @@ function ProfilePopupModal({
    * listeners while that layer is on top.
    */
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const isLayerOpen = isMyProfileOpen || settingsOpen;
+   const [helpOpen, setHelpOpen] = useState(false);
+   const isLayerOpen = isMyProfileOpen || settingsOpen || helpOpen;
 
   useEffect(() => {
     /*
@@ -188,6 +190,7 @@ function ProfilePopupModal({
       if (action === "match-history") onOpenMatchHistory();
       else onOpenLeaderboard();
     } else if (action === "settings") setSettingsOpen(true);
+    else if (action === "help") setHelpOpen(true);
     else onClose();
   };
 
@@ -289,6 +292,7 @@ function ProfilePopupModal({
         modal's close a back action that returns to this menu.
       */}
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+      {helpOpen && <HelpSupportModal onClose={() => setHelpOpen(false)} />}
     </div>
   );
 }

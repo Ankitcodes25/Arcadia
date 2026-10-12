@@ -26,9 +26,11 @@
    ========================================================= */
 .mpm-modal {
 	position: relative;
+	display: flex;
+	flex-direction: column;
 	width: min(100%, 660px);
 	max-height: 94dvh;
-	overflow-y: auto;
+	overflow: hidden;
 	padding: 20px 20px 22px;
 	border: 1px solid rgba(224, 105, 255, 0.85);
 	border-radius: 24px;
@@ -40,27 +42,34 @@
 	color: white;
 	animation: mpmModalIn 220ms cubic-bezier(0.22, 1, 0.36, 1);
 	transition: filter 0.2s ease;
+}
+
+.mpm-body {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overflow-x: hidden;
 	scrollbar-width: thin;
 	scrollbar-color: rgba(224, 105, 255, 0.5) transparent;
 }
 
-.mpm-modal::-webkit-scrollbar { width: 6px; }
-.mpm-modal::-webkit-scrollbar-thumb { background: rgba(224, 105, 255, 0.45); border-radius: 6px; }
-.mpm-modal::-webkit-scrollbar-button,
-.mpm-modal::-webkit-scrollbar-button:single-button,
-.mpm-modal::-webkit-scrollbar-button:vertical:start,
-.mpm-modal::-webkit-scrollbar-button:vertical:end,
-.mpm-modal::-webkit-scrollbar-button:vertical:increment,
-.mpm-modal::-webkit-scrollbar-button:vertical:decrement,
-.mpm-modal::-webkit-scrollbar-button:horizontal:start,
-.mpm-modal::-webkit-scrollbar-button:horizontal:end {
+.mpm-body::-webkit-scrollbar { width: 6px; }
+.mpm-body::-webkit-scrollbar-thumb { background: rgba(224, 105, 255, 0.45); border-radius: 6px; }
+.mpm-body::-webkit-scrollbar-button,
+.mpm-body::-webkit-scrollbar-button:single-button,
+.mpm-body::-webkit-scrollbar-button:vertical:start,
+.mpm-body::-webkit-scrollbar-button:vertical:end,
+.mpm-body::-webkit-scrollbar-button:vertical:increment,
+.mpm-body::-webkit-scrollbar-button:vertical:decrement,
+.mpm-body::-webkit-scrollbar-button:horizontal:start,
+.mpm-body::-webkit-scrollbar-button:horizontal:end {
 	display: none !important;
 	width: 0 !important;
 	height: 0 !important;
 	background: transparent !important;
 	border: none !important;
 }
-.mpm-modal::-webkit-scrollbar-track { background: transparent; }
+.mpm-body::-webkit-scrollbar-track { background: transparent; }
 
 .mpm-visually-hidden {
 	position: absolute;
@@ -78,6 +87,7 @@
 
 .mpm-header {
 	display: flex;
+	flex: none;
 	align-items: flex-start;
 	justify-content: space-between;
 	gap: 14px;
