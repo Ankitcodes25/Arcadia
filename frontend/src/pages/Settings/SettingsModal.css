@@ -7,9 +7,8 @@
    Arcadia purple/neon treatment: a luminous border, a soft outer glow,
    an inset purple wash and a thin on-theme scrollbar.
 
-   The dialog is centred, scrolls internally once it hits ~94dvh, and
-   never exceeds the viewport width, so there is no horizontal overflow
-   at any size.
+   The dialog is centred, its header stays fixed while the body scrolls
+   internally within ~94dvh, and it never exceeds the viewport width.
    ========================================================= */
 
 .settings-backdrop {
@@ -27,9 +26,11 @@
 
 .settings-modal {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: min(100%, 620px);
   max-height: 94dvh;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 20px 20px 22px;
   border: 1px solid rgba(224, 105, 255, 0.85);
   border-radius: 24px;
@@ -40,18 +41,13 @@
     inset 0 0 30px rgba(180, 59, 238, 0.1);
   color: white;
   animation: settingsModalIn 220ms cubic-bezier(0.22, 1, 0.36, 1);
-  scrollbar-width: thin;
-  scrollbar-color: rgba(224, 105, 255, 0.5) transparent;
 }
-
-.settings-modal::-webkit-scrollbar { width: 6px; }
-.settings-modal::-webkit-scrollbar-thumb { background: rgba(224, 105, 255, 0.45); border-radius: 6px; }
-.settings-modal::-webkit-scrollbar-track { background: transparent; }
 
 /* ---------------- Header ---------------- */
 
 .settings-header {
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -123,8 +119,19 @@
 
 .settings-body {
   display: grid;
+  flex: 1;
+  min-height: 0;
   gap: 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(224, 105, 255, 0.5) transparent;
+  scrollbar-gutter: stable;
 }
+
+.settings-body::-webkit-scrollbar { width: 6px; }
+.settings-body::-webkit-scrollbar-thumb { background: rgba(224, 105, 255, 0.45); border-radius: 6px; }
+.settings-body::-webkit-scrollbar-track { background: transparent; }
 
 .settings-message,
 .settings-hint {

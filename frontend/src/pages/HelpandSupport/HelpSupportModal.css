@@ -1,0 +1,713 @@
+/*
+   Help & Support dialog.
+
+   Layered above the Profile Popup (z-index 1200) that opens it, same as the
+   My Profile dialog. The popup stays mounted underneath, so closing this
+   dialog just returns to it. Surface, border, close button and type follow
+   the My Profile dialog (.mpm-*).
+*/
+.hsm-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 1300;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: clamp(10px, 4dvh, 28px) 16px;
+	background: rgba(3, 2, 10, 0.65);
+	backdrop-filter: blur(4px);
+	animation: hsmBackdropIn 180ms ease-out;
+}
+
+/* Header stays fixed; only the body scrolls, so the X is always visible. */
+.hsm-modal {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	width: min(100%, 640px);
+	max-height: 94dvh;
+	overflow: hidden;
+	border: 1px solid rgba(224, 105, 255, 0.85);
+	border-radius: 24px;
+	background: linear-gradient(150deg, rgba(63, 25, 86, 0.94), rgba(19, 8, 38, 0.96) 78%);
+	box-shadow:
+		0 30px 90px rgba(0, 0, 0, 0.75),
+		0 0 28px rgba(211, 64, 255, 0.42),
+		inset 0 0 30px rgba(180, 59, 238, 0.1);
+	color: white;
+	animation: hsmModalIn 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hsm-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* ---------------- Header ---------------- */
+
+.hsm-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 14px;
+	padding: 20px 20px 16px;
+	border-bottom: 1px solid rgba(224, 105, 255, 0.16);
+}
+
+.hsm-header-title {
+	display: flex;
+	align-items: center;
+	gap: 13px;
+	min-width: 0;
+}
+
+.hsm-header-icon {
+	display: grid;
+	place-items: center;
+	width: 40px;
+	height: 40px;
+	flex: none;
+	border: 1px solid rgba(217, 164, 255, 0.55);
+	border-radius: 13px;
+	background: linear-gradient(145deg, rgba(138, 66, 223, 0.55), rgba(24, 8, 46, 0.85));
+	color: #e6d3ff;
+	box-shadow: 0 0 18px rgba(190, 74, 255, 0.35);
+}
+
+.hsm-header-icon svg { width: 20px; height: 20px; }
+
+.hsm-header h2 {
+	margin: 0;
+	color: #d9a9ff;
+	font-size: 19px;
+	font-weight: 800;
+	letter-spacing: 1.2px;
+	text-transform: uppercase;
+}
+
+.hsm-subtitle {
+	margin: 3px 0 0;
+	color: rgba(236, 216, 247, 0.7);
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.hsm-close {
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	flex: none;
+	border: 0;
+	border-radius: 9px;
+	background: rgba(224, 105, 255, 0.14);
+	color: rgba(255, 255, 255, 0.75);
+	cursor: pointer;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+.hsm-close svg { width: 17px; height: 17px; }
+.hsm-close:hover { background: rgba(224, 105, 255, 0.16); color: white; }
+.hsm-close:focus-visible,
+.hsm-search-clear:focus-visible,
+.hsm-faq-question:focus-visible,
+.hsm-quick-btn:focus-visible,
+.hsm-dd-trigger:focus-visible,
+.hsm-link-btn:focus-visible,
+.hsm-clear-btn:focus-visible,
+.hsm-submit:focus-visible,
+.hsm-contact a:focus-visible {
+	outline: 2px solid rgba(224, 105, 255, 0.8);
+	outline-offset: 2px;
+}
+
+/* ---------------- Scrolling body ---------------- */
+
+.hsm-body {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding: 18px 20px 22px;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(224, 105, 255, 0.5) transparent;
+	scrollbar-gutter: stable;
+}
+
+.hsm-body::-webkit-scrollbar { width: 6px; }
+.hsm-body::-webkit-scrollbar-thumb { background: rgba(224, 105, 255, 0.45); border-radius: 6px; }
+.hsm-body::-webkit-scrollbar-track { background: transparent; }
+.hsm-body::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+
+/* ---------------- Welcome + search ---------------- */
+
+.hsm-welcome {
+	padding: 16px;
+	border: 1px solid rgba(224, 105, 255, 0.28);
+	border-radius: 16px;
+	background: linear-gradient(145deg, rgba(110, 45, 160, 0.32), rgba(24, 9, 46, 0.55));
+}
+
+.hsm-welcome h3 {
+	margin: 0;
+	font-size: 17px;
+	font-weight: 800;
+	color: white;
+}
+
+.hsm-welcome p {
+	margin: 4px 0 12px;
+	color: rgba(236, 216, 247, 0.72);
+	font-size: 13.5px;
+}
+
+.hsm-search {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+.hsm-search-icon {
+	position: absolute;
+	left: 14px;
+	display: grid;
+	place-items: center;
+	color: rgba(217, 169, 255, 0.8);
+	pointer-events: none;
+}
+
+.hsm-search-icon svg { width: 18px; height: 18px; }
+
+.hsm-search input {
+	width: 100%;
+	height: 44px;
+	padding: 0 44px 0 42px;
+	border: 1px solid rgba(224, 105, 255, 0.35);
+	border-radius: 12px;
+	background: rgba(14, 6, 30, 0.7);
+	color: white;
+	font: inherit;
+	font-size: 14px;
+	outline: none;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hsm-search input::placeholder { color: rgba(236, 216, 247, 0.45); }
+
+.hsm-search input:focus {
+	border-color: rgba(224, 105, 255, 0.9);
+	box-shadow: 0 0 0 3px rgba(224, 105, 255, 0.18);
+}
+
+.hsm-search-clear {
+	position: absolute;
+	right: 8px;
+	display: grid;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	border: 0;
+	border-radius: 8px;
+	background: rgba(224, 105, 255, 0.14);
+	color: rgba(255, 255, 255, 0.75);
+	cursor: pointer;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+.hsm-search-clear svg { width: 14px; height: 14px; }
+.hsm-search-clear:hover { background: rgba(224, 105, 255, 0.24); color: white; }
+
+/* ---------------- Quick Help Categories ---------------- */
+
+.hsm-quick {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.hsm-quick-btn {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	min-height: 70px;
+	padding: 10px 6px;
+	border: 1px solid rgba(224, 105, 255, 0.25);
+	border-radius: 12px;
+	background: rgba(14, 6, 30, 0.55);
+	color: rgba(236, 216, 247, 0.85);
+	font: inherit;
+	font-size: 12.5px;
+	font-weight: 600;
+	line-height: 1.2;
+	text-align: center;
+	cursor: pointer;
+	transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.hsm-quick-icon {
+	display: grid;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 9px;
+	background: rgba(224, 105, 255, 0.14);
+	color: #e6d3ff;
+	transition: background 0.15s ease;
+}
+
+.hsm-quick-icon svg { width: 16px; height: 16px; }
+
+.hsm-quick-btn:hover {
+	border-color: rgba(224, 105, 255, 0.5);
+	background: rgba(52, 20, 86, 0.6);
+	color: white;
+}
+
+.hsm-quick-btn.is-selected {
+	border-color: rgba(224, 105, 255, 0.9);
+	background: linear-gradient(145deg, rgba(138, 66, 223, 0.5), rgba(52, 20, 86, 0.7));
+	box-shadow: 0 0 0 3px rgba(224, 105, 255, 0.14);
+	color: white;
+}
+
+.hsm-quick-btn.is-selected .hsm-quick-icon { background: rgba(224, 105, 255, 0.32); }
+
+/* ---------------- Sections ---------------- */
+
+.hsm-section { margin-top: 22px; }
+
+.hsm-section-title {
+	margin: 0 0 10px;
+	color: #d9a9ff;
+	font-size: 13px;
+	font-weight: 800;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+}
+
+.hsm-section-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	min-height: 28px;
+	margin-bottom: 10px;
+}
+
+.hsm-section-head .hsm-section-title { margin: 0; }
+
+.hsm-link-btn {
+	min-height: 30px;
+	padding: 0 10px;
+	border: 1px solid rgba(224, 105, 255, 0.5);
+	border-radius: 9px;
+	background: rgba(224, 105, 255, 0.14);
+	color: white;
+	font: inherit;
+	font-size: 12.5px;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.hsm-link-btn:hover {
+	background: rgba(224, 105, 255, 0.26);
+	border-color: rgba(224, 105, 255, 0.8);
+}
+
+.hsm-with-icon {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.hsm-title-icon {
+	display: grid;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	flex: none;
+	border-radius: 9px;
+	background: rgba(224, 105, 255, 0.14);
+	color: #e6d3ff;
+}
+
+.hsm-title-icon svg { width: 16px; height: 16px; }
+
+/* ---------------- FAQ accordion ---------------- */
+
+.hsm-faq {
+	display: grid;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.hsm-faq-item {
+	border: 1px solid rgba(224, 105, 255, 0.22);
+	border-radius: 14px;
+	background: rgba(30, 12, 56, 0.55);
+	transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.hsm-faq-item:hover { border-color: rgba(224, 105, 255, 0.4); }
+
+.hsm-faq-item.is-open {
+	border-color: rgba(224, 105, 255, 0.6);
+	background: rgba(52, 20, 86, 0.6);
+}
+
+.hsm-faq-item h4 { margin: 0; font: inherit; }
+
+.hsm-faq-question {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	width: 100%;
+	min-height: 48px;
+	padding: 12px 14px 12px 16px;
+	border: 0;
+	border-radius: 14px;
+	background: transparent;
+	color: white;
+	font: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	text-align: left;
+	cursor: pointer;
+}
+
+.hsm-chevron {
+	display: grid;
+	place-items: center;
+	flex: none;
+	color: rgba(217, 169, 255, 0.85);
+	transition: transform 0.22s ease;
+}
+
+.hsm-chevron svg { width: 18px; height: 18px; }
+.hsm-faq-item.is-open .hsm-chevron { transform: rotate(180deg); }
+
+/* Height animates through grid rows, so the answer's real height is used and
+   nothing else in the modal has to be measured. */
+.hsm-faq-panel {
+	display: grid;
+	grid-template-rows: 0fr;
+	transition: grid-template-rows 0.22s ease;
+}
+
+.hsm-faq-item.is-open .hsm-faq-panel { grid-template-rows: 1fr; }
+
+.hsm-faq-panel-inner {
+	min-height: 0;
+	overflow: hidden;
+}
+
+.hsm-faq-panel-inner p {
+	margin: 0;
+	padding: 0 16px 14px;
+	color: rgba(236, 216, 247, 0.82);
+	font-size: 13.5px;
+	line-height: 1.6;
+}
+
+.hsm-faq-answer-list {
+	margin: 0;
+	padding: 0 16px 14px 38px;
+	color: rgba(236, 216, 247, 0.82);
+	font-size: 13.5px;
+	line-height: 1.6;
+}
+
+.hsm-faq-answer-list li + li { margin-top: 4px; }
+
+.hsm-empty {
+	display: grid;
+	justify-items: center;
+	gap: 6px;
+	padding: 20px 16px;
+	border: 1px dashed rgba(224, 105, 255, 0.35);
+	border-radius: 14px;
+	color: rgba(236, 216, 247, 0.7);
+	font-size: 13.5px;
+	text-align: center;
+	overflow-wrap: anywhere;
+}
+
+.hsm-empty strong { color: white; font-size: 14.5px; }
+
+.hsm-empty-icon {
+	display: grid;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	border-radius: 11px;
+	background: rgba(224, 105, 255, 0.12);
+	color: rgba(217, 169, 255, 0.85);
+}
+
+.hsm-empty-icon svg { width: 20px; height: 20px; }
+
+.hsm-clear-btn {
+	margin-top: 6px;
+	height: 34px;
+	padding: 0 16px;
+	border: 1px solid rgba(224, 105, 255, 0.5);
+	border-radius: 10px;
+	background: rgba(224, 105, 255, 0.14);
+	color: white;
+	font: inherit;
+	font-size: 13px;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.hsm-clear-btn:hover { background: rgba(224, 105, 255, 0.26); border-color: rgba(224, 105, 255, 0.8); }
+
+/* ---------------- Report a Problem ---------------- */
+
+.hsm-report {
+	padding-top: 20px;
+	border-top: 1px solid rgba(224, 105, 255, 0.18);
+}
+
+.hsm-form { display: grid; gap: 4px; }
+
+.hsm-field { display: grid; gap: 6px; }
+
+.hsm-field label {
+	color: rgba(236, 216, 247, 0.85);
+	font-size: 12.5px;
+	font-weight: 600;
+}
+
+.hsm-field input,
+.hsm-field textarea {
+	width: 100%;
+	border: 1px solid rgba(224, 105, 255, 0.3);
+	border-radius: 12px;
+	background: rgba(14, 6, 30, 0.7);
+	color: white;
+	font: inherit;
+	font-size: 14px;
+	outline: none;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hsm-field input { height: 44px; padding: 0 14px; }
+
+.hsm-field textarea {
+	min-height: 104px;
+	padding: 12px 14px;
+	resize: vertical;
+	line-height: 1.5;
+}
+
+.hsm-field input::placeholder,
+.hsm-field textarea::placeholder { color: rgba(236, 216, 247, 0.4); }
+
+.hsm-field input:focus,
+.hsm-field textarea:focus {
+	border-color: rgba(224, 105, 255, 0.9);
+	box-shadow: 0 0 0 3px rgba(224, 105, 255, 0.18);
+}
+
+.hsm-field [aria-invalid="true"] {
+	border-color: rgba(255, 107, 138, 0.85);
+	box-shadow: 0 0 0 3px rgba(255, 107, 138, 0.14);
+}
+
+.hsm-field input:disabled,
+.hsm-field textarea:disabled { opacity: 0.6; cursor: default; }
+
+/* ---------------- Category dropdown ---------------- */
+
+.hsm-dd { position: relative; }
+
+.hsm-dd-trigger {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	width: 100%;
+	height: 44px;
+	padding: 0 12px 0 14px;
+	border: 1px solid rgba(224, 105, 255, 0.3);
+	border-radius: 12px;
+	background: rgba(14, 6, 30, 0.7);
+	color: white;
+	font: inherit;
+	font-size: 14px;
+	text-align: left;
+	cursor: pointer;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hsm-dd-trigger:hover:not(:disabled) { border-color: rgba(224, 105, 255, 0.55); }
+
+.hsm-dd.is-open .hsm-dd-trigger {
+	border-color: rgba(224, 105, 255, 0.9);
+	box-shadow: 0 0 0 3px rgba(224, 105, 255, 0.18);
+}
+
+.hsm-dd.is-open .hsm-chevron { transform: rotate(180deg); }
+.hsm-dd-trigger:disabled { opacity: 0.6; cursor: default; }
+
+.hsm-dd-list {
+	position: absolute;
+	z-index: 5;
+	top: calc(100% + 6px);
+	left: 0;
+	right: 0;
+	margin: 0;
+	padding: 6px;
+	list-style: none;
+	border: 1px solid rgba(224, 105, 255, 0.55);
+	border-radius: 14px;
+	background: linear-gradient(150deg, rgba(48, 19, 76, 0.98), rgba(20, 8, 40, 0.99));
+	box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55), 0 0 18px rgba(211, 64, 255, 0.2);
+	animation: hsmDropIn 140ms ease-out;
+}
+
+.hsm-dd-option {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 10px 12px;
+	border-radius: 9px;
+	color: rgba(236, 216, 247, 0.88);
+	font-size: 14px;
+	cursor: pointer;
+}
+
+.hsm-dd-option svg { width: 16px; height: 16px; flex: none; color: #d9a9ff; }
+.hsm-dd-option:hover,
+.hsm-dd-option.is-active { background: rgba(224, 105, 255, 0.16); color: white; }
+.hsm-dd-option.is-selected { color: white; font-weight: 700; }
+
+/* Reserved line, so an inline error never moves the fields below it. */
+.hsm-error {
+	min-height: 16px;
+	color: #ff8aa3;
+	font-size: 12px;
+	line-height: 16px;
+}
+
+.hsm-form-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 14px;
+	margin-top: 4px;
+}
+
+.hsm-status {
+	min-width: 0;
+	min-height: 18px;
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.hsm-status span { display: block; overflow-wrap: anywhere; }
+.hsm-status-error { color: #ff8aa3; }
+.hsm-status-ok { color: #7ee2a8; }
+
+.hsm-submit {
+	flex: none;
+	height: 44px;
+	padding: 0 24px;
+	border: 0;
+	border-radius: 12px;
+	background: linear-gradient(90deg, #d83bff, #863bff);
+	box-shadow: 0 8px 22px rgba(147, 51, 234, 0.35);
+	color: white;
+	font: inherit;
+	font-size: 14px;
+	font-weight: 800;
+	cursor: pointer;
+	transition: filter 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+
+.hsm-submit:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+.hsm-submit:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
+
+/* ---------------- Contact Support ---------------- */
+
+.hsm-contact {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 14px;
+	border: 1px solid rgba(224, 105, 255, 0.22);
+	border-radius: 14px;
+	background: rgba(30, 12, 56, 0.55);
+}
+
+.hsm-contact .hsm-section-title { margin: 0 0 2px; }
+
+.hsm-contact-text { min-width: 0; }
+
+.hsm-contact-text p {
+	margin: 0 0 4px;
+	color: rgba(236, 216, 247, 0.72);
+	font-size: 13.5px;
+	line-height: 1.5;
+}
+
+.hsm-contact a {
+	color: #e6d3ff;
+	font-size: 14px;
+	text-decoration: none;
+	overflow-wrap: anywhere;
+}
+
+.hsm-contact a:hover { text-decoration: underline; }
+
+/* ---------------- Small screens ---------------- */
+
+@media (max-width: 520px) {
+	.hsm-quick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.hsm-quick-btn { flex-direction: row; justify-content: flex-start; gap: 10px; min-height: 48px; padding: 8px 12px; text-align: left; }
+	.hsm-header { padding: 16px 14px 14px; }
+	.hsm-body { padding: 14px 14px 18px; }
+	.hsm-header h2 { font-size: 16px; letter-spacing: 0.8px; }
+	.hsm-form-footer { flex-direction: column-reverse; align-items: stretch; }
+	.hsm-submit { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.hsm-backdrop,
+	.hsm-modal { animation: none; }
+	.hsm-faq-panel,
+	.hsm-chevron { transition: none; }
+	.hsm-dd-list { animation: none; }
+}
+
+@keyframes hsmDropIn {
+	from { opacity: 0; transform: translateY(-4px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes hsmBackdropIn {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+@keyframes hsmModalIn {
+	from { opacity: 0; transform: translateY(10px) scale(0.98); }
+	to { opacity: 1; transform: translateY(0) scale(1); }
+}
