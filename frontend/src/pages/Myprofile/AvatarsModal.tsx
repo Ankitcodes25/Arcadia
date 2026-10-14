@@ -267,7 +267,7 @@ function AvatarsModal({ profile, onClose, onSaveAvatar }: AvatarsModalProps) {
           </div>
           <button
             type="button"
-            className="avm-close"
+            className="avm-close arcadia-modal-close"
             aria-label="Close avatar selection"
             onClick={onClose}
           >

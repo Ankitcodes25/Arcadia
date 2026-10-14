@@ -1008,6 +1008,14 @@ test("Account Info sits directly below Game Breakdown and is informational only"
 test("My Profile is read-only apart from the contextual controls", async () => {
   const unmount = await renderProfile(profileFixture());
 
+  const arcadionSection = [...document.querySelectorAll(".mpm-section")]
+    .find((section) => section.querySelector(".mpm-section-title").textContent.includes("Played with Arcadion"));
+  assert.ok(arcadionSection, "Played with Arcadion section exists");
+  assert.deepEqual(
+    [...arcadionSection.querySelectorAll(".mpm-stat-label")].map((node) => node.textContent),
+    ["Total Matches", "Total Wins", "Best Score", "Win Ratio"],
+  );
+
   // No generic action button exists to enable, so reading the profile can never
   // look like an edit and there is nothing to press.
   assert.equal(q(".mpm-save"), null, "there is no Save Changes to enable");

@@ -28,6 +28,41 @@ body {
   background: #07020e;
 }
 
+.arcadia-modal-close.arcadia-modal-close {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: rgba(224, 105, 255, 0.14);
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.arcadia-modal-close.arcadia-modal-close svg {
+  width: 17px;
+  height: 17px;
+}
+
+.arcadia-modal-close.arcadia-modal-close:hover:not(:disabled) {
+  background: rgba(224, 105, 255, 0.16);
+  color: white;
+}
+
+.arcadia-modal-close.arcadia-modal-close:focus-visible {
+  outline: 2px solid rgba(224, 105, 255, 0.8);
+  outline-offset: 2px;
+}
+
+.arcadia-modal-close.arcadia-modal-close:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 /* =========================================================
    MODAL SCROLL LOCK
 

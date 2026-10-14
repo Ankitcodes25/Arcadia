@@ -9784,20 +9784,6 @@ footer p {
   animation: cardBorderSpin 3.2s linear infinite;
 }
 
-/* ---------- Leaderboard cards: tier colour (gold / silver / bronze / purple) ---------- */
-.leaderboard-home-card:hover {
-  transform: translateY(-6px);
-  border-color: transparent;
-  background:
-    radial-gradient(120% 62% at 50% 0%, var(--tier-soft), transparent 64%) padding-box,
-    linear-gradient(180deg, var(--card-top), var(--card-bottom)) padding-box,
-    conic-gradient(from 210deg, var(--tier-bright), var(--tier-ring) 28%, var(--tier-deep) 50%, var(--tier-ring) 72%, var(--tier-bright)) border-box;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 22px 40px rgba(0, 0, 0, 0.38),
-    0 0 30px var(--tier-glow);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .big-game-card:hover::after,
   .game-card:hover::after,
@@ -9805,4 +9791,12 @@ footer p {
   .challenge-game-card:hover::after {
     animation: none;
   }
+}
+.leaderboard-home-profile-card {
+  cursor: pointer;
+}
+
+.leaderboard-home-profile-card:focus-visible {
+  outline: 2px solid #e0a1ff;
+  outline-offset: 3px;
 }

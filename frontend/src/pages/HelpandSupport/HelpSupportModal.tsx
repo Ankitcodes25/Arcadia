@@ -470,7 +470,7 @@ function HelpSupportModal({ onClose, onSubmitReport, supportEmail }: HelpSupport
           </div>
           <button
             type="button"
-            className="hsm-close"
+            className="hsm-close arcadia-modal-close"
             aria-label="Close Help & Support"
             onClick={handleClose}
           >

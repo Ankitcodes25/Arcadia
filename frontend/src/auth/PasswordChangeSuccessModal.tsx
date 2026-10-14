@@ -119,7 +119,7 @@ function PasswordChangeSuccessModal() {
         */}
         <a
           href={LANDING_PATH}
-          className="password-change-close"
+          className="password-change-close arcadia-modal-close"
           aria-label="Close dialog and return to the landing page"
         >
           <CloseIcon />

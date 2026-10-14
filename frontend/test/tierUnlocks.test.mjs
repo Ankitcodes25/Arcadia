@@ -304,6 +304,9 @@ const stylesheets = {
   "ProfilePopupmodal.css": fileURLToPath(
     new URL("../src/components/ProfilePopupmodal.css", import.meta.url),
   ),
+  "PlayerProfile.css": fileURLToPath(
+    new URL("../src/components/PlayerProfile.css", import.meta.url),
+  ),
 };
 
 const TIERS = ["bronze", "silver", "gold", "diamond", "crown", "flame"];
@@ -347,6 +350,36 @@ test("the unearned theme exists and is neutral rather than a tier colour", () =>
     }
   });
   assert.equal(found, "#d5dae3", "the unearned pill uses the neutral grey, not a tier colour");
+});
+
+test("Player Profile badges use the same earned and unearned palettes as My Profile", () => {
+  const myProfileRoot = postcss.parse(readFileSync(stylesheets["MyProfileModal.css"], "utf8"));
+  const playerProfileRoot = postcss.parse(readFileSync(stylesheets["PlayerProfile.css"], "utf8"));
+  const themes = [...TIERS, "unearned"];
+
+  for (const theme of themes) {
+    const myProfileRule = myProfileRoot.nodes.find(
+      (node) => node.type === "rule" && node.selectors.includes(`.mpm-identity-title--${theme}`),
+    );
+    let playerProfileRule;
+    playerProfileRoot.walkRules((rule) => {
+      if (rule.selectors.includes(`.player-profile-progression-badges .mpm-identity-title--${theme}`)) {
+        playerProfileRule = rule;
+      }
+    });
+    assert.ok(myProfileRule, `My Profile has the ${theme} badge theme`);
+    assert.ok(playerProfileRule, `Player Profile has the ${theme} badge theme`);
+
+    for (const property of ["border-color", "background", "color"]) {
+      const expected = myProfileRule.nodes.find(
+        (node) => node.type === "decl" && node.prop === property,
+      )?.value;
+      const actual = playerProfileRule.nodes.find(
+        (node) => node.type === "decl" && node.prop === property,
+      )?.value;
+      assert.equal(actual, expected, `${theme} badge ${property} matches My Profile`);
+    }
+  }
 });
 
 test("the flame theme keeps the existing animated badge treatment", () => {

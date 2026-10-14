@@ -144,6 +144,22 @@ export type AccountProfileResponse = {
   user: AccountProfileUser;
 };
 
+/** Publicly authorized fields returned for another player. */
+export type PublicPlayerProfile = {
+  id: string;
+  username: string | null;
+  playerId: string | null;
+  avatar: AuthAvatar;
+  avatarUrl: string | null;
+  progression: Progression;
+  completedMatches: number;
+  createdAt: string | null;
+};
+
+export type PublicPlayerProfileResponse = {
+  profile: PublicPlayerProfile;
+};
+
 export type AccountSettingsResponse = {
   settings: AccountProfileUser;
 };
