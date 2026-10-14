@@ -11,7 +11,9 @@ import {
   Trophy,
   X,
 } from "lucide-react";
+import { useAuth } from "../../auth/AuthContext";
 import { navigateTo } from "../../lib/navigation";
+import PlayerProfile from "../../components/PlayerProfileModal";
 import "./Leaderboard.css";
 
 /* Hero images: Arcadion + peeche #1 / #2 / #3 cards.
@@ -379,7 +381,17 @@ const TIER_CLASS: Record<number, string> = {
   3: "is-third",
 };
 
-function Podium({ podium, unit }: { podium: RankedEntry[]; unit: string }) {
+function Podium({
+  podium,
+  unit,
+  onPlayerOpen,
+  currentUserId,
+}: {
+  podium: RankedEntry[];
+  unit: string;
+  onPlayerOpen?: (entry: RankedEntry) => void;
+  currentUserId?: string;
+}) {
   // Visual order: 2nd left, 1st beech me (bada), 3rd right.
   const slots: Array<RankedEntry | undefined> = [podium[1], podium[0], podium[2]];
 
@@ -398,10 +410,24 @@ function Podium({ podium, unit }: { podium: RankedEntry[]; unit: string }) {
             className={`leaderboard-slot leaderboard-slot-${entry.rank}`}
           >
             <article
-              className={`leaderboard-card ${TIER_CLASS[entry.rank]}${
+              className={`leaderboard-card${onPlayerOpen && !entry.isYou && entry.id !== currentUserId ? " leaderboard-card--profile-clickable" : ""} ${TIER_CLASS[entry.rank]}${
                 entry.isYou ? " leaderboard-card--you" : ""
               }`}
               style={{ "--i": index } as CSSProperties}
+              {...(onPlayerOpen && !entry.isYou && entry.id !== currentUserId
+                ? {
+                    role: "button" as const,
+                    tabIndex: 0,
+                    "aria-label": `View ${entry.name}'s profile`,
+                    onClick: () => onPlayerOpen(entry),
+                    onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onPlayerOpen(entry);
+                      }
+                    },
+                  }
+                : {})}
             >
               <div className="leaderboard-card-badge">
                 <Crown className="leaderboard-card-crown" aria-hidden="true" />
@@ -450,9 +476,13 @@ function RankCell({ rank }: { rank: number }) {
 function RankingTable({
   rows,
   isGame,
+  onPlayerOpen,
+  currentUserId,
 }: {
   rows: RankedEntry[];
   isGame: boolean;
+  onPlayerOpen?: (entry: RankedEntry) => void;
+  currentUserId?: string;
 }) {
   return (
     <section className="leaderboard-table" role="table" aria-label="Player rankings">
@@ -478,15 +508,50 @@ function RankingTable({
             role="row"
             className={`leaderboard-row leaderboard-row-body${
               entry.isYou ? " leaderboard-row--you" : ""
-            }${pinned ? " leaderboard-row--pinned" : ""}`}
+            }${pinned ? " leaderboard-row--pinned" : ""}${
+              onPlayerOpen && !entry.isYou && entry.id !== currentUserId
+                ? " leaderboard-row--profile-clickable"
+                : ""
+            }`}
+            {...(onPlayerOpen && !entry.isYou && entry.id !== currentUserId
+              ? {
+                  tabIndex: 0,
+                  "aria-label": `View ${entry.name}'s profile`,
+                  onClick: () => onPlayerOpen(entry),
+                  onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onPlayerOpen(entry);
+                    }
+                  },
+                }
+              : {})}
           >
             <span role="cell" className="leaderboard-cell-rank">
               <RankCell rank={entry.rank} />
             </span>
 
             <span role="cell" className="leaderboard-cell-player">
-              <Avatar entry={entry} className="leaderboard-row-avatar" />
-              <span className="leaderboard-cell-name">{displayName(entry)}</span>
+              {onPlayerOpen && !entry.isYou && entry.id !== currentUserId ? (
+                <button
+                  type="button"
+                  className="leaderboard-profile-trigger"
+                  aria-label={`View ${entry.name}'s profile`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onPlayerOpen(entry);
+                  }}
+                >
+                  <Avatar entry={entry} className="leaderboard-row-avatar" />
+                  <span className="leaderboard-cell-name">{displayName(entry)}</span>
+                </button>
+              ) : (
+                <>
+                  <Avatar entry={entry} className="leaderboard-row-avatar" />
+                  <span className="leaderboard-cell-name">{displayName(entry)}</span>
+                </>
+              )}
             </span>
 
             <span role="cell" className="leaderboard-col-level">
@@ -611,6 +676,13 @@ function LeaderboardHero({ onBack }: { onBack: () => void }) {
 function Leaderboard({ returnPath, entries, games }: LeaderboardProps) {
   const [game, setGame] = useState(ALL_GAMES);
   const [query, setQuery] = useState("");
+  const [selectedPlayer, setSelectedPlayer] = useState<{
+    playerId?: string;
+    username: string;
+    demo: boolean;
+    rank: number;
+  } | null>(null);
+  const { user, isAuthenticated } = useAuth();
 
   const gameOptions = useMemo<GameOption[]>(
     () => [{ value: ALL_GAMES, label: "All games" }, ...(games ?? DEFAULT_GAMES)],
@@ -627,7 +699,27 @@ function Leaderboard({ returnPath, entries, games }: LeaderboardProps) {
     navigateTo(returnPath);
   }, [returnPath]);
 
-  const source = entries ?? (SHOW_PREVIEW_DATA ? PREVIEW_ENTRIES : []);
+  const source = useMemo(
+    () => entries ?? (SHOW_PREVIEW_DATA ? PREVIEW_ENTRIES : []),
+    [entries],
+  );
+  const handlePlayerOpen = useCallback((entry: RankedEntry) => {
+    if (
+      entry.isYou ||
+      entry.id === user?.id ||
+      entry.name.trim().toLowerCase() === user?.username?.trim().toLowerCase()
+    ) return;
+    if (!isAuthenticated) {
+      window.dispatchEvent(new Event("arcadia:open-login"));
+      return;
+    }
+    setSelectedPlayer({
+      ...(entries === undefined ? {} : { playerId: entry.id }),
+      username: entry.name,
+      demo: entries === undefined,
+      rank: entry.rank,
+    });
+  }, [entries, isAuthenticated, user?.id, user?.username]);
 
   // Game ke hisaab se asli rank (search se rank nahi badalta)
   const ranked = useMemo(() => rankEntries(source, game), [source, game]);
@@ -712,8 +804,22 @@ function Leaderboard({ returnPath, entries, games }: LeaderboardProps) {
       {/* ---------- Podium + list (box ke bahar) ---------- */}
       {rows.length > 0 ? (
         <>
-          {podium.length > 0 && <Podium podium={podium} unit={isGame ? "PTS" : "XP"} />}
-          {listRows.length > 0 && <RankingTable rows={listRows} isGame={isGame} />}
+          {podium.length > 0 && (
+            <Podium
+              podium={podium}
+              unit={isGame ? "PTS" : "XP"}
+              onPlayerOpen={handlePlayerOpen}
+              currentUserId={user?.id}
+            />
+          )}
+          {listRows.length > 0 && (
+            <RankingTable
+              rows={listRows}
+              isGame={isGame}
+              onPlayerOpen={handlePlayerOpen}
+              currentUserId={user?.id}
+            />
+          )}
         </>
       ) : (
         <div className="leaderboard-empty" role="status">
@@ -721,14 +827,19 @@ function Leaderboard({ returnPath, entries, games }: LeaderboardProps) {
             <Trophy />
           </span>
           <h3>{ranked.length === 0 ? "Rankings are on their way" : "No players found"}</h3>
-          <p>
-            {ranked.length === 0
-              ? "Abhi is game ka koi score nahi hai. Pehle khelo, phir yahan dikhoge."
-              : "Naam check karo ya filters clear karke dobara try karo."}
-          </p>
         </div>
       )}
       </div>
+      {selectedPlayer && (
+        <PlayerProfile
+          playerId={selectedPlayer.playerId}
+          username={selectedPlayer.username}
+          currentUserId={user?.id}
+          demoFallback={selectedPlayer.demo}
+          globalRank={selectedPlayer.rank}
+          onClose={() => setSelectedPlayer(null)}
+        />
+      )}
     </main>
   );
 }

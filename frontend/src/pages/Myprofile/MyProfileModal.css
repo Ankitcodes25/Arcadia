@@ -47,6 +47,7 @@
 .mpm-body {
 	flex: 1;
 	min-height: 0;
+	padding-right: 4px;
 	overflow-y: auto;
 	overflow-x: hidden;
 	scrollbar-width: thin;
@@ -174,11 +175,16 @@
 
 .mpm-avatar-wrap {
 	position: relative;
+	display: grid;
 	flex: none;
-	padding: 3px;
+	place-items: center;
+	box-sizing: border-box;
+	width: 116px;
+	height: 116px;
+	padding: 1px;
 	border-radius: 50%;
 	background: linear-gradient(135deg, #d83bff, #863bff);
-	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 6px 24px rgba(147, 51, 234, 0.35);
+	filter: drop-shadow(0 4px 12px rgba(147, 51, 234, 0.32));
 }
 
 .mpm-avatar,
@@ -187,6 +193,7 @@
 	width: 108px;
 	height: 108px;
 	place-items: center;
+	overflow: hidden;
 	border: 3px solid #0a0716;
 	border-radius: 50%;
 	background: linear-gradient(100deg, #8a42df, #c15bff);
@@ -197,6 +204,12 @@
 }
 
 .mpm-avatar { display: grid; }
+
+.mpm-avatar-wrap > .mpm-avatar,
+.mpm-avatar-wrap > .mpm-avatar-preview {
+	width: 108px;
+	height: 108px;
+}
 
 .mpm-avatar-edit {
 	position: absolute;
@@ -475,6 +488,12 @@
 	border-bottom: 1px solid rgba(224, 105, 255, 0.08);
 	color: rgba(230, 224, 250, 0.85);
 	white-space: nowrap;
+}
+
+.mpm-table thead th:not(:first-child),
+.mpm-table tbody td:not(:first-child) {
+	text-align: center;
+	font-variant-numeric: tabular-nums;
 }
 
 .mpm-table tbody tr:hover td { background: rgba(224, 105, 255, 0.05); }

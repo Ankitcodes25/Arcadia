@@ -396,7 +396,7 @@ function MatchHistoryCalendar({
 
         <button
           type="button"
-          className="mhc-close"
+          className="mhc-close arcadia-modal-close"
           onClick={onDismiss}
           aria-label="Close calendar"
         >

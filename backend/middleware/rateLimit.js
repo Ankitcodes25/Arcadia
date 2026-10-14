@@ -219,6 +219,10 @@ const policies = Object.freeze({
     { scope: 'account:preferences:ip', limit: 120, windowMs: 15 * MINUTE_MS, identifier: getIpIdentifier },
     { scope: 'account:preferences:user', limit: 60, windowMs: 15 * MINUTE_MS, identifier: getUserIdentifier },
   ],
+  playerProfile: [
+    { scope: 'players:profile:ip', limit: 120, windowMs: 15 * MINUTE_MS, identifier: getIpIdentifier },
+    { scope: 'players:profile:user', limit: 120, windowMs: 15 * MINUTE_MS, identifier: getUserIdentifier },
+  ],
   accountDeletion: [
     { scope: 'account:delete:ip', limit: 10, windowMs: HOUR_MS, identifier: getIpIdentifier },
     { scope: 'account:delete:user', limit: 5, windowMs: HOUR_MS, identifier: getUserIdentifier },

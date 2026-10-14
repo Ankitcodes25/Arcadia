@@ -14,6 +14,7 @@ import type {
   LoginValues,
   LogoutOtherSessionsResponse,
   ProfileUpdate,
+  PublicPlayerProfileResponse,
   RegisterValues,
   RevokeSessionResponse,
   UsernameAvailabilityResponse,
@@ -342,6 +343,18 @@ export const authApi = {
   getProfile() {
     return request<AccountProfileResponse>(
       "/api/v1/account/profile",
+      {},
+      { credentials: "omit" },
+    );
+  },
+
+  getPublicPlayerProfile(identifier: { playerId: string } | { username: string }) {
+    const query = new URLSearchParams();
+    if ("playerId" in identifier) query.set("playerId", identifier.playerId);
+    else query.set("username", identifier.username);
+
+    return request<PublicPlayerProfileResponse>(
+      `/api/v1/players/profile?${query.toString()}`,
       {},
       { credentials: "omit" },
     );

@@ -6515,6 +6515,86 @@ test('profile visibility is enforced by the shared helper and fails closed for F
   }
 });
 
+test('public player profiles resolve identifiers and enforce profile visibility without private fields', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const viewer = await registerAndLogin(server, 'public-profile-viewer@example.com');
+    const target = await registerAndLogin(server, 'public-profile-target@example.com');
+    const viewerId = viewer.registered.body.user.id;
+    const targetId = target.registered.body.user.id;
+    const headers = { authorization: `Bearer ${viewer.loggedIn.body.token}` };
+
+    await User.findByIdAndUpdate(targetId, {
+      $set: {
+        username: 'VisiblePlayer',
+        usernameNormalized: 'visibleplayer',
+        totalXp: 240,
+        'preferences.profileVisibility': 'PUBLIC',
+      },
+    });
+
+    const byId = await requestJson(
+      server,
+      `/api/v1/players/profile?playerId=${targetId}`,
+      { headers },
+    );
+    const byUsername = await requestJson(
+      server,
+      '/api/v1/players/profile?username=visibleplayer',
+      { headers },
+    );
+
+    assert.equal(byId.response.status, 200);
+    assert.equal(byUsername.response.status, 200);
+    assert.equal(byId.body.profile.id, targetId);
+    assert.equal(byUsername.body.profile.id, targetId);
+    assert.equal(byId.body.profile.username, 'VisiblePlayer');
+    assert.equal(byId.body.profile.progression.totalXp, 240);
+    assert.equal(byId.body.profile.completedMatches, 0);
+    assert.deepEqual(Object.keys(byId.body.profile).sort(), [
+      'avatar',
+      'avatarUrl',
+      'completedMatches',
+      'createdAt',
+      'id',
+      'playerId',
+      'progression',
+      'username',
+    ]);
+    assert.equal(JSON.stringify(byId.body).includes('email'), false);
+    assert.equal(JSON.stringify(byId.body).includes('google'), false);
+
+    for (const profileVisibility of ['FRIENDS', 'NO_ONE']) {
+      await User.findByIdAndUpdate(targetId, {
+        $set: { 'preferences.profileVisibility': profileVisibility },
+      });
+      const denied = await requestJson(
+        server,
+        `/api/v1/players/profile?playerId=${targetId}`,
+        { headers },
+      );
+      assert.equal(denied.response.status, 403, `${profileVisibility} is private to this viewer`);
+      assert.equal(denied.body.error, 'This profile is private');
+    }
+
+    const unauthenticated = await requestJson(
+      server,
+      `/api/v1/players/profile?playerId=${targetId}`,
+    );
+    assert.equal(unauthenticated.response.status, 401);
+
+    const own = await requestJson(
+      server,
+      `/api/v1/players/profile?playerId=${viewerId}`,
+      { headers },
+    );
+    assert.equal(own.response.status, 404, 'own profiles remain on the dedicated My Profile flow');
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
 test('a hidden account leaves the public leaderboard without losing its progression', async () => {
   const server = await startHttpServer();
 

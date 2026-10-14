@@ -396,7 +396,7 @@ function MyProfileModal({
           <div className="mpm-header-right">
             <button
               type="button"
-              className="mpm-close"
+              className="mpm-close arcadia-modal-close"
               aria-label="Back to profile menu"
               title="Back to profile menu"
               onClick={(event) => {
@@ -595,14 +595,14 @@ function MyProfileModal({
               <span className="mpm-stat-label">Total Wins</span>
             </div>
             <div className="mpm-stat-card">
-              <span className="mpm-stat-icon mpm-tone-emerald"><PercentIcon /></span>
-              <span className="mpm-stat-value">{DEFAULT_ARCADION.winRatioPercent}%</span>
-              <span className="mpm-stat-label">Win Ratio</span>
-            </div>
-            <div className="mpm-stat-card">
               <span className="mpm-stat-icon mpm-tone-rose"><StarIcon /></span>
               <span className="mpm-stat-value">{DEFAULT_ARCADION.bestScore}</span>
               <span className="mpm-stat-label">Best Score</span>
+            </div>
+            <div className="mpm-stat-card">
+              <span className="mpm-stat-icon mpm-tone-emerald"><PercentIcon /></span>
+              <span className="mpm-stat-value">{DEFAULT_ARCADION.winRatioPercent}%</span>
+              <span className="mpm-stat-label">Win Ratio</span>
             </div>
           </div>
         </section>

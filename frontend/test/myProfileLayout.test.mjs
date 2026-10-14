@@ -56,6 +56,13 @@ test("no max-width query changes the modal width, so tablet and mobile are prese
   assert.deepEqual(offenders, [], "the tablet and mobile widths are exactly as they were");
 });
 
+test("Game Breakdown numeric columns are centered", () => {
+  const numericCells = declarationsFor(".mpm-table thead th:not(:first-child)", "text-align");
+  const numericHeaders = declarationsFor(".mpm-table tbody td:not(:first-child)", "text-align");
+  assert.equal(numericCells.at(-1).value, "center");
+  assert.equal(numericHeaders.at(-1).value, "center");
+});
+
 test("Account Info is a 2x2 grid on desktop and collapses only on small phones", () => {
   const columns = declarationsFor(".mpm-info-grid", "grid-template-columns");
   const desktop = columns.find((entry) => entry.media === null);
@@ -134,6 +141,86 @@ test("the profile body scrolls below a fixed header and stays centred", () => {
     declarationsFor(".mpm-backdrop", "justify-content").map((e) => e.value),
     ["center"],
     "the backdrop still centres the dialog",
+  );
+});
+
+test("scrollable modal bodies keep only a small 4px gap beside the scrollbar", () => {
+  const modalBodies = [
+    ["../src/pages/Myprofile/MyProfileModal.css", ".mpm-body", "padding-right", "4px"],
+    ["../src/components/PlayerProfileModal.css", ".player-profile-body", "padding-right", "4px"],
+    ["../src/components/ReportPlayerModal.css", ".report-player-form", "padding", "18px 4px 0 0"],
+    ["../src/pages/Settings/SettingsModal.css", ".settings-body", "padding-right", "4px"],
+    ["../src/pages/HelpandSupport/HelpSupportModal.css", ".hsm-body", "padding", "18px 4px 16px 0"],
+    ["../src/pages/Myprofile/AvatarsModal.css", ".avm-body", "padding", "18px 24px 6px 20px"],
+  ];
+
+  for (const [path, selector, property, expected] of modalBodies) {
+    const modalCss = readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
+    const modalRoot = postcss.parse(modalCss);
+    const declarations = [];
+    modalRoot.walkRules((rule) => {
+      if (rule.selectors.includes(selector)) {
+        rule.walkDecls(property, (decl) => declarations.push(decl.value.trim()));
+      }
+    });
+
+    assert.ok(
+      declarations.includes(expected),
+      `${selector} uses ${property}: ${expected} for a small scrollbar gap`,
+    );
+  }
+});
+
+test("profile avatar frame fits its image, retains the dark inner ring, and keeps a soft glow", () => {
+  const avatarDeclarations = (selector, property) => {
+    const found = [];
+    root.walkRules((rule) => {
+      if (rule.selectors.includes(selector)) {
+        rule.walkDecls(property, (decl) => found.push(decl.value.trim()));
+      }
+    });
+    return found;
+  };
+  const frameWidth = avatarDeclarations(".mpm-avatar-wrap", "width");
+  const frameHeight = avatarDeclarations(".mpm-avatar-wrap", "height");
+  const framePadding = avatarDeclarations(".mpm-avatar-wrap", "padding");
+  const frameGlow = avatarDeclarations(".mpm-avatar-wrap", "filter");
+  const innerBorder = avatarDeclarations(".mpm-avatar-preview", "border");
+  const avatarWidth = avatarDeclarations(".mpm-avatar-preview", "width");
+
+  assert.equal(frameWidth.at(-1), "116px");
+  assert.equal(frameHeight.at(-1), "116px");
+  assert.equal(framePadding.at(-1), "1px");
+  assert.equal(frameGlow.at(-1), "drop-shadow(0 4px 12px rgba(147, 51, 234, 0.32))");
+  assert.equal(innerBorder.at(-1), "3px solid #0a0716");
+  assert.equal(avatarWidth.at(-1), "108px");
+});
+
+test("the report reason dropdown fits all options without scrolling or touching modal edges", () => {
+  const reportCss = readFileSync(
+    fileURLToPath(new URL("../src/components/ReportPlayerModal.css", import.meta.url)),
+    "utf8",
+  );
+  const reportRoot = postcss.parse(reportCss);
+  const declarationsForReport = (selector, property) => {
+    const values = [];
+    reportRoot.walkRules((rule) => {
+      if (rule.selectors.includes(selector)) {
+        rule.walkDecls(property, (decl) => values.push(decl.value.trim()));
+      }
+    });
+    return values;
+  };
+
+  assert.ok(declarationsForReport(".report-player-reason-list", "height").includes("202px"));
+  assert.ok(declarationsForReport(".report-player-reason-list", "overflow").includes("hidden"));
+  assert.ok(declarationsForReport(".report-player-reason-option", "height").includes("32px"));
+  assert.ok(declarationsForReport(".report-player-reason-option:hover", "background").includes("rgba(205, 88, 255, 0.32)"));
+  assert.ok(declarationsForReport(".report-player-reason-option:hover", "transition").includes("none"));
+  assert.deepEqual(
+    declarationsForReport(".report-player-reason-list", "overflow-y"),
+    [],
+    "the options list itself has no scrollbar",
   );
 });
 

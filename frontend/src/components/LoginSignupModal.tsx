@@ -218,7 +218,7 @@ function LoginSignupModal({
   return createPortal(
     <div className="auth-modal-backdrop" role="presentation" onMouseDown={isBusy ? undefined : onClose}>
       <section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" onMouseDown={(event) => event.stopPropagation()}>
-        <button type="button" className="auth-modal-close" aria-label="Close authentication dialog" onClick={onClose} disabled={isBusy}><CloseIcon /></button>
+        <button type="button" className="auth-modal-close arcadia-modal-close" aria-label="Close authentication dialog" onClick={onClose} disabled={isBusy}><CloseIcon /></button>
         {oauthError && (
           <div
             className={`auth-modal-notice${isOauthErrorFading ? ` ${NOTICE_FADING_CLASS}` : ""}`}
