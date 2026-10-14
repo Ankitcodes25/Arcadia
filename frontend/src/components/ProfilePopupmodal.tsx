@@ -6,6 +6,7 @@ import CopyButton from "../auth/CopyButton";
 import { getUserProgressionView } from "../auth/progression";
 import { getBadgeDisplay, getCompletedMatches } from "../auth/tierEligibility";
 import HelpSupportModal from "../pages/HelpandSupport/HelpSupportModal";
+import { authApi } from "../auth/authApi";
 import "./ProfilePopupmodal.css";
 
 type ProfilePopupModalProps = {
@@ -292,7 +293,12 @@ function ProfilePopupModal({
         modal's close a back action that returns to this menu.
       */}
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
-      {helpOpen && <HelpSupportModal onClose={() => setHelpOpen(false)} />}
+      {helpOpen && (
+        <HelpSupportModal
+          onClose={() => setHelpOpen(false)}
+          onSubmitReport={authApi.submitSupportReport}
+        />
+      )}
     </div>
   );
 }
