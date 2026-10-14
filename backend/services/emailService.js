@@ -1,5 +1,15 @@
+const fs = require('fs');
+const path = require('path');
 const nodemailer = require('nodemailer');
-const { getEmailConfig } = require('../config/email');
+const {
+  getEmailAssetBaseUrl,
+  getEmailConfig,
+  getSupportInboxEmail,
+  getWelcomeBackInactivityDays,
+} = require('../config/email');
+const { escapeHtml } = require('./emailTemplates/arcadiaLayout');
+const { buildWelcomeEmail, buildWelcomeBackEmail } = require('./emailTemplates/welcomeEmails');
+const { buildSupportReportEmail } = require('./emailTemplates/supportReportEmail');
 
 let transportOverride = null;
 let smtpTransport = null;
@@ -33,15 +43,6 @@ function getTransport(config) {
   return smtpTransport;
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
-
 function buildActionUrl(baseUrl, parameter, token) {
   const url = new URL(baseUrl);
   const fragment = new URLSearchParams(url.hash.startsWith('#') ? url.hash.slice(1) : url.hash);
@@ -50,9 +51,92 @@ function buildActionUrl(baseUrl, parameter, token) {
   return url.toString();
 }
 
-async function deliverEmail({ to, subject, text, html }) {
+// What to do about each SMTP failure, by Nodemailer error code. Only the code
+// is logged: SMTP responses can echo the account name, never the password.
+const SMTP_FAILURE_ADVICE = Object.freeze({
+  EAUTH: 'the SMTP server rejected SMTP_USER/SMTP_PASSWORD. For Gmail, SMTP_PASSWORD must be a Google App Password, not the account password. Update backend/.env and restart the backend',
+  ECONNECTION: 'the SMTP server could not be reached. Check SMTP_HOST and SMTP_PORT in backend/.env and the network connection',
+  ETIMEDOUT: 'the SMTP server did not answer in time. Check SMTP_HOST, SMTP_PORT and the network connection',
+  EDNS: 'SMTP_HOST did not resolve. Check SMTP_HOST in backend/.env',
+  EENVELOPE: 'the sender or recipient address was rejected. Check EMAIL_FROM and the recipient address',
+});
+
+// What to do when an email is skipped before reaching SMTP, by result reason.
+const SKIPPED_EMAIL_ADVICE = Object.freeze({
+  not_configured: 'email is off. Set EMAIL_PROVIDER=smtp, EMAIL_FROM, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and FRONTEND_PASSWORD_RESET_URL in backend/.env, then restart the backend (it only reads .env at startup)',
+  unsupported_provider: 'EMAIL_PROVIDER in backend/.env must be smtp or disabled. Fix it and restart the backend',
+  invalid_configuration: 'SMTP_PORT, FRONTEND_PASSWORD_RESET_URL or FRONTEND_URL in backend/.env is invalid. Fix it and restart the backend',
+  no_support_inbox: 'SUPPORT_INBOX_EMAIL is not set to a valid address in backend/.env. Set it and restart the backend',
+});
+
+const DEFAULT_EMAIL_LOG_PATH = path.join(__dirname, '..', 'logs', 'email.log');
+let emailLogPath = DEFAULT_EMAIL_LOG_PATH;
+
+function setEmailLogPathForTests(logPath) {
+  emailLogPath = logPath || DEFAULT_EMAIL_LOG_PATH;
+}
+
+// Keeps the log useful for matching a report to a user without storing full
+// addresses: "player@example.com" becomes "p****r@example.com".
+function maskEmailAddress(address) {
+  if (typeof address !== 'string' || !address.includes('@')) return 'unknown';
+  const [local, domain] = address.split('@');
+  const masked = local.length <= 2 ? `${local[0] || ''}*` : `${local[0]}****${local[local.length - 1]}`;
+  return `${masked}@${domain}`;
+}
+
+function describeEmailOutcome(result) {
+  if (result && result.sent) {
+    return { level: 'info', text: `sent${result.messageId ? ` messageId=${result.messageId}` : ''}` };
+  }
+
+  const reason = (result && result.reason) || 'unknown';
+  if (reason === 'delivery_failed') {
+    const code = result && result.code;
+    const advice = SMTP_FAILURE_ADVICE[code] || 'the message was not accepted. Read the SMTP error code and check the SMTP_* values in backend/.env';
+    return { level: 'warn', text: `FAILED${code ? ` (${code})` : ''}: ${advice}` };
+  }
+
+  const advice = SKIPPED_EMAIL_ADVICE[reason] || 'the email was not attempted. Check the email settings in backend/.env';
+  return { level: 'warn', text: `SKIPPED (${reason}): ${advice}` };
+}
+
+// Every send attempt leaves one line in the terminal and in backend/logs/email.log,
+// so "no email arrived" can be traced to sent, skipped or failed. Writing the log
+// must never affect delivery, so file errors are reported and swallowed.
+async function recordEmailOutcome(kind, to, result) {
+  const { level, text } = describeEmailOutcome(result);
+  const line = `[email] ${kind} to=${maskEmailAddress(to)} ${text}`;
+  console[level](line);
+
+  try {
+    await fs.promises.mkdir(path.dirname(emailLogPath), { recursive: true });
+    await fs.promises.appendFile(emailLogPath, `${new Date().toISOString()} ${line}\n`);
+  } catch (error) {
+    console.warn(`[email] could not write ${emailLogPath} (${error && error.code}): check that backend/logs is writable.`);
+  }
+}
+
+function withOutcomeLog(kind, getRecipient, send) {
+  return async (args) => {
+    try {
+      const result = await send(args);
+      await recordEmailOutcome(kind, getRecipient(args), result);
+      return result;
+    } catch (error) {
+      const code = error && typeof error.code === 'string' ? error.code : null;
+      await recordEmailOutcome(kind, getRecipient(args), { sent: false, reason: 'delivery_failed', code });
+      throw error;
+    }
+  };
+}
+
+async function deliverEmail({ to, subject, text, html, replyTo }) {
+  const message = { to, subject, text, html };
+  if (replyTo) message.replyTo = replyTo;
+
   if (transportOverride) {
-    return transportOverride({ to, subject, text, html });
+    return transportOverride(message);
   }
 
   const config = getEmailConfig();
@@ -61,23 +145,22 @@ async function deliverEmail({ to, subject, text, html }) {
   }
 
   try {
-    await getTransport(config).sendMail({
-      from: config.from,
-      to,
-      subject,
-      text,
-      html,
-    });
-    return { sent: true };
-  } catch {
-    return { sent: false, reason: 'delivery_failed' };
+    const info = await getTransport(config).sendMail({ from: config.from, ...message });
+    return { sent: true, messageId: info && info.messageId ? info.messageId : null };
+  } catch (error) {
+    const code = error && typeof error.code === 'string' ? error.code : null;
+    return { sent: false, reason: 'delivery_failed', code };
   }
 }
 
-function getWelcomeDisplayName(value) {
-  if (typeof value !== 'string') return 'there';
-  const normalized = value.trim().replace(/\s+/g, ' ');
-  return normalized ? normalized.slice(0, 80) : 'there';
+// Sends one templated email. Never throws: callers decide whether a failed send
+// matters to the user, and withOutcomeLog records what happened.
+async function sendTemplatedEmail(to, content) {
+  try {
+    return await deliverEmail({ to, ...content });
+  } catch (error) {
+    return { sent: false, reason: 'delivery_failed', code: error && typeof error.code === 'string' ? error.code : null };
+  }
 }
 
 function getFrontendUrl(config) {
@@ -88,71 +171,52 @@ function getFrontendUrl(config) {
   }
 }
 
-function buildWelcomeEmailContent({ config, displayName, returning }) {
+async function sendWelcomeEmailUnlogged({ to, displayName }) {
+  const config = getEmailConfig();
+  if (!config.configured) return { sent: false, reason: config.reason };
+
   const link = getFrontendUrl(config);
-  if (!link) return null;
+  if (!link) return { sent: false, reason: 'invalid_configuration' };
 
-  const safeName = escapeHtml(getWelcomeDisplayName(displayName));
-  const safeLink = escapeHtml(link);
-
-  if (returning) {
-    const preview = 'Your games are waiting. Ready for another run?';
-    const subject = 'Welcome Back to Arcadia 🎮';
-    const text = `${preview}\n\nHey ${getWelcomeDisplayName(displayName)},\n\nGood to see you again.\n\nIt's been a while, but your Arcadia journey isn't going anywhere.\n\nWhether you're here to pick up where you left off, beat your previous score, take on a new challenge, or simply play something fun — there's always another run waiting for you.\n\nYour next game is waiting.\n\nRETURN TO ARCADIA → ${link}\n\nSee you back in the arcade.\n\n— Team Arcadia\n\nPlay. Challenge. Repeat.\n\nYou received this email because your Arcadia account was successfully signed in.\n\nIf this wasn't you, please secure your account by changing your password and reviewing your active sessions.`;
-    const html = `<!doctype html><html><body style="margin:0;background:#0b0316;color:#f7efff;font-family:Arial,Helvetica,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0">${preview}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0b0316"><tr><td align="center" style="padding:32px 16px"><table role="presentation" width="600" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px"><tr><td style="padding:28px 28px 12px;text-align:center"><div style="font-size:12px;letter-spacing:4px;font-weight:700;color:#c56bff">WELCOME BACK</div><h1 style="margin:12px 0 0;font-size:30px;line-height:1.2;color:#ffffff">Welcome back to Arcadia</h1></td></tr><tr><td style="padding:12px 28px 28px"><p style="font-size:16px;line-height:1.6">Hey ${safeName},</p><p style="font-size:16px;line-height:1.6">Good to see you again.</p><p style="font-size:16px;line-height:1.6">It's been a while, but your Arcadia journey isn't going anywhere.</p><p style="font-size:16px;line-height:1.6">Whether you're here to pick up where you left off, beat your previous score, take on a new challenge, or simply play something fun — there's always another run waiting for you.</p><div style="margin:28px 0;padding:18px;border-left:3px solid #b44cff;background:#17102a;font-size:18px;font-weight:700">Your next game is waiting.</div><p style="text-align:center;margin:28px 0"><a href="${safeLink}" style="display:inline-block;padding:14px 22px;border-radius:10px;background:linear-gradient(135deg,#b44cff,#7135dc);color:#ffffff;text-decoration:none;font-weight:700">RETURN TO ARCADIA →</a></p><p style="font-size:16px;line-height:1.6">See you back in the arcade.</p><p style="font-size:16px;line-height:1.6">— Team Arcadia<br>Play. Challenge. Repeat.</p></td></tr><tr><td style="padding:0 28px 28px;border-top:1px solid #392451;font-size:12px;line-height:1.6;color:#b9a8c9"><p>You received this email because your Arcadia account was successfully signed in.</p><p>If this wasn't you, please secure your account by changing your password and reviewing your active sessions.</p></td></tr></table></td></tr></table></body></html>`;
-    return { subject, text, html };
-  }
-
-  const preview = 'Your Arcadia account is ready. There\'s a whole world waiting for you.';
-  const subject = 'Welcome to Arcadia 🎮 — Your Journey Starts Here';
-  const text = `${preview}\n\nHey ${getWelcomeDisplayName(displayName)},\n\nWelcome to Arcadia.\n\nYour account is officially ready, and your journey starts now.\n\nArcadia is a place to play, challenge yourself, discover new games, and build your own record along the way. Every game is a new challenge, every score is part of your journey, and every win gets you one step further.\n\nENTER ARCADIA → ${link}\n\nSee you inside.\n\n— Team Arcadia\n\nPlay. Challenge. Repeat.\n\nThis email was sent because an Arcadia account was created using this email address.\nIf you didn't create this account, you can safely ignore this email.`;
-  const html = `<!doctype html><html><body style="margin:0;background:#0b0316;color:#f7efff;font-family:Arial,Helvetica,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0">${preview}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0b0316"><tr><td align="center" style="padding:32px 16px"><table role="presentation" width="600" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px"><tr><td style="padding:28px 28px 12px;text-align:center"><div style="font-size:12px;letter-spacing:4px;font-weight:700;color:#c56bff">WELCOME TO ARCADIA</div><h1 style="margin:12px 0 0;font-size:30px;line-height:1.2;color:#ffffff">Welcome to Arcadia</h1></td></tr><tr><td style="padding:12px 28px 28px"><p style="font-size:16px;line-height:1.6">Hey ${safeName},</p><p style="font-size:16px;line-height:1.6">Welcome to Arcadia.</p><p style="font-size:16px;line-height:1.6">Your account is officially ready, and your journey starts now.</p><p style="font-size:16px;line-height:1.6">Arcadia is a place to play, challenge yourself, discover new games, and build your own record along the way. Every game is a new challenge, every score is part of your journey, and every win gets you one step further.</p><p style="text-align:center;margin:28px 0"><a href="${safeLink}" style="display:inline-block;padding:14px 22px;border-radius:10px;background:linear-gradient(135deg,#b44cff,#7135dc);color:#ffffff;text-decoration:none;font-weight:700">ENTER ARCADIA →</a></p><p style="font-size:16px;line-height:1.6">See you inside.</p><p style="font-size:16px;line-height:1.6">— Team Arcadia<br>Play. Challenge. Repeat.</p></td></tr><tr><td style="padding:0 28px 28px;border-top:1px solid #392451;font-size:12px;line-height:1.6;color:#b9a8c9"><p>This email was sent because an Arcadia account was created using this email address.</p><p>If you didn't create this account, you can safely ignore this email.</p></td></tr></table></td></tr></table></body></html>`;
-  return { subject, text, html };
+  return sendTemplatedEmail(to, buildWelcomeEmail({
+    displayName,
+    link,
+    supportEmail: getSupportInboxEmail(),
+    assetBaseUrl: getEmailAssetBaseUrl(),
+  }));
 }
 
-function logWelcomeDeliveryFailure(kind) {
-  console.warn(`[email] ${kind}_delivery_failed`);
-}
-
-async function sendWelcomeEmail({ to, displayName }) {
+async function sendWelcomeBackEmailUnlogged({ to, displayName }) {
   const config = getEmailConfig();
   if (!config.configured) return { sent: false, reason: config.reason };
 
-  const content = buildWelcomeEmailContent({ config, displayName, returning: false });
-  if (!content) return { sent: false, reason: 'invalid_configuration' };
+  const link = getFrontendUrl(config);
+  if (!link) return { sent: false, reason: 'invalid_configuration' };
 
-  try {
-    const delivery = await deliverEmail({ to, ...content });
-    if (delivery && delivery.sent === false && delivery.reason === 'delivery_failed') {
-      logWelcomeDeliveryFailure('welcome');
-    }
-    return delivery;
-  } catch {
-    logWelcomeDeliveryFailure('welcome');
-    return { sent: false, reason: 'delivery_failed' };
-  }
+  return sendTemplatedEmail(to, buildWelcomeBackEmail({
+    displayName,
+    link,
+    supportEmail: getSupportInboxEmail(),
+    inactivityDays: getWelcomeBackInactivityDays(),
+    assetBaseUrl: getEmailAssetBaseUrl(),
+  }));
 }
 
-async function sendWelcomeBackEmail({ to, displayName }) {
+/*
+ * Emails one saved problem report to the support inbox. The report is already
+ * stored before this runs, so a failure here never loses the report.
+ */
+async function sendSupportReportEmailUnlogged({ report, reporter }) {
+  const inbox = getSupportInboxEmail();
+  if (!inbox) return { sent: false, reason: 'no_support_inbox' };
+
   const config = getEmailConfig();
   if (!config.configured) return { sent: false, reason: config.reason };
 
-  const content = buildWelcomeEmailContent({ config, displayName, returning: true });
-  if (!content) return { sent: false, reason: 'invalid_configuration' };
-
-  try {
-    const delivery = await deliverEmail({ to, ...content });
-    if (delivery && delivery.sent === false && delivery.reason === 'delivery_failed') {
-      logWelcomeDeliveryFailure('welcome_back');
-    }
-    return delivery;
-  } catch {
-    logWelcomeDeliveryFailure('welcome_back');
-    return { sent: false, reason: 'delivery_failed' };
-  }
+  return sendTemplatedEmail(inbox, buildSupportReportEmail({ report, reporter, assetBaseUrl: getEmailAssetBaseUrl() }));
 }
 
-async function sendPasswordResetEmail({ to, token }) {
+async function sendPasswordResetEmailUnlogged({ to, token }) {
   const config = getEmailConfig();
   if (!config.configured) {
     return { sent: false, reason: config.reason };
@@ -174,10 +238,23 @@ async function sendPasswordResetEmail({ to, token }) {
   });
 }
 
+const recipientArgument = ({ to }) => to;
+
+const sendWelcomeEmail = withOutcomeLog('welcome', recipientArgument, sendWelcomeEmailUnlogged);
+const sendWelcomeBackEmail = withOutcomeLog('welcome_back', recipientArgument, sendWelcomeBackEmailUnlogged);
+const sendSupportReportEmail = withOutcomeLog(
+  'support_report',
+  () => getSupportInboxEmail(),
+  sendSupportReportEmailUnlogged,
+);
+const sendPasswordResetEmail = withOutcomeLog('password_reset', recipientArgument, sendPasswordResetEmailUnlogged);
+
 module.exports = {
   sendWelcomeEmail,
   sendWelcomeBackEmail,
+  sendSupportReportEmail,
   sendPasswordResetEmail,
   setEmailTransportForTests,
   resetEmailTransportForTests,
+  setEmailLogPathForTests,
 };

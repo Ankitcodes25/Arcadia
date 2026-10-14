@@ -223,6 +223,11 @@ const policies = Object.freeze({
     { scope: 'account:delete:ip', limit: 10, windowMs: HOUR_MS, identifier: getIpIdentifier },
     { scope: 'account:delete:user', limit: 5, windowMs: HOUR_MS, identifier: getUserIdentifier },
   ],
+  // Each report emails the support inbox, so this is deliberately tight.
+  supportReport: [
+    { scope: 'support:report:ip', limit: 20, windowMs: HOUR_MS, identifier: getIpIdentifier },
+    { scope: 'support:report:user', limit: 5, windowMs: HOUR_MS, identifier: getUserIdentifier },
+  ],
   adminMutation: [
     { scope: 'admin:mutation:ip', limit: 120, windowMs: 15 * MINUTE_MS, identifier: getIpIdentifier },
     { scope: 'admin:mutation:user', limit: 60, windowMs: 15 * MINUTE_MS, identifier: getUserIdentifier },

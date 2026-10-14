@@ -267,6 +267,7 @@ module.exports = {
   MAX_PAGE,
   ADMIN_LOCK_KEY,
   ADMIN_LOCK_TTL_MS,
+  parsePositiveInteger,
   listUsers,
   getUserDetails,
   updateUserStatus,
