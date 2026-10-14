@@ -7,6 +7,7 @@ import {
 } from "react";
 import { ArrowLeft, ArrowRight, Crown, Star } from "lucide-react";
 import { useAuth } from "../../../auth/AuthContext";
+import PlayerProfile from "../../../components/PlayerProfileModal";
 import {
   LEADERBOARD_PATH,
   navigateTo,
@@ -168,13 +169,14 @@ function CountUp({ value, reveal, delay }: CountUpProps) {
 }
 
 export default function LeaderboardHome() {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const sectionRef = useRef<HTMLElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   const [reveal, setReveal] = useState<RevealState>(getInitialReveal);
   const [canGoPrevious, setCanGoPrevious] = useState(false);
   const [canGoNext, setCanGoNext] = useState(true);
+  const [selectedPlayer, setSelectedPlayer] = useState<{ username: string; rank: number } | null>(null);
 
   const updateArrowState = useCallback(() => {
     const grid = gridRef.current;
@@ -241,8 +243,13 @@ export default function LeaderboardHome() {
     navigateTo(LEADERBOARD_PATH);
   };
 
-  const handlePlayerProfile = (_player: Player) => {
-    // TODO: Open the player profile modal when it is implemented.
+  const handlePlayerProfile = (player: Player) => {
+    if (!isAuthenticated) {
+      window.dispatchEvent(new Event("arcadia:open-login"));
+      return;
+    }
+    if (player.name.toLowerCase() === user?.username?.trim().toLowerCase()) return;
+    setSelectedPlayer({ username: player.name, rank: PLAYERS.indexOf(player) + 1 });
   };
 
   const scrollCards = (direction: "previous" | "next") => {
@@ -347,9 +354,18 @@ export default function LeaderboardHome() {
               return (
                 <article
                   key={player.name}
-                  className={`leaderboard-home-card ${getRankClass(rank)}`}
+                  className={`leaderboard-home-card leaderboard-home-profile-card ${getRankClass(rank)}`}
                   style={{ "--i": index } as CSSProperties}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View ${player.name}'s profile`}
                   onClick={() => handlePlayerProfile(player)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handlePlayerProfile(player);
+                    }
+                  }}
                 >
                   <div className="leaderboard-home-badge">
                     {isPodium && (
@@ -360,7 +376,7 @@ export default function LeaderboardHome() {
                     )}
 
                     <div
-                      className="leaderboard-home-avatar"
+                      className="leaderboard-home-avatar leaderboard-home-profile-trigger"
                       aria-hidden="true"
                     >
                       {player.avatar}
@@ -371,7 +387,9 @@ export default function LeaderboardHome() {
                     </span>
                   </div>
 
-                  <div className="leaderboard-home-player">
+                  <div
+                    className="leaderboard-home-player leaderboard-home-profile-name"
+                  >
                     {player.name}
                   </div>
 
@@ -392,6 +410,15 @@ export default function LeaderboardHome() {
           </div>
         </div>
       </div>
+      {selectedPlayer && (
+        <PlayerProfile
+          username={selectedPlayer.username}
+          globalRank={selectedPlayer.rank}
+          currentUserId={user?.id ?? null}
+          demoFallback
+          onClose={() => setSelectedPlayer(null)}
+        />
+      )}
     </section>
   );
 }

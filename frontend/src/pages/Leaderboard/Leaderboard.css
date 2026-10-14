@@ -1453,3 +1453,31 @@ min-height: 238px;  display: flex;
     transition: none;
   }
 }
+.leaderboard-profile-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.leaderboard-profile-trigger:hover .leaderboard-cell-name { color: #e2b1ff; }
+.leaderboard-profile-trigger:focus-visible { outline: 2px solid #e0a1ff; outline-offset: 3px; border-radius: 8px; }
+
+.leaderboard-card--profile-clickable {
+  cursor: pointer;
+}
+
+.leaderboard-card--profile-clickable:focus-visible,
+.leaderboard-row--profile-clickable:focus-visible {
+  outline: 2px solid #e0a1ff;
+  outline-offset: 3px;
+}
+
+.leaderboard-row--profile-clickable { cursor: pointer; }

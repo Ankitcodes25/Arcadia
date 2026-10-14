@@ -23,10 +23,13 @@ let root;
 let App;
 let Navbar;
 let Leaderboard;
+let LeaderboardHome;
 let AuthContext;
 let authApi;
+let AuthApiError;
 let navigation;
 let pushedPaths;
+let profileLookups;
 
 function installDom() {
   dom = new JSDOM("<!doctype html><html><body></body></html>", {
@@ -46,6 +49,16 @@ function installDom() {
     value: window.navigator,
     configurable: true,
   });
+  window.matchMedia = window.matchMedia || ((media) => ({
+    matches: media.includes("prefers-reduced-motion"),
+    media,
+    onchange: null,
+    addListener() {},
+    removeListener() {},
+    addEventListener() {},
+    removeEventListener() {},
+    dispatchEvent() { return false; },
+  }));
   globalThis.getComputedStyle = window.getComputedStyle.bind(window);
   /*
     jsdom does not implement requestAnimationFrame unless it is asked to pretend
@@ -54,6 +67,8 @@ function installDom() {
   */
   globalThis.requestAnimationFrame = (callback) => setTimeout(() => callback(Date.now()), 0);
   globalThis.cancelAnimationFrame = (handle) => clearTimeout(handle);
+  window.requestAnimationFrame = globalThis.requestAnimationFrame;
+  window.cancelAnimationFrame = globalThis.cancelAnimationFrame;
   /*
     jsdom has no scrolling at all, and the hero's View rankings button calls
     scrollIntoView. The stub keeps that click honest without a layout engine.
@@ -82,8 +97,9 @@ before(async () => {
   App = (await vite.ssrLoadModule("/src/App.tsx")).default;
   Navbar = (await vite.ssrLoadModule("/src/components/Navbar.tsx")).default;
   Leaderboard = (await vite.ssrLoadModule("/src/pages/Leaderboard/Leaderboard.tsx")).default;
+  LeaderboardHome = (await vite.ssrLoadModule("/src/pages/Landingpage/Sections/LeaderboardHome.tsx")).default;
   AuthContext = (await vite.ssrLoadModule("/src/auth/AuthContext.tsx")).default;
-  ({ authApi } = await vite.ssrLoadModule("/src/auth/authApi.ts"));
+  ({ authApi, AuthApiError } = await vite.ssrLoadModule("/src/auth/authApi.ts"));
   navigation = await vite.ssrLoadModule("/src/lib/navigation.ts");
 });
 
@@ -94,6 +110,7 @@ after(async () => {
 
 beforeEach(() => {
   pushedPaths = [];
+  profileLookups = [];
 
   // The navigation markers are module state that outlives a test, so they are
   // cleared between tests. This is also the honest assertion that merely opening
@@ -119,6 +136,28 @@ beforeEach(() => {
   authApi.refresh = async () => null;
   authApi.me = async () => {
     throw new Error("auth is stubbed in tests");
+  };
+  authApi.getPublicPlayerProfile = async (identifier) => {
+    profileLookups.push(identifier);
+    const id = "playerId" in identifier ? identifier.playerId : `resolved-${identifier.username}`;
+    const usernames = {
+      "player-1": "PodiumPlayer",
+      "player-2": "Beta",
+      "player-4": "TargetPlayer",
+    };
+    return {
+      profile: {
+        id,
+        username: usernames[id]
+          ?? ("username" in identifier ? identifier.username : `Player-${id}`),
+        playerId: null,
+        avatar: { type: "local", value: "avatar-01" },
+        avatarUrl: null,
+        progression: progression({ totalXp: 100, level: 1, currentLevelXp: 0 }),
+        completedMatches: 0,
+        createdAt: "2024-03-15T08:00:00.000Z",
+      },
+    };
   };
 });
 
@@ -206,11 +245,19 @@ function renderNavbar(user = navbarUser()) {
 }
 
 /** The Leaderboard page on its own, which is how a reader lands on it. */
-function renderPage(user = navbarUser(), returnPath = "/") {
+function renderPage(user = navbarUser(), returnPath = "/", entries) {
   return renderRoot(React.createElement(
     AuthContext.Provider,
     { value: authValue(user) },
-    React.createElement(Leaderboard, { returnPath }),
+    React.createElement(Leaderboard, { returnPath, entries }),
+  ));
+}
+
+function renderLeaderboardHome(user = navbarUser()) {
+  return renderRoot(React.createElement(
+    AuthContext.Provider,
+    { value: authValue(user) },
+    React.createElement(LeaderboardHome),
   ));
 }
 
@@ -460,6 +507,299 @@ test("the page renders standalone, as it does on a direct visit", async () => {
   assert.equal(q(".profile-popup") === null, true, "with no popup involved");
   assert.equal(q(".leaderboard-hero") === null, false, "the hero is intact");
   assert.equal(q(".leaderboard-return") === null, false, "and so is the Return button");
+  await unmount();
+});
+
+test("a real leaderboard row opens and closes the read-only player profile without losing filters", async () => {
+  const entries = [
+    { id: "player-1", name: "Alpha", level: 8, xp: 800, wins: 20 },
+    { id: "player-2", name: "Beta", level: 7, xp: 700, wins: 18 },
+    { id: "player-3", name: "Gamma", level: 6, xp: 600, wins: 14 },
+    { id: "player-4", name: "TargetPlayer", level: 5, xp: 500, wins: 11 },
+  ];
+  const unmount = await renderPage(navbarUser(), "/", entries);
+  const search = q(".leaderboard-search input");
+
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value",
+    ).set;
+    setter.call(search, "TargetPlayer");
+    search.dispatchEvent(new window.Event("input", { bubbles: true }));
+  });
+
+  await click(q(".leaderboard-profile-trigger"));
+  assert.deepEqual(profileLookups.at(-1), { playerId: "player-4" });
+  assert.equal(q('[role="dialog"]')?.getAttribute("aria-labelledby"), "player-profile-title");
+  assert.match(q(".player-profile-username").textContent, /TargetPlayer/);
+  assert.equal(q(".player-profile-friend-button").disabled, true);
+  assert.equal(q(".player-profile-friend-unavailable"), null);
+  assert.equal(q(".player-profile-player-id-value").textContent, "—");
+  assert.match(q(".player-profile-member-since").textContent, /Member since/);
+  assert.match(q(".player-profile-rank-pill").textContent, /#4.*Global Rank/);
+  assert.ok(q(".mpm-identity-name-row .copy-field-button"));
+  assert.equal(q(".mpm-stat-card .mpm-stat-value").textContent, "—");
+  assert.equal(q(".mpm-table tbody tr:first-child td:nth-child(2)").textContent, "—");
+  assert.equal(q("[role=progressbar]"), null, "profile level has no progress bar");
+
+  await click(q(".player-profile-close"));
+  assert.equal(q('[role="dialog"]'), null);
+  assert.equal(q(".leaderboard-search input").value, "TargetPlayer");
+  assert.match(q(".leaderboard-cell-name").textContent, /TargetPlayer/);
+
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value",
+    ).set;
+    setter.call(search, "Beta");
+    search.dispatchEvent(new window.Event("input", { bubbles: true }));
+  });
+  await click(q(".leaderboard-profile-trigger"));
+  assert.deepEqual(profileLookups.at(-1), { playerId: "player-2" });
+  assert.match(q(".player-profile-username").textContent, /Beta/);
+  await click(q(".player-profile-close"));
+
+  await click(q(".leaderboard-row-body .leaderboard-col-level"));
+  assert.deepEqual(profileLookups.at(-1), { playerId: "player-2" });
+  assert.match(q(".player-profile-username").textContent, /Beta/);
+  await click(q(".player-profile-close"));
+  await unmount();
+});
+
+test("clicking anywhere on a leaderboard podium card opens that player's profile", async () => {
+  const unmount = await renderPage(navbarUser(), "/", [
+    { id: "player-1", name: "PodiumPlayer", level: 8, xp: 800, wins: 20 },
+    { id: "player-2", name: "SecondPlayer", level: 7, xp: 700, wins: 18 },
+    { id: "player-3", name: "ThirdPlayer", level: 6, xp: 600, wins: 14 },
+  ]);
+  const podiumCard = qa(".leaderboard-card").find((card) => card.textContent.includes("PodiumPlayer"));
+
+  assert.ok(podiumCard);
+  await click(podiumCard.querySelector(".leaderboard-card-score"));
+  assert.deepEqual(profileLookups.at(-1), { playerId: "player-1" });
+  assert.match(q(".player-profile-username").textContent, /PodiumPlayer/);
+  await click(q(".player-profile-close"));
+  assert.equal(q('[role="dialog"]'), null);
+
+  const secondCard = qa(".leaderboard-card").find((card) => card.textContent.includes("SecondPlayer"));
+  await click(secondCard);
+  assert.deepEqual(profileLookups.at(-1), { playerId: "player-2" });
+  assert.match(q(".player-profile-username").textContent, /Beta/);
+  await act(async () => {
+    document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  });
+  assert.equal(q('[role="dialog"]'), null);
+  await unmount();
+});
+
+test("default leaderboard preview cards open profiles by authorized username lookup", async () => {
+  const unmount = await renderPage();
+  const firstCard = q(".leaderboard-card");
+
+  assert.ok(firstCard);
+  await click(firstCard.querySelector(".leaderboard-card-rank"));
+  assert.deepEqual(profileLookups.at(-1), { username: "PixelRogue" });
+  assert.equal(q('[role="dialog"]')?.getAttribute("aria-labelledby"), "player-profile-title");
+  assert.match(q(".player-profile-username").textContent, /PixelRogue/);
+
+  await click(q(".player-profile-close"));
+  assert.equal(q('[role="dialog"]'), null);
+  await unmount();
+});
+
+test("clicking anywhere on Home Top 10 cards opens the corresponding public profiles", async () => {
+  const unmount = await renderLeaderboardHome();
+  const cards = qa(".leaderboard-home-profile-card");
+
+  await click(cards[0].querySelector(".leaderboard-home-score"));
+  assert.deepEqual(profileLookups.at(-1), { username: "PlayerOne" });
+  assert.match(q(".player-profile-username").textContent, /PlayerOne/);
+  await click(q(".player-profile-close"));
+
+  await click(cards[1]);
+  assert.deepEqual(profileLookups.at(-1), { username: "ShadowX" });
+  assert.match(q(".player-profile-username").textContent, /ShadowX/);
+  await click(q(".player-profile-close"));
+
+  await unmount();
+});
+
+test("unresolved preview players receive the complete hard-coded profile", async () => {
+  authApi.getPublicPlayerProfile = async () => {
+    throw new AuthApiError("Player profile not found", 404);
+  };
+  const unmount = await renderLeaderboardHome();
+
+  await click(q(".leaderboard-home-profile-card .leaderboard-home-score"));
+  assert.match(q(".player-profile-username").textContent, /PlayerOne/);
+  assert.equal(q(".player-profile-player-id-value").textContent, "ARC-PLYR0001");
+  assert.deepEqual(
+    [...q(".player-profile-progression-badges").children].map((badge) => badge.textContent.trim().replace(/\s+/g, " ")),
+    ["Arcadia Rookie", "LEVEL 00", "0 XP"],
+  );
+  assert.equal(q(".mpm-level-card"), null);
+  assert.equal(q(".player-profile-member-since").textContent.includes("15 March 2024"), true);
+  assert.match(q(".player-profile-rank-pill").textContent, /#1/);
+  assert.equal(qa(".mpm-stat-card").length, 9);
+  assert.deepEqual(
+    [...qa(".mpm-section")[1].querySelectorAll(".mpm-stat-label")].map((node) => node.textContent),
+    ["Total Matches", "Total Wins", "Best Score", "Win Rate"],
+  );
+  assert.equal(q(".mpm-stat-card .mpm-stat-value").textContent, "128");
+  assert.equal(q(".mpm-table tbody tr:first-child td:nth-child(2)").textContent, "16,800");
+  await click(q(".player-profile-report-button"));
+  assert.equal(q(".report-player-target-identity strong").textContent, "PlayerOne");
+  assert.equal(q(".report-player-target-identity > span").textContent, "Player ID: ARC-PLYR0001");
+  await click(q(".report-player-cancel"));
+  assert.ok(q(".player-profile-modal"), "cancel reveals the still-open preview profile");
+  assert.ok(q(".player-profile-report-button"), "Report Player remains available on the profile");
+  assert.equal(q(".player-profile-friend-button").disabled, true);
+  assert.equal(q(".player-profile-friend-unavailable"), null);
+  assert.equal(q(".player-profile-state"), null);
+  await click(q(".player-profile-close"));
+  assert.equal(q('[role="dialog"]'), null);
+  await unmount();
+});
+
+test("real profile restores the level, XP and Rookie badges and places actions correctly", async () => {
+  authApi.getPublicPlayerProfile = async () => ({
+    profile: {
+      id: "profile-player",
+      username: "PlayerOne",
+      playerId: "ARC-TEST0001",
+      avatar: { type: "local", value: "avatar-01" },
+      avatarUrl: null,
+      progression: progression(),
+      completedMatches: 1,
+      createdAt: "2024-03-15T08:00:00.000Z",
+    },
+  });
+  const unmount = await renderLeaderboardHome();
+
+  await click(q(".leaderboard-home-profile-card"));
+  const progressionBadges = [...q(".player-profile-progression-badges").children];
+  assert.deepEqual(
+    progressionBadges.map((item) => item.textContent.trim().replace(/\s+/g, " ")),
+    ["Arcadia Rookie", "LEVEL 00", "0 XP"],
+  );
+  assert.equal(progressionBadges[0].dataset.earned, "true");
+  assert.equal(q(".mpm-level-card"), null);
+  assert.deepEqual(
+    [...qa(".mpm-section")[1].querySelectorAll(".mpm-stat-label")].map((node) => node.textContent),
+    ["Total Matches", "Total Wins", "Best Score", "Win Rate"],
+  );
+
+  const avatarColumn = q(".player-profile-avatar-column");
+  assert.ok(avatarColumn.contains(q(".player-profile-friend-button")));
+  assert.equal(q(".player-profile-header .player-profile-friend-button"), null);
+  const reportButton = q(".player-profile-body > .player-profile-report-button");
+  assert.ok(reportButton);
+  assert.equal(q(".player-profile-header .player-profile-report-button"), null);
+  await click(reportButton);
+  const reportDialog = q(".report-player-modal");
+  assert.ok(reportDialog);
+  assert.equal(q(".player-profile-modal").classList.contains("player-profile-modal--report-open"), true);
+  assert.equal(q(".player-profile-modal").hasAttribute("inert"), true);
+  assert.ok(q(".player-profile-close").classList.contains("arcadia-modal-close"));
+  assert.match(reportDialog.querySelector("#report-player-title").textContent, /Report Player/);
+  assert.ok(reportDialog.querySelector(".report-player-heading-icon").classList.contains("mpm-header-icon"));
+  assert.match(reportDialog.querySelector("#report-player-subtitle").textContent, /Help keep Arcadia safe and fair/);
+  assert.equal(reportDialog.querySelector(".report-player-target-identity strong").textContent, "PlayerOne");
+  assert.equal(reportDialog.querySelector(".report-player-target-identity > span").textContent, "Player ID: ARC-TEST0001");
+  assert.equal(reportDialog.querySelector("#report-player-reason").getAttribute("aria-required"), "true");
+  assert.equal(reportDialog.querySelector("#report-player-reason").getAttribute("aria-haspopup"), "listbox");
+  assert.equal(reportDialog.querySelector("#report-player-details").maxLength, 100);
+  assert.ok(reportDialog.querySelector(".report-player-close").classList.contains("mpm-close"));
+  assert.ok(reportDialog.querySelector(".report-player-close").classList.contains("arcadia-modal-close"));
+  assert.equal(reportDialog.querySelector(".report-player-submit").disabled, true);
+
+  await click(reportDialog.querySelector(".report-player-cancel"));
+  assert.equal(q(".report-player-modal"), null);
+  assert.equal(q(".player-profile-modal").classList.contains("player-profile-modal--report-open"), false);
+
+  await click(reportButton);
+  const reopenedReport = q(".report-player-modal");
+  await click(reopenedReport.querySelector("#report-player-reason"));
+  const reasonList = q("#report-player-reason-listbox");
+  assert.equal(reasonList.getAttribute("role"), "listbox");
+  assert.equal(qa("#report-player-reason-listbox [role='option']").length, 6);
+  assert.equal(reasonList.style.maxHeight, "", "the complete options list is not scroll-limited");
+  await act(async () => {
+    window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  });
+  assert.equal(q("#report-player-reason-listbox"), null, "Escape first closes the open reason list");
+  assert.ok(q(".report-player-modal"), "closing the list leaves the report modal open");
+  await click(reopenedReport.querySelector("#report-player-reason"));
+  await click(q("#report-player-reason-option-0"));
+  assert.equal(reopenedReport.querySelector("#report-player-reason").textContent.trim(), "Harassment or bullying");
+
+  await act(async () => {
+    const details = reopenedReport.querySelector("#report-player-details");
+    const detailsSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+    detailsSetter.call(details, "A test report");
+    details.dispatchEvent(new window.Event("input", { bubbles: true }));
+  });
+  assert.equal(reopenedReport.querySelector(".report-player-submit").disabled, false);
+  await click(reopenedReport.querySelector(".report-player-submit"));
+  assert.match(q(".report-player-error").textContent, /not available yet\. No report was submitted/);
+  assert.equal(q("#report-player-reason").textContent.trim(), "Harassment or bullying");
+  assert.equal(q("#report-player-details").value, "A test report");
+
+  await act(async () => {
+    window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  });
+  assert.equal(q(".report-player-modal"), null, "Escape closes only the topmost modal");
+  assert.ok(q(".player-profile-modal"), "the Player Profile remains open");
+
+  await click(reportButton);
+  await click(q(".report-player-close"));
+  assert.equal(q(".report-player-modal"), null, "X closes only the report modal");
+  assert.ok(q(".player-profile-modal"));
+
+  await click(reportButton);
+  await act(async () => {
+    const backdrop = q(".report-player-backdrop");
+    backdrop.dispatchEvent(new window.MouseEvent("mousedown", { bubbles: true }));
+  });
+  assert.equal(q(".report-player-modal"), null, "the report backdrop closes the report modal");
+  assert.ok(q(".player-profile-modal"), "backdrop close preserves the profile modal");
+
+  assert.equal(q(".mpm-stat-card .mpm-stat-value").textContent, "—");
+  assert.match(q(".player-profile-rank-pill").textContent.replace(/\s+/g, " ").trim(), /^#1\s*Global Rank$/);
+  await click(q(".player-profile-close"));
+  assert.equal(q('[role="dialog"]'), null);
+  await unmount();
+});
+
+test("private profiles show a clear privacy state and never fall back to preview data", async () => {
+  authApi.getPublicPlayerProfile = async () => {
+    throw new AuthApiError("This profile is private", 403);
+  };
+  const unmount = await renderLeaderboardHome();
+  await click(q(".leaderboard-home-profile-card"));
+
+  assert.match(q(".player-profile-state").textContent, /This profile is private/);
+  assert.equal(q(".player-profile-username").textContent, "PlayerOne");
+  assert.equal(q(".mpm-stat-card"), null);
+  assert.equal(q(".player-profile-friend-button"), null);
+  await unmount();
+});
+
+test("own leaderboard entries cannot open a friend-enabled player profile", async () => {
+  const ownUser = navbarUser();
+  const unmount = await renderPage(ownUser, "/", [
+    { id: ownUser.id, name: ownUser.username, level: 1, xp: 0, wins: 0 },
+    { id: "player-2", name: "Other", level: 2, xp: 10, wins: 1 },
+    { id: "player-3", name: "Another", level: 3, xp: 20, wins: 2 },
+  ]);
+
+  const ownCard = qa(".leaderboard-card").find((card) => card.textContent.includes(ownUser.username));
+  assert.ok(ownCard);
+  assert.equal(ownCard.getAttribute("role"), null);
+  await click(ownCard);
+  assert.equal(q('[role="dialog"]'), null);
   await unmount();
 });
 

@@ -1167,7 +1167,7 @@ function SettingsModal({ onClose }: SettingsModalProps) {
           </div>
           <button
             type="button"
-            className="settings-close"
+            className="settings-close arcadia-modal-close"
             aria-label="Close settings"
             onClick={onClose}
           >

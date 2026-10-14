@@ -217,7 +217,7 @@ function UsernameModal({
     <div className="unm-backdrop" onMouseDown={handleBackdropMouseDown}>
       <div className="unm-modal" role="dialog" aria-modal="true" aria-label="Enter your username">
         {closable && (
-          <button type="button" className="unm-close" aria-label="Close" onClick={onClose}>
+          <button type="button" className="unm-close arcadia-modal-close" aria-label="Close" onClick={onClose}>
             <CloseIcon />
           </button>
         )}
