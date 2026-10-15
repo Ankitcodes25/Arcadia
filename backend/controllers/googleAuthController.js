@@ -1,5 +1,6 @@
 const googleOAuthService = require('../services/googleOAuthService');
 const emailService = require('../services/emailService');
+const welcomeBackService = require('../services/welcomeBackService');
 const refreshSessionService = require('../services/refreshSessionService');
 const { getGoogleOAuthConfig } = require('../config/googleOAuth');
 const {
@@ -77,7 +78,12 @@ async function callback(req, res, next) {
       codeVerifier: transaction.codeVerifier,
       nonce: transaction.nonce,
     });
-    const { user, created } = await googleOAuthService.findOrCreateGoogleUser(identity, req);
+    const signInStartedAt = new Date();
+    const {
+      user,
+      created,
+      previousLoginAt,
+    } = await googleOAuthService.findOrCreateGoogleUser(identity, req);
     const session = await refreshSessionService.createRefreshSession({
       userId: user._id,
       req,
@@ -102,7 +108,12 @@ async function callback(req, res, next) {
           to: user.email,
           displayName: greetingName,
         });
-      } else {
+      } else if (await welcomeBackService.isReturningAfterInactivity({
+        userId: user._id,
+        previousLoginAt,
+        createdAt: user.createdAt,
+        signInStartedAt,
+      })) {
         await emailService.sendWelcomeBackEmail({
           to: user.email,
           displayName: greetingName,

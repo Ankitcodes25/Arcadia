@@ -3773,4 +3773,1651 @@ body:has(.all-games-page) .navbar {
    category heading chip, view-more button.
    This block is intentionally last so it wins the cascade
    over every earlier layer in this file.
+========================================================= */
+
+/* ---- filter rows: 4 pills + Clear filters on row 1, rest wraps ---- */
+.category-filter {
+  display: block;
+  width: 100%;
+  margin: clamp(14px, 3svh, 22px) 0 20px;
+}
+
+.category-filter-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.category-filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+}
+
+.category-filter-pills-primary {
+  flex-wrap: nowrap;
+  overflow: visible;
+}
+
+.category-filter-pills-secondary {
+  flex-wrap: wrap;
+}
+
+/* ---- pills: richer, more "premium chip" look at rest + hover ---- */
+.category-filter-pills button {
+  flex: none;
+  min-height: 44px;
+  padding: 0 21px;
+  border-radius: 999px;
+  border: 1px solid rgba(199, 131, 255, 0.5);
+  background: linear-gradient(160deg, rgba(146, 71, 232, 0.32), rgba(58, 24, 112, 0.42));
+  color: #e7d7f9;
+  font-size: 13px;
+  font-weight: 780;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -6px 14px rgba(20, 6, 46, 0.35),
+    0 3px 10px rgba(60, 15, 110, 0.25);
+  transition: background 0.22s ease, border-color 0.22s ease, color 0.22s ease,
+    transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.category-filter-pills button:hover {
+  transform: translateY(-2px);
+  color: #ffffff;
+  border-color: rgba(226, 174, 255, 0.95);
+  background: linear-gradient(160deg, rgba(190, 100, 255, 0.5), rgba(90, 38, 168, 0.5));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 0 20px rgba(178, 84, 255, 0.45),
+    0 6px 16px rgba(76, 24, 140, 0.3);
+}
+
+.category-filter-pills button.active {
+  color: #fff;
+  border-color: rgba(226, 190, 255, 0.95);
+  background: linear-gradient(135deg, #b06bff, #6d2fd6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 0 26px rgba(178, 84, 255, 0.55),
+    0 8px 20px rgba(76, 24, 140, 0.4);
+}
+
+/* ---- clear filters: rectangular chip, distinct from pill-shaped filters ---- */
+.category-filter-pills-primary .clear-filters {
+  flex: none;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 145, 190, 0.72);
+  background: linear-gradient(135deg, #7d286d 0%, #321341 100%);
+  color: #ffe8f2;
+  font-size: 13px;
+  font-weight: 780;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 4px 14px rgba(15, 4, 36, 0.5);
+  transition: background 0.22s ease, border-color 0.22s ease, color 0.22s ease,
+    transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.category-filter-pills-primary .clear-filters:hover:not(:disabled) {
+  transform: translateY(-2px);
+  color: #ffffff;
+  border-color: rgba(255, 190, 220, 1);
+  background: linear-gradient(135deg, #a13c88 0%, #4a1a59 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 0 18px rgba(139, 69, 231, 0.45),
+    0 6px 16px rgba(15, 4, 36, 0.5);
+}
+
+.category-filter-pills-primary .clear-filters .clear-filters-icon {
+  width: 14px;
+  height: 14px;
+  stroke: #ffc2dc;
+  transition: stroke 0.22s ease;
+}
+
+.category-filter-pills-primary .clear-filters:hover:not(:disabled) .clear-filters-icon {
+  stroke: #ffffff;
+}
+
+/* ---- category badge above the cards: no box, symmetric fading lines +
+   red glowing "eyes" style dots — attached to the label span itself so
+   line + dots + text all travel together on the bullet-in/out transition ---- */
+.all-games-heading-stage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.all-games-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  color: #f4ecff;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  filter: none;
+  text-shadow: 0 0 10px rgba(207, 112, 255, 0.35);
+}
+
+.all-games-label::before,
+.all-games-label::after {
+  content: "";
+  display: inline-block;
+  flex: none;
+  width: 62px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9) 96%);
+  filter: drop-shadow(0 0 5px rgba(255, 61, 90, 0.8));
+}
+
+.all-games-label::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9) 96%);
+}
+
+.all-games-label::after {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.9), transparent 96%);
+}
+
+.all-games-label-dots {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  margin: 0 4px 0 0;
+  border-radius: 50%;
+  background: #ffe4ea;
+  box-shadow:
+    0 0 6px 1px #ff3b5c,
+    0 0 12px 2px rgba(255, 30, 70, 0.65),
+    10px 0 0 #ffe4ea,
+    10px 0 6px 1px #ff3b5c,
+    10px 0 12px 2px rgba(255, 30, 70, 0.65);
+  animation: allGamesDotBlink 5s ease-in-out infinite;
+}
+
+@keyframes allGamesDotBlink {
+  0%,
+  90%,
+  100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  93% {
+    transform: scaleY(0.15);
+    opacity: 0.65;
+  }
+  96% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* ---- view more: match the landing page's .view-all final style ---- */
+.all-games-view-more {
+  margin: 14px 0 0;
+}
+
+.all-games-view-more .view-more-btn {
+  padding: 0 18px;
+  font-size: 14px;
+  font-weight: 760;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.13),
+    inset 0 -1px 0 rgba(102, 32, 159, 0.22),
+    0 0 0 1px rgba(160, 66, 225, 0.06),
+    0 5px 18px rgba(110, 38, 175, 0.12);
+}
+
+.all-games-view-more .view-more-btn::after {
+  content: none;
+  display: none;
+}
+
+.all-games-view-more .view-more-btn:hover {
+  box-shadow: 0 0 20px rgba(174, 69, 255, 0.28);
+}
+
+.all-games-view-more .view-more-btn .view-more-arrow {
+  transform: none;
+}
+
+.all-games-view-more .view-more-btn:hover .view-more-arrow {
+  transform: translateX(3px);
+}
+
+@media (max-width: 640px) {
+  .category-filter-pills-primary {
+    flex-wrap: wrap;
+  }
+
+  .category-filter-pills-primary .clear-filters {
+    margin-left: 0;
+  }
+}
+/* =========================================================
+   FIX v2 — Arcadion ke upar wali flat glow-line ko fade karna
+   Wajah: Arcadion PNG me sir bilkul top edge ke paas hai aur image ke
+   glow/haze ka hissa top edge pe achanak khatam hota hai, isliye hero ke
+   upar wali jagah (navbar aur sir ke beech) me ek seedhi line dikhti thi.
+   Ab figure ka top --top-fade tak smooth fade hota hai (mask), aur mask
+   box se bada hai (no-clip) taaki sides ka rim-glow na kate.
+
+   Tune karne ke liye:
+     --top-fade   bada = line aur soft blend, lekin sir ka top rim bhi dim hoga
+                  chhota = sir crisp, lekin line wapas dikh sakti hai
+     --glow-pad   sides ke glow ke liye extra jagah
+========================================================= */
+.arcadion-figure {
+  --glow-pad: 100px;
+  --top-fade: calc(var(--arc-h) * 0.025);
+  --box-h: calc(100% - var(--glow-pad) * 2);
+  --fade-from: calc(var(--glow-pad) + var(--box-h) * 0.66);
+  --fade-to: calc(var(--glow-pad) + var(--box-h) * 0.80);
+
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent 0,
+    transparent var(--glow-pad),
+    rgba(0, 0, 0, 0.12) calc(var(--glow-pad) + var(--top-fade) * 0.25),
+    rgba(0, 0, 0, 0.45) calc(var(--glow-pad) + var(--top-fade) * 0.5),
+    rgba(0, 0, 0, 0.8) calc(var(--glow-pad) + var(--top-fade) * 0.75),
+    #000 calc(var(--glow-pad) + var(--top-fade)),
+    #000 var(--fade-from),
+    transparent var(--fade-to),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    transparent 0,
+    transparent var(--glow-pad),
+    rgba(0, 0, 0, 0.12) calc(var(--glow-pad) + var(--top-fade) * 0.25),
+    rgba(0, 0, 0, 0.45) calc(var(--glow-pad) + var(--top-fade) * 0.5),
+    rgba(0, 0, 0, 0.8) calc(var(--glow-pad) + var(--top-fade) * 0.75),
+    #000 calc(var(--glow-pad) + var(--top-fade)),
+    #000 var(--fade-from),
+    transparent var(--fade-to),
+    transparent 100%
+  );
+  -webkit-mask-size: calc(100% + var(--glow-pad) * 2) calc(100% + var(--glow-pad) * 2);
+  mask-size: calc(100% + var(--glow-pad) * 2) calc(100% + var(--glow-pad) * 2);
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-origin: border-box;
+  mask-origin: border-box;
+  -webkit-mask-clip: no-clip;
+  mask-clip: no-clip;
+}
+/* =========================================================
+   ARCADION PICKS  (v3)  +  SHARED NEON CARD HOVER (library-card)
+   Allgames.css me purana poora "ARCADION PICKS" block delete
+   karke ye poora paste karo (file ke bilkul end me).
+   ========================================================= */
+
+@property --card-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes cardBorderSpin {
+  to { --card-angle: 360deg; }
+}
+
+/* ---------------- SECTION ----------------
+   Ye component .games-browser ke ANDAR render ho raha hai, isliye
+   width: 100% (pehle calc(100% - 96px) dobara ghat raha tha).
+   Agar kabhi .games-browser ke bahar rakho to yahan
+   width: min(1400px, calc(100% - 96px)); margin-inline: auto; kar dena. */
+
+.arcadion-picks {
+  --ap-char-h: 240px;
+  --ap-divider-h: 36px;
+  --ap-divider-gap: 30px;
+  --ap-top: calc(var(--ap-divider-h) + var(--ap-divider-gap)); /* content yahan se shuru */
+
+  /* ring tuning: Arcadion ke center pe na baithe to ye 3 numbers badlo */
+  --ring-k: 1.5;   /* ring size = Arcadion height x ye */
+  --ring-dx: 0.11; /* + = ring right, - = left  (Arcadion height ka fraction) */
+  --ring-dy: 0.04; /* + = ring neeche, - = upar */
+
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  margin: 36px 0 48px;
+  padding: 0;
+  isolation: isolate;
+
+  /* upar/neeche se clip (upar ke cards pe overlap nahi), sides free */
+  clip-path: inset(0 -50vw);
+}
+
+/* soft full-bleed glow — page ke bg me melt ho jata hai */
+.arcadion-picks::before {
+  content: "";
+  position: absolute;
+  z-index: -3;
+  top: -20px;
+  bottom: -30px;
+  left: 50%;
+  width: 100vw;
+  margin-left: -50vw;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 34% 60% at 76% 34%, rgba(128, 52, 226, 0.32), transparent 70%),
+    radial-gradient(ellipse 30% 50% at 16% 62%, rgba(88, 30, 170, 0.16), transparent 70%);
+  -webkit-mask-image:
+    linear-gradient(180deg, transparent 0, #000 30%, #000 70%, transparent 100%),
+    linear-gradient(90deg, transparent 0, #000 14%, #000 86%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(180deg, transparent 0, #000 30%, #000 70%, transparent 100%),
+    linear-gradient(90deg, transparent 0, #000 14%, #000 86%, transparent 100%);
+  mask-composite: intersect;
+}
+
+/* ---------------- DIVIDER (upar ke cards ke baad) ---------------- */
+
+.arcadion-picks-divider {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  height: var(--ap-divider-h);
+  margin-bottom: var(--ap-divider-gap);
+}
+
+.arcadion-picks-divider-line {
+  flex: none;
+  width: clamp(90px, 14vw, 180px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(160, 100, 255, 0.85));
+}
+
+.arcadion-picks-divider-line-r {
+  background: linear-gradient(270deg, transparent, rgba(160, 100, 255, 0.85));
+}
+
+.arcadion-picks-divider-badge {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  margin: 0 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(170, 110, 255, 0.6);
+  border-radius: 11px;
+  background: linear-gradient(145deg, rgba(90, 40, 190, 0.5), rgba(28, 9, 66, 0.9));
+  color: #d9c2ff;
+  box-shadow:
+    0 0 22px rgba(140, 60, 255, 0.35),
+    inset 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.arcadion-picks-divider-badge svg {
+  width: 17px;
+  height: 17px;
+  filter: drop-shadow(0 0 5px rgba(190, 120, 255, 0.7));
+}
+
+/* ---------------- STAGE: ring + Arcadion (same center) ----------------
+   Ring hamesha Arcadion ke PEECHE aur ThIK beech me rehta hai.
+   Arcadion ka neeche ka hissa fade hoke cards ke top se mil jata hai. */
+
+.arcadion-picks-stage {
+  position: absolute;
+  z-index: 1;
+  top: var(--ap-top);
+  right: 5%;
+  height: var(--ap-char-h);
+  pointer-events: none;
+  animation: apCharFloat 6s ease-in-out infinite;
+}
+
+.arcadion-picks-ring {
+  position: absolute;
+  z-index: 0;
+  top: calc(50% + var(--ap-char-h) * var(--ring-dy));
+  left: calc(50% + var(--ap-char-h) * var(--ring-dx));
+  width: calc(var(--ap-char-h) * var(--ring-k));
+  height: calc(var(--ap-char-h) * var(--ring-k));
+  opacity: 0.45;
+  animation: apRingFloat 9s ease-in-out infinite;
+  -webkit-mask-image: radial-gradient(circle closest-side, #000 62%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side, #000 62%, transparent 100%);
+}
+
+.arcadion-picks-ring img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: saturate(1.15) drop-shadow(0 0 30px rgba(128, 40, 220, 0.35));
+}
+
+@keyframes apRingFloat {
+  0%, 100% { transform: translate(-50%, -50%) rotate(-2deg); }
+  50%      { transform: translate(-50%, -50%) rotate(2deg); }
+}
+
+.arcadion-picks-character-glow {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 34%;
+  width: 240px;
+  height: 260px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(180, 91, 255, 0.4), transparent 70%);
+  filter: blur(24px);
+}
+
+/* Glow ko image ke box se bahar nikalne ke liye img pe padding + negative margin:
+   layout wahi rehta hai, lekin drop-shadow / mask ab box ke andar hi poora aata hai,
+   isliye sir ke upar glow ek seedhi line pe kata hua nahi dikhta. */
+.arcadion-picks-stage {
+  --glow-pad: 60px; /* glow ke liye jagah (ap-top se chhoti rakho, warna upar se clip hoga) */
+  --char-mask:
+    linear-gradient(
+      180deg,
+      #000 0,
+      #000 calc(var(--glow-pad) + var(--ap-char-h) * 0.74),
+      transparent calc(var(--glow-pad) + var(--ap-char-h))
+    ),
+    linear-gradient(
+      90deg,
+      transparent 0,
+      #000 calc(var(--glow-pad) * 0.9),
+      #000 calc(100% - var(--glow-pad) * 0.9),
+      transparent 100%
+    );
+}
+
+/* silhouette: Arcadion ke shape me dark fill, ring ke upar aur character ke neeche */
+.arcadion-picks-character-shadow {
+  position: absolute;
+  z-index: 1;
+  top: calc(var(--glow-pad) * -1);
+  left: calc(var(--glow-pad) * -1);
+  box-sizing: content-box;
+  height: var(--ap-char-h);
+  width: auto;
+  padding: var(--glow-pad);
+  filter: brightness(0.1) saturate(1.4);
+  opacity: 0.94;
+  -webkit-mask-image: var(--char-mask);
+  -webkit-mask-composite: source-in;
+  mask-image: var(--char-mask);
+  mask-composite: intersect;
+}
+
+.arcadion-picks-character {
+  position: relative;
+  z-index: 2;
+  display: block;
+  box-sizing: content-box;
+  height: var(--ap-char-h);
+  width: auto;
+  max-width: none;
+  padding: var(--glow-pad);
+  margin: calc(var(--glow-pad) * -1);
+  filter:
+    brightness(1.02)
+    contrast(1.12)
+    drop-shadow(0 0 8px rgba(200, 130, 255, 0.6))
+    drop-shadow(0 0 26px rgba(150, 60, 245, 0.5))
+    drop-shadow(0 0 46px rgba(120, 40, 220, 0.3));
+  -webkit-mask-image: var(--char-mask);
+  -webkit-mask-composite: source-in;
+  mask-image: var(--char-mask);
+  mask-composite: intersect;
+}
+
+@keyframes apCharFloat {
+  0%, 100% { transform: translateY(3px); }
+  50%      { transform: translateY(-6px); }
+}
+
+/* ---------------- NOTE ("Play what I picked") ---------------- */
+
+.arcadion-picks-note {
+  position: absolute;
+  z-index: 4;
+  top: calc(var(--ap-top) + 24px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #c98bff;
+  transform: rotate(-9deg);
+  text-shadow: 0 0 14px rgba(170, 80, 255, 0.7);
+  pointer-events: none;
+}
+
+.arcadion-picks-note-crown {
+  width: 22px;
+  height: 22px;
+  margin-bottom: 4px;
+}
+
+.arcadion-picks-note span {
+  font-family: "Caveat", "Segoe Script", "Bradley Hand", cursive;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.05;
+  text-align: left;
+}
+
+.arcadion-picks-note-arrow {
+  width: 44px;
+  height: 44px;
+  margin-top: 6px;
+  transform: rotate(8deg);
+}
+
+/* ---------------- HEADING  (= "Continue Playing" style) ---------------- */
+
+.arcadion-picks-heading {
+  position: relative;
+  z-index: 3;
+  width: min(600px, 52%);
+  min-height: var(--ap-char-h);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: left;
+}
+
+/* glowing line + purple label */
+.arcadion-picks-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  color: #bd62ff;
+  font-size: 14px;
+  font-weight: 850;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+}
+
+.arcadion-picks-kicker::before {
+  content: "";
+  width: 34px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(189, 98, 255, 0.9));
+  box-shadow: 0 0 8px rgba(165, 87, 255, 0.6);
+}
+
+/* white word + neon purple word */
+.arcadion-picks-heading h2 {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 14px 0 0;
+  font-size: clamp(34px, 3.5vw, 46px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  text-shadow: 0 0 22px rgba(174, 69, 255, 0.28);
+}
+
+.arcadion-picks-heading h2 span {
+  position: relative;
+  display: inline-block;
+  color: #c46aff;
+  -webkit-text-fill-color: #c46aff;
+  text-shadow:
+    0 0 8px rgba(191, 75, 255, 0.55),
+    0 0 24px rgba(159, 43, 255, 0.4);
+}
+
+/* glitch flicker — same animation as landing page headings */
+.arcadion-picks-heading h2 span::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 2px;
+  top: 0;
+  color: #8b3eff;
+  -webkit-text-fill-color: #8b3eff;
+  opacity: 0;
+  text-shadow: none;
+  clip-path: inset(0 0 48% 0);
+  animation: apTextGlitch 3.7s steps(1) infinite;
+}
+
+@keyframes apTextGlitch {
+  0%, 72%, 100% { opacity: 0;    transform: translateX(0); }
+  73%           { opacity: 0.8;  transform: translateX(-4px); }
+  74%           { opacity: 0;    transform: translateX(5px); }
+  75%           { opacity: 0.55; transform: translateX(-2px); }
+  76%           { opacity: 0; }
+}
+
+.arcadion-picks-heading p {
+  max-width: 560px;
+  margin: 12px 0 0;
+  color: #b7a0c9;
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: 0.3px;
+}
+
+/* ---------------- CARDS  (base look = .library-card) ---------------- */
+
+.arcadion-picks-list {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: -20px; /* cards Arcadion ke hath ke neeche se shuru */
+}
+
+.arcadion-pick-card.library-card {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px 18px;
+  overflow: hidden;
+  border: 1px solid rgba(190, 130, 255, 0.28);
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(73, 22, 115, 0.74), rgba(24, 8, 46, 0.92));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.07), 0 14px 34px rgba(0, 0, 0, 0.22);
+}
+
+.arcadion-pick-card.library-card::before {
+  width: 200px;
+  height: 200px;
+  top: -90px;
+  right: -80px;
+}
+
+.arcadion-pick-top {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.arcadion-pick-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(197, 104, 255, 0.5);
+  background: linear-gradient(135deg, rgba(167, 67, 242, 0.24), rgba(88, 34, 158, 0.16));
+  color: #e4d3f7;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.arcadion-pick-crown {
+  width: 24px;
+  height: 24px;
+  color: #c79bff;
+  filter: drop-shadow(0 0 6px rgba(190, 110, 255, 0.7));
+}
+
+.arcadion-pick-body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.arcadion-pick-icon {
+  flex-shrink: 0;
+  width: 78px;
+  height: 78px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(117, 41, 180, 0.7), rgba(38, 13, 71, 0.85));
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.22), inset 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.arcadion-pick-info h3 {
+  margin: 0 0 6px;
+  color: #ffffff;
+  font-size: 23px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.arcadion-pick-card .arcadion-pick-info p {
+  min-height: 0;
+  margin: 0;
+  color: #a696b1;
+  font-size: 13px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.arcadion-pick-bottom {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* button = .weekly-play pill */
+.arcadion-pick-button {
+  min-height: 38px;
+  margin: 0;
+  padding: 0 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  border: 1px solid rgba(237, 199, 255, 0.72);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #c46aff, #7c35df);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  box-shadow: 0 8px 24px rgba(142, 50, 232, 0.35), inset 0 1px rgba(255, 255, 255, 0.32);
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.arcadion-pick-button span {
+  font-size: 15px;
+  transition: transform 0.2s ease;
+}
+
+.arcadion-pick-button:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #d98aff, #914cff);
+  box-shadow: 0 10px 28px rgba(174, 69, 255, 0.5), inset 0 1px rgba(255, 255, 255, 0.42);
+}
+
+.arcadion-pick-button:hover span {
+  transform: translateX(4px);
+}
+
+.arcadion-pick-button:focus-visible {
+  outline: 2px solid #e2c2ff;
+  outline-offset: 3px;
+}
+
+/* ---------------- TABLET ---------------- */
+
+@media (max-width: 1200px) {
+  .arcadion-picks { --ap-char-h: 210px; }
+  .arcadion-pick-icon { width: 68px; height: 68px; }
+  .arcadion-pick-info h3 { font-size: 20px; }
+  .arcadion-pick-info p { font-size: 12px; }
+}
+
+@media (max-width: 980px) {
+  .arcadion-picks-heading { width: 62%; }
+  .arcadion-picks-list { grid-template-columns: 1fr; gap: 14px; }
+}
+
+/* ---------------- MOBILE ---------------- */
+
+@media (max-width: 700px) {
+  .arcadion-picks { --ap-char-h: 190px; margin-bottom: 50px; }
+  .arcadion-picks-heading { width: 100%; min-height: 0; padding-bottom: 150px; }
+  .arcadion-picks-kicker { font-size: 13px; }
+  .arcadion-picks-heading h2 { font-size: 30px; }
+  .arcadion-picks-heading p { font-size: 13px; }
+
+  .arcadion-picks-stage { top: auto; bottom: 0; right: -6%; opacity: 0.55; }
+  .arcadion-picks-divider-badge { width: 32px; height: 32px; }
+  .arcadion-picks-note { display: none; }
+  .arcadion-picks-list { margin-top: 0; }
+}
+
+/* ---------------- REDUCED MOTION ---------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .arcadion-picks-ring,
+  .arcadion-picks-stage,
+  .arcadion-picks-heading h2 span::after,
+  .library-card:hover::after { animation: none !important; }
+
+  .arcadion-pick-button,
+  .arcadion-pick-button span { transition: none !important; }
+}
+
+
+/* =========================================================
+   SHARED NEON CARD HOVER — .library-card  (All Games top cards
+   + Arcadion Picks cards).
+   ========================================================= */
+
+.library-card {
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* ghoomta neon border (hover pe fade-in) */
+.library-card::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: conic-gradient(from var(--card-angle), #fdf4ff, #d946ef 20%, #8b5cf6 40%, #22d3ee 55%, #8b5cf6 70%, #d946ef 85%, #fdf4ff);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.library-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(201, 112, 255, 0.5);
+  box-shadow:
+    0 22px 55px rgba(0, 0, 0, 0.3),
+    0 0 30px rgba(150, 60, 255, 0.28),
+    inset 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.library-card:hover::after {
+  opacity: 1;
+  animation: cardBorderSpin 3.2s linear infinite;
+}
+
+/* =========================================================
+   COMING SOON — NEW GAMES  (Chess + Sudoku)   [v3 — clean rewrite]
+   Allgames.css me purana poora "COMING SOON" block (comment se
+   file ke end tak) delete karke ye paste karo. ComingSoon.tsx bhi
+   replace karo (naye logos + heading markup).
+
+   - planet + uska glow: hata diya
+   - colours: All Games wali magenta-purple palette (bluish/cyan nahi)
+   - heading: ARCADION PICKS jaisa (kicker + white/purple title + glitch)
+   - logos: All Games cards jaise colourful animated (gold / pink / green)
+   - section ke baad gap: sirf 3px, phir footer
+   ========================================================= */
+
+@property --cs-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes csBorderSpin {
+  to { --cs-angle: 360deg; }
+}
+
+/* ---------------- SECTION ----------------
+   ArcadionPick ke neeche, usi container (.games-browser) ke andar.
+   Section ke baad chhota sa gap (26px). .games-browser ka 90px bottom padding
+   yahin zero kiya hai, warna footer tak bada gap rehta. */
+
+.all-games-page .games-browser { padding-bottom: 0; }
+.all-games-page main { padding-bottom: 0; }
+
+.coming-soon-section {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  margin: 24px 0 26px;
+  padding: 24px 0 0;
+  isolation: isolate;
+}
+
+/* full-bleed nebula — sirf halka purple, planet wala right-side glow nahi */
+.coming-soon-section::before {
+  content: "";
+  position: absolute;
+  z-index: -3;
+  top: -50px;
+  bottom: 0;
+  left: 50%;
+  width: 100vw;
+  margin-left: -50vw;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 30% 42% at 6% 100%, rgba(140, 40, 190, 0.2), transparent 70%),
+    radial-gradient(ellipse 42% 40% at 48% 62%, rgba(96, 26, 140, 0.14), transparent 70%);
+  -webkit-mask-image:
+    linear-gradient(180deg, transparent 0, #000 22%, #000 78%, transparent 100%),
+    linear-gradient(90deg, transparent 0, #000 12%, #000 88%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(180deg, transparent 0, #000 22%, #000 78%, transparent 100%),
+    linear-gradient(90deg, transparent 0, #000 12%, #000 88%, transparent 100%);
+  mask-composite: intersect;
+}
+
+/* ---------------- HEADER  (= ARCADION PICKS style) ---------------- */
+
+.coming-soon-header {
+  position: relative;
+  z-index: 3;
+  width: min(600px, 100%);
+  margin-bottom: 34px;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+/* glowing line + purple label */
+.coming-soon-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  color: #bd62ff;
+  font-size: 14px;
+  font-weight: 850;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+}
+
+.coming-soon-eyebrow::before {
+  content: "";
+  width: 34px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(189, 98, 255, 0.9));
+  box-shadow: 0 0 8px rgba(165, 87, 255, 0.6);
+}
+
+/* white word + neon purple word */
+.coming-soon-header h2 {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 14px 0 0;
+  font-size: clamp(34px, 3.5vw, 46px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  text-shadow: 0 0 22px rgba(174, 69, 255, 0.28);
+}
+
+.coming-soon-header h2 span {
+  position: relative;
+  display: inline-block;
+  color: #c46aff;
+  -webkit-text-fill-color: #c46aff;
+  text-shadow:
+    0 0 8px rgba(191, 75, 255, 0.55),
+    0 0 24px rgba(159, 43, 255, 0.4);
+}
+
+/* glitch flicker — Arcadion Picks / landing headings jaisa */
+.coming-soon-header h2 span::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 2px;
+  top: 0;
+  color: #8b3eff;
+  -webkit-text-fill-color: #8b3eff;
+  opacity: 0;
+  text-shadow: none;
+  clip-path: inset(0 0 48% 0);
+  animation: csTextGlitch 3.7s steps(1) infinite;
+}
+
+@keyframes csTextGlitch {
+  0%, 72%, 100% { opacity: 0;    transform: translateX(0); }
+  73%           { opacity: 0.8;  transform: translateX(-4px); }
+  74%           { opacity: 0;    transform: translateX(5px); }
+  75%           { opacity: 0.55; transform: translateX(-2px); }
+  76%           { opacity: 0; }
+}
+
+.coming-soon-header p {
+  max-width: 560px;
+  margin: 12px 0 0;
+  color: #b7a0c9;
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: 0.3px;
+}
+
+/* ---------------- CARDS ---------------- */
+
+.coming-soon-games {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 360px));
+  justify-content: start;
+  gap: 24px;
+}
+
+.coming-soon-card {
+  position: relative;
+  isolation: isolate;
+  min-height: 300px;
+  padding: 18px 20px 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  overflow: hidden;
+
+  border: 1px solid rgba(190, 130, 255, 0.34);
+  border-radius: 14px;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(190, 74, 255, 0.22), transparent 70%),
+    linear-gradient(145deg, rgba(73, 22, 115, 0.74), rgba(24, 8, 46, 0.92));
+  box-shadow:
+    inset 0 0 40px rgba(160, 50, 220, 0.12),
+    0 0 26px rgba(170, 60, 235, 0.2);
+
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* sheen */
+.coming-soon-card::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(210, 150, 255, 0.12) 50%, transparent 70%);
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+
+/* ghoomta neon border (hover) — pink/purple, cyan nahi */
+.coming-soon-card::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: conic-gradient(from var(--cs-angle), #fdf4ff, #d946ef 20%, #c46aff 40%, #ff7ad9 55%, #c46aff 70%, #d946ef 85%, #fdf4ff);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.coming-soon-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(201, 112, 255, 0.5);
+  box-shadow:
+    0 22px 55px rgba(0, 0, 0, 0.3),
+    0 0 30px rgba(190, 74, 255, 0.3),
+    inset 0 0 40px rgba(170, 60, 235, 0.2);
+}
+
+.coming-soon-card:hover::before {
+  transform: translateX(120%);
+  transition: transform 0.9s ease;
+}
+
+.coming-soon-card:hover::after {
+  opacity: 1;
+  animation: csBorderSpin 3.2s linear infinite;
+}
+
+/* corner brackets */
+.coming-soon-corners {
+  position: absolute;
+  z-index: 3;
+  inset: 6px;
+  pointer-events: none;
+  background:
+    linear-gradient(#c58bff, #c58bff) top left / 18px 2px no-repeat,
+    linear-gradient(#c58bff, #c58bff) top left / 2px 18px no-repeat,
+    linear-gradient(#c58bff, #c58bff) top right / 18px 2px no-repeat,
+    linear-gradient(#c58bff, #c58bff) top right / 2px 18px no-repeat,
+    linear-gradient(#c58bff, #c58bff) bottom left / 18px 2px no-repeat,
+    linear-gradient(#c58bff, #c58bff) bottom left / 2px 18px no-repeat,
+    linear-gradient(#c58bff, #c58bff) bottom right / 18px 2px no-repeat,
+    linear-gradient(#c58bff, #c58bff) bottom right / 2px 18px no-repeat;
+  filter: drop-shadow(0 0 4px rgba(190, 110, 255, 0.7));
+}
+
+/* background art (pattern) */
+.coming-soon-art {
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 34% 0;
+  opacity: 0.9;
+  -webkit-mask-image: linear-gradient(180deg, #000 0, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0, transparent 100%);
+}
+
+.coming-soon-art-chess {
+  background: repeating-conic-gradient(rgba(190, 130, 255, 0.17) 0 25%, transparent 0 50%) 0 0 / 44px 44px;
+  animation: csBoardDrift 14s linear infinite;
+}
+
+@keyframes csBoardDrift {
+  to { background-position: 44px 0; }
+}
+
+.coming-soon-art-sudoku {
+  background:
+    linear-gradient(90deg, rgba(190, 130, 255, 0.22) 1px, transparent 1px) 0 0 / 36px 36px,
+    linear-gradient(0deg, rgba(190, 130, 255, 0.22) 1px, transparent 1px) 0 0 / 36px 36px,
+    linear-gradient(90deg, rgba(190, 130, 255, 0.42) 2px, transparent 2px) 0 0 / 108px 108px,
+    linear-gradient(0deg, rgba(190, 130, 255, 0.42) 2px, transparent 2px) 0 0 / 108px 108px;
+  animation: csGridDrift 16s linear infinite;
+}
+
+@keyframes csGridDrift {
+  to { background-position: 36px 36px, 36px 36px, 108px 108px, 108px 108px; }
+}
+
+/* pill */
+.coming-soon-pill {
+  position: relative;
+  z-index: 2;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 7px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(197, 104, 255, 0.55);
+  background: linear-gradient(135deg, rgba(167, 67, 242, 0.85), rgba(104, 36, 170, 0.8));
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 1.5px;
+  box-shadow: 0 0 16px rgba(174, 69, 255, 0.35);
+}
+
+.coming-soon-clock {
+  width: 15px;
+  height: 15px;
+}
+
+.coming-soon-clock-hand {
+  transform-origin: 12px 13px;
+  animation: csClockHand 6s linear infinite;
+}
+
+@keyframes csClockHand {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------------- LOGO TILE  (= All Games card icon tile) ---------------- */
+
+.coming-soon-logo {
+  position: relative;
+  z-index: 2;
+  margin-top: 20px;
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 24px;
+  background: linear-gradient(145deg, rgba(117, 41, 180, 0.7), rgba(38, 13, 71, 0.85));
+  box-shadow:
+    0 12px 25px rgba(0, 0, 0, 0.25),
+    0 0 26px rgba(190, 74, 255, 0.3),
+    inset 0 1px rgba(255, 255, 255, 0.12);
+  perspective: 360px;
+  animation: csTileFloat 5s ease-in-out infinite;
+}
+
+@keyframes csTileFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+
+/* lock badge */
+.coming-soon-lock {
+  position: absolute;
+  right: -10px;
+  bottom: -10px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(200, 150, 255, 0.7);
+  border-radius: 11px;
+  background: linear-gradient(145deg, rgba(124, 44, 190, 0.95), rgba(38, 10, 66, 0.98));
+  color: #ecd8ff;
+  box-shadow: 0 0 16px rgba(190, 74, 255, 0.5);
+  animation: csLockGlow 3s ease-in-out infinite;
+}
+
+.coming-soon-lock-svg {
+  width: 18px;
+  height: 18px;
+  filter: drop-shadow(0 0 5px rgba(200, 130, 255, 0.85));
+}
+
+.coming-soon-lock-shackle {
+  transform-origin: 8px 11px;
+  animation: csLockShake 4.5s ease-in-out infinite;
+}
+
+@keyframes csLockShake {
+  0%, 70%, 100% { transform: rotate(0deg); }
+  74%           { transform: rotate(-14deg); }
+  78%           { transform: rotate(10deg); }
+  82%           { transform: rotate(-6deg); }
+  86%           { transform: rotate(0deg); }
+}
+
+@keyframes csLockGlow {
+  0%, 100% { box-shadow: 0 0 12px rgba(190, 74, 255, 0.4); }
+  50%      { box-shadow: 0 0 22px rgba(210, 110, 255, 0.8); }
+}
+
+/* text */
+.coming-soon-card h3 {
+  position: relative;
+  z-index: 2;
+  margin: 22px 0 6px;
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-shadow: 0 0 14px rgba(190, 90, 255, 0.5);
+}
+
+.coming-soon-card p {
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  color: #a696b1;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.coming-soon-gem {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 8px;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  transform: rotate(45deg);
+  border: 1px solid #c58bff;
+  background: rgba(197, 139, 255, 0.4);
+  box-shadow: 0 0 8px rgba(190, 110, 255, 0.8);
+}
+
+/* ---------------- 3D LOGOS  (Ludo dice jaisi palette + REAL CSS 3D) ----------------
+   Dice wali recipe: perspective scene + preserve-3d, lavender faces (#fbf6ff -> #ddc7ff),
+   edge #a888e6 / #6b37b7. Objects "extrude" hote hain (layers translateZ pe stacked),
+   isliye ghoomne pe asli thickness dikhti hai.
+   Chess = ghoomta 3D board + sunehra king, Sudoku = 3D tile jispe digits pop hote hain. */
+
+.csx3-scene {
+  position: relative;
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  perspective: 260px;
+  filter: drop-shadow(0 0 7px rgba(200, 140, 255, 0.45));
+  animation: csx3Float 3.6s ease-in-out infinite;
+}
+
+@keyframes csx3Float {
+  0%, 100% { transform: translateY(1px); }
+  50%      { transform: translateY(-3px); }
+}
+
+.csx3-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 30px;
+  height: 8px;
+  margin-left: -15px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(10, 0, 26, 0.55), transparent 70%);
+  animation: csx3Shadow 3.6s ease-in-out infinite;
+}
+
+@keyframes csx3Shadow {
+  0%, 100% { transform: scale(1);   opacity: 0.9; }
+  50%      { transform: scale(0.8); opacity: 0.55; }
+}
+
+.csx3-obj {
+  position: relative;
+  transform-style: preserve-3d; /* yahan filter mat lagana, 3D flat ho jaata hai */
+}
+
+/* ---- CHESS: 3D board slab + golden king (2 crossed planes) ---- */
+
+@property --csx3-c1 { syntax: "<color>"; inherits: true; initial-value: #ffdc68; }
+@property --csx3-c2 { syntax: "<color>"; inherits: true; initial-value: #a24dff; }
+
+.csx3-scene-chess {
+  width: 76px;
+  height: 76px;
+  perspective: 300px;
+  filter: drop-shadow(0 6px 10px rgba(120, 30, 170, 0.55));
+  animation: none;
+}
+
+.csx3-tilt {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  transform-style: preserve-3d;
+  transform: translateY(10px) rotateX(58deg);
+}
+
+.csx3-spin {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: csx3BoardSpin 9s linear infinite;
+}
+
+@keyframes csx3BoardSpin {
+  from { transform: rotateZ(0deg); }
+  to   { transform: rotateZ(360deg); }
+}
+
+.csx3-board {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.csx3-top {
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  border-radius: 3px;
+  background: repeating-conic-gradient(var(--csx3-c1) 0% 25%, var(--csx3-c2) 0% 50%) 0 0 / 22px 22px;
+  box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.35);
+  animation: csx3TileColors 4.8s ease-in-out infinite;
+}
+
+@keyframes csx3TileColors {
+  0%, 100% { --csx3-c1: #ffdc68; --csx3-c2: #a24dff; }
+  33%      { --csx3-c1: #ff8fc8; --csx3-c2: #7c35df; }
+  66%      { --csx3-c1: #7dffb8; --csx3-c2: #c46aff; }
+}
+
+.csx3-side {
+  position: absolute;
+  background: linear-gradient(180deg, #6a2bb0, #34106a);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backface-visibility: hidden;
+}
+
+.csx3-side-n { left: 0; top: calc(50% - 4px); width: 44px; height: 8px; transform: translateY(-22px) translateZ(-4px) rotateX(90deg); }
+.csx3-side-s { left: 0; top: calc(50% - 4px); width: 44px; height: 8px; transform: translateY(22px) translateZ(-4px) rotateX(-90deg); }
+.csx3-side-e { top: 0; left: calc(50% - 4px); width: 8px; height: 44px; transform: translateX(22px) translateZ(-4px) rotateY(90deg); }
+.csx3-side-w { top: 0; left: calc(50% - 4px); width: 8px; height: 44px; transform: translateX(-22px) translateZ(-4px) rotateY(-90deg); }
+
+.csx3-king-shadow {
+  position: absolute;
+  left: calc(50% - 12px);
+  top: calc(50% - 12px);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(12, 0, 28, 0.65), transparent 70%);
+  transform: translateZ(0.5px);
+}
+
+.csx3-king {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: csx3KingBob 3s ease-in-out infinite;
+}
+
+@keyframes csx3KingBob {
+  0%, 100% { transform: translateZ(1px); }
+  50%      { transform: translateZ(6px); }
+}
+
+.csx3-king-plane {
+  position: absolute;
+  left: calc(50% - 14px);
+  top: calc(50% - 21px);
+  width: 28px;
+  height: 42px;
+  overflow: visible;
+  transform: translateZ(21px) rotateX(-90deg);
+}
+
+.csx3-king-plane-b {
+  transform: translateZ(21px) rotateX(-90deg) rotateY(90deg);
+}
+
+.csx3-king-shine {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+/* ---- SUDOKU: 3D tile with popping digits ---- */
+
+.csx3-obj-tile {
+  width: 54px;
+  height: 54px;
+  animation: csx3TileTurn 6s ease-in-out infinite;
+}
+
+@keyframes csx3TileTurn {
+  0%, 100% { transform: rotateX(14deg) rotateY(-34deg); }
+  50%      { transform: rotateX(-4deg) rotateY(34deg); }
+}
+
+.csx3-tile-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+}
+
+.csx3-tile-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 3px;
+  box-sizing: border-box;
+  background: linear-gradient(155deg, #fbf6ff, #ddc7ff);
+  border: 1.6px solid #a888e6;
+  border-radius: 10px;
+  transform: translateZ(4.5px);
+  box-shadow: inset 0 0 7px rgba(255, 255, 255, 0.7);
+  animation: csx3TileGlow 7s ease-in-out infinite;
+}
+
+@keyframes csx3TileGlow {
+  0%, 62%, 100% { border-color: #a888e6; box-shadow: inset 0 0 7px rgba(255, 255, 255, 0.7); }
+  72%, 88%      { border-color: #3ddc84; box-shadow: inset 0 0 7px rgba(255, 255, 255, 0.7), 0 0 10px rgba(77, 255, 154, 0.85); }
+}
+
+.csx3-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: var(--c);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 0 0 0.5px rgba(168, 136, 230, 0.6);
+}
+
+.csx3-cell > b {
+  display: block;
+  font: inherit;
+  opacity: 0;
+  transform: translateZ(2px) scale(0.2);
+  animation: csx3DigitPop 7s ease-out infinite;
+  animation-delay: calc(var(--i) * 0.28s);
+}
+
+.csx3-cell-solved > b {
+  animation-name: csx3DigitSolve;
+  animation-delay: calc(1.6s + var(--i) * 0.28s);
+}
+
+@keyframes csx3DigitPop {
+  0%        { opacity: 0; transform: translateZ(2px) scale(0.2); }
+  6%        { opacity: 1; transform: translateZ(3px) scale(1.3); }
+  10%, 86%  { opacity: 1; transform: translateZ(2px) scale(1); }
+  94%, 100% { opacity: 0; transform: translateZ(2px) scale(0.6); }
+}
+
+@keyframes csx3DigitSolve {
+  0%        { opacity: 0; transform: translateZ(2px) scale(0.2); text-shadow: none; }
+  6%        { opacity: 1; transform: translateZ(3px) scale(1.4); text-shadow: 0 0 6px rgba(77, 255, 154, 0.95); }
+  12%, 86%  { opacity: 1; transform: translateZ(2px) scale(1);   text-shadow: 0 0 3px rgba(77, 255, 154, 0.6); }
+  94%, 100% { opacity: 0; transform: translateZ(2px) scale(0.6); text-shadow: none; }
+}
+
+/* ---------------- FOOTER STRIP (section ke andar) ---------------- */
+
+.coming-soon-footer {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 900px;
+  margin: 44px auto 0;
+}
+
+.coming-soon-footer-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(190, 110, 255, 0.7));
+  box-shadow: 0 0 8px rgba(170, 80, 255, 0.35);
+}
+
+.coming-soon-footer-line-r {
+  background: linear-gradient(270deg, transparent, rgba(190, 110, 255, 0.7));
+}
+
+.coming-soon-footer i {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  background: #c58bff;
+  box-shadow: 0 0 10px #c58bff;
+  animation: csDiamond 2.6s ease-in-out infinite;
+}
+
+@keyframes csDiamond {
+  0%, 100% { opacity: 0.55; transform: rotate(45deg) scale(0.9); }
+  50%      { opacity: 1;    transform: rotate(45deg) scale(1.15); }
+}
+
+.coming-soon-footer p {
+  margin: 0;
+  color: #b7a0c9;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  white-space: nowrap;
+}
+
+.coming-soon-footer p b {
+  margin: 0 6px;
+  color: rgba(183, 160, 201, 0.55);
+  font-weight: 500;
+}
+
+/* ---------------- RESPONSIVE ---------------- */
+
+@media (max-width: 900px) {
+  .coming-soon-games { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .coming-soon-footer p { letter-spacing: 3px; font-size: 10px; }
+}
+
+@media (max-width: 700px) {
+  .coming-soon-eyebrow { font-size: 13px; }
+  .coming-soon-header h2 { font-size: 30px; }
+  .coming-soon-header p { font-size: 13px; }
+  .coming-soon-games { grid-template-columns: 1fr; gap: 16px; }
+  .coming-soon-card { min-height: 270px; }
+  .coming-soon-footer { gap: 8px; }
+  .coming-soon-footer p { letter-spacing: 2px; font-size: 9px; }
+}
+
+/* ---------------- REDUCED MOTION ---------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .coming-soon-header h2 span::after,
+  .coming-soon-footer i,
+  .coming-soon-art,
+  .coming-soon-clock-hand,
+  .coming-soon-logo,
+  .coming-soon-lock,
+  .coming-soon-lock-shackle,
+  .csx3-scene,
+  .csx3-shadow,
+  .csx3-obj,
+  .csx3-spin,
+  .csx3-top,
+  .csx3-king,
+  .csx3-tile-face,
+  .coming-soon-card:hover::after { animation: none !important; }
+
+  .csx3-cell > b { animation: none !important; opacity: 1; transform: none; }
+  .coming-soon-card { transition: none; }
 }

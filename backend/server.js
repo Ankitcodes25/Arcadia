@@ -15,6 +15,9 @@ function getSafeStartupErrorMessage(error) {
   if (typeof error?.safeMessage === 'string' && error.safeMessage.trim()) {
     return error.safeMessage;
   }
+  if (error?.code === 'EADDRINUSE') {
+    return `Port ${error.port || env.port} is already in use, usually by an earlier backend that is still running. Stop that process (or change PORT in backend/.env) and start again.`;
+  }
   if (error?.code === 'ECONNREFUSED') {
     return 'MongoDB connection refused. Verify the configured MONGODB_URI endpoint and network access.';
   }
@@ -96,6 +99,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  getSafeStartupErrorMessage,
   startServer,
   stopServer,
 };

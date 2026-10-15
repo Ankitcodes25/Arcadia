@@ -124,7 +124,8 @@
 .hsm-link-btn:focus-visible,
 .hsm-clear-btn:focus-visible,
 .hsm-submit:focus-visible,
-.hsm-contact a:focus-visible {
+.hsm-contact a:focus-visible,
+.hsm-contact-btn:focus-visible {
 	outline: 2px solid rgba(224, 105, 255, 0.8);
 	outline-offset: 2px;
 }
@@ -673,7 +674,7 @@
 
 .hsm-contact .hsm-section-title { margin: 0 0 2px; }
 
-.hsm-contact-text { min-width: 0; }
+.hsm-contact-text { flex: 1; min-width: 0; }
 
 .hsm-contact-text p {
 	margin: 0 0 4px;
@@ -691,6 +692,34 @@
 
 .hsm-contact a:hover { text-decoration: underline; }
 
+/* Secondary (outline) action: Submit Report stays the one primary button. */
+.hsm-contact .hsm-contact-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	flex: none;
+	min-height: 44px;
+	padding: 0 16px;
+	border: 1px solid rgba(224, 105, 255, 0.55);
+	border-radius: 12px;
+	background: transparent;
+	color: #f1e3ff;
+	font-size: 13px;
+	font-weight: 800;
+	white-space: nowrap;
+	text-decoration: none;
+	transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.hsm-contact-btn svg { width: 16px; height: 16px; flex: none; }
+.hsm-contact .hsm-contact-btn:hover {
+	background: rgba(224, 105, 255, 0.14);
+	border-color: rgba(224, 105, 255, 0.85);
+	text-decoration: none;
+}
+.hsm-contact .hsm-contact-btn:active { transform: translateY(1px); }
+
 /* ---------------- Small screens ---------------- */
 
 @media (max-width: 520px) {
@@ -702,6 +731,8 @@
 	.hsm-header h2 { font-size: 16px; letter-spacing: 0.8px; }
 	.hsm-form-footer { flex-direction: column-reverse; align-items: stretch; }
 	.hsm-submit { width: 100%; }
+	.hsm-contact { flex-wrap: wrap; }
+	.hsm-contact .hsm-contact-btn { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -710,6 +741,7 @@
 	.hsm-faq-panel,
 	.hsm-chevron { transition: none; }
 	.hsm-dd-list { animation: none; }
+	.hsm-contact-btn { transition: none; }
 }
 
 @keyframes hsmDropIn {

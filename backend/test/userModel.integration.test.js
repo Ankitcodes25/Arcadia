@@ -38,6 +38,7 @@ let RateLimitBucket;
 let AdminMutationLock;
 let accountProfileService;
 let emailService;
+let testEmailLogPath;
 let LOCAL_AVATAR_IDS;
 let USERNAME_CHANGE_COOLDOWN_MS;
 let getUsernameLength;
@@ -79,6 +80,8 @@ let OAUTH_STATE_COOKIE_NAME;
 let googleMockPayload;
 let googleMockRequests;
 let preferencesUtils;
+let SupportReport;
+let EMAIL_IMAGES;
 
 before(async () => {
   mongoServer = await MongoMemoryServer.create();
@@ -98,6 +101,8 @@ before(async () => {
   process.env.SMTP_USER = 'test-user';
   process.env.SMTP_PASSWORD = 'test-password';
   process.env.FRONTEND_PASSWORD_RESET_URL = 'http://localhost:5173/';
+  process.env.SUPPORT_INBOX_EMAIL = 'support-inbox@example.com';
+  delete process.env.WELCOME_BACK_INACTIVITY_DAYS;
 
   mongoose = require('mongoose');
   ({ User, USER_ROLES, ACCOUNT_STATUSES, GOOGLE_PROVIDER } = require('../models/User'));
@@ -118,6 +123,8 @@ before(async () => {
   ({ PasswordResetToken } = require('../models/PasswordResetToken'));
   ({ RateLimitBucket } = require('../models/RateLimitBucket'));
   ({ AdminMutationLock } = require('../models/AdminMutationLock'));
+  ({ SupportReport } = require('../models/SupportReport'));
+  ({ EMAIL_IMAGES } = require('../services/emailTemplates/arcadiaLayout'));
   accountProfileService = require('../services/accountProfileService');
   preferencesUtils = require('../utils/preferences');
   ({ LOCAL_AVATAR_IDS } = require('../config/avatar'));
@@ -130,6 +137,11 @@ before(async () => {
     RESERVED_USERNAMES,
   } = require('../utils/username'));
   emailService = require('../services/emailService');
+  // Keep test sends out of the developer's real backend/logs/email.log.
+  testEmailLogPath = path.join(fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'arcadia-email-log-')), 'email.log');
+  emailService.setEmailLogPathForTests(testEmailLogPath);
+  // A developer's backend/.env may set this; tests choose it per case.
+  delete process.env.EMAIL_ASSET_BASE_URL;
   googleOAuthService = require('../services/googleOAuthService');
   progressionService = require('../services/progressionService');
   ({
@@ -176,6 +188,7 @@ before(async () => {
   await PasswordResetToken.syncIndexes();
   await RateLimitBucket.syncIndexes();
   await AdminMutationLock.syncIndexes();
+  await SupportReport.syncIndexes();
 });
 
 after(async () => {
@@ -196,6 +209,7 @@ beforeEach(async () => {
   await OAuthState.deleteMany({});
   await Session.deleteMany({});
   await Match.deleteMany({});
+  await SupportReport.deleteMany({});
   await User.deleteMany({});
   emailMessages = [];
   emailService.setEmailTransportForTests(async (message) => {
@@ -581,6 +595,25 @@ function getLocationQuery(location, key) {
 
 const WELCOME_SUBJECT = 'Welcome to Arcadia 🎮 — Your Journey Starts Here';
 const WELCOME_BACK_SUBJECT = 'Welcome Back to Arcadia 🎮';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/*
+ * Moves every activity marker of an account (creation, last sign-in, refresh
+ * session use) back in time, so the next sign-in looks like a return after
+ * `ageMs` of inactivity. Writes go through the driver because Mongoose guards
+ * createdAt against updates.
+ */
+async function backdateAccountActivity(email, ageMs) {
+  const user = await User.findOne({ email });
+  const when = new Date(Date.now() - ageMs);
+  await User.collection.updateOne(
+    { _id: user._id },
+    { $set: { createdAt: when, lastLoginAt: when } },
+  );
+  await Session.collection.updateMany({ userId: user._id }, { $set: { lastUsedAt: when } });
+  return user;
+}
 
 function getEmailsWithSubject(subject) {
   return emailMessages.filter((message) => message.subject === subject);
@@ -1897,7 +1930,7 @@ test('password signup sends exactly one welcome email with the configured fronte
   }
 });
 
-test('existing password login sends exactly one safe welcome-back email', async () => {
+test('a password login after 30+ days away sends exactly one safe welcome-back email', async () => {
   const server = await startHttpServer();
 
   try {
@@ -1910,6 +1943,7 @@ test('existing password login sends exactly one safe welcome-back email', async 
       },
     });
     clearEmailMessages();
+    await backdateAccountActivity('welcome-back-password@example.com', 31 * DAY_MS);
 
     const response = await requestJson(server, '/api/v1/auth/login', {
       method: 'POST',
@@ -1954,7 +1988,7 @@ test('new Google OAuth signup sends one welcome and no welcome-back email', asyn
   }
 });
 
-test('existing Google OAuth login sends one welcome-back email without duplicate sends', async () => {
+test('a Google OAuth login after 30+ days away sends one welcome-back email without duplicate sends', async () => {
   const server = await startHttpServer();
 
   try {
@@ -1967,6 +2001,7 @@ test('existing Google OAuth login sends one welcome-back email without duplicate
     assert.equal(firstCallback.response.status, 302);
     assert.equal(getEmailsWithSubject(WELCOME_SUBJECT).length, 1);
     clearEmailMessages();
+    await backdateAccountActivity('oauth-user@example.com', 31 * DAY_MS);
 
     const secondStart = await startGoogleOAuth(server);
     const secondCallback = await completeGoogleCallback(server, {
@@ -2105,6 +2140,7 @@ test('admin welcome-back content does not disclose role information', async () =
       status: ACCOUNT_STATUSES.ACTIVE,
     });
     clearEmailMessages();
+    await backdateAccountActivity('welcome-admin@example.com', 31 * DAY_MS);
 
     const login = await requestJson(server, '/api/v1/auth/login', {
       method: 'POST',
@@ -6864,5 +6900,657 @@ test('a Google-only account can delete itself with the typed confirmation alone'
     assert.equal(stale.response.status, 401, 'its token is dead too');
   } finally {
     await stopHttpServer(server);
+  }
+});
+
+/* ===========================================================
+   Welcome-back inactivity window
+   =========================================================== */
+
+async function registerPasswordAccount(server, email, password = 'inactivity-password-123') {
+  const registered = await requestJson(server, '/api/v1/auth/register', {
+    method: 'POST',
+    body: { name: 'Inactivity User', email, password },
+  });
+  assert.equal(registered.response.status, 201);
+  clearEmailMessages();
+  return { registered, password };
+}
+
+async function loginPasswordAccount(server, email, password = 'inactivity-password-123') {
+  const loggedIn = await requestJson(server, '/api/v1/auth/login', {
+    method: 'POST',
+    body: { email, password },
+  });
+  assert.equal(loggedIn.response.status, 200);
+  return loggedIn;
+}
+
+test('a sign-in right after signup sends no welcome-back email', async () => {
+  const server = await startHttpServer();
+
+  try {
+    await registerPasswordAccount(server, 'fresh-signin@example.com');
+    await loginPasswordAccount(server, 'fresh-signin@example.com');
+    assert.equal(getEmailsWithSubject(WELCOME_BACK_SUBJECT).length, 0);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('welcome-back is sent from exactly 30 days of inactivity and not a moment before', async () => {
+  const server = await startHttpServer();
+
+  try {
+    await registerPasswordAccount(server, 'almost-thirty@example.com');
+    await backdateAccountActivity('almost-thirty@example.com', 30 * DAY_MS - 60 * 60 * 1000);
+    await loginPasswordAccount(server, 'almost-thirty@example.com');
+    assert.equal(getEmailsWithSubject(WELCOME_BACK_SUBJECT).length, 0, '29 days 23 hours is not long enough');
+
+    await registerPasswordAccount(server, 'exactly-thirty@example.com');
+    await backdateAccountActivity('exactly-thirty@example.com', 30 * DAY_MS);
+    await loginPasswordAccount(server, 'exactly-thirty@example.com');
+    const sent = getEmailsWithSubject(WELCOME_BACK_SUBJECT);
+    assert.equal(sent.length, 1, '30 days is long enough');
+    assert.equal(sent[0].to, 'exactly-thirty@example.com');
+    assert.match(sent[0].text, /after more than 30 days away/);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('recent refresh-session use counts as activity and suppresses welcome-back', async () => {
+  const server = await startHttpServer();
+
+  try {
+    await registerPasswordAccount(server, 'daily-player@example.com');
+    await loginPasswordAccount(server, 'daily-player@example.com');
+    const user = await backdateAccountActivity('daily-player@example.com', 60 * DAY_MS);
+    // Signed in 60 days ago, but the refresh session was used two days ago.
+    await Session.collection.updateMany(
+      { userId: user._id },
+      { $set: { lastUsedAt: new Date(Date.now() - 2 * DAY_MS) } },
+    );
+    clearEmailMessages();
+
+    await loginPasswordAccount(server, 'daily-player@example.com');
+    assert.equal(getEmailsWithSubject(WELCOME_BACK_SUBJECT).length, 0);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('an account that has never signed in is measured from its creation date', async () => {
+  const server = await startHttpServer();
+
+  try {
+    await registerPasswordAccount(server, 'never-signed-in@example.com');
+    const user = await User.findOne({ email: 'never-signed-in@example.com' });
+    assert.equal(user.lastLoginAt, null, 'signup does not record a sign-in');
+    await Session.deleteMany({ userId: user._id });
+    await User.collection.updateOne(
+      { _id: user._id },
+      { $set: { createdAt: new Date(Date.now() - 45 * DAY_MS) } },
+    );
+
+    await loginPasswordAccount(server, 'never-signed-in@example.com');
+    assert.equal(getEmailsWithSubject(WELCOME_BACK_SUBJECT).length, 1);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('WELCOME_BACK_INACTIVITY_DAYS changes the window and an invalid value falls back to 30', async () => {
+  const server = await startHttpServer();
+  const originalWarn = console.warn;
+  const warnings = [];
+  console.warn = (message) => warnings.push(String(message));
+
+  try {
+    process.env.WELCOME_BACK_INACTIVITY_DAYS = '7';
+    await registerPasswordAccount(server, 'seven-days@example.com');
+    await backdateAccountActivity('seven-days@example.com', 8 * DAY_MS);
+    await loginPasswordAccount(server, 'seven-days@example.com');
+    assert.equal(getEmailsWithSubject(WELCOME_BACK_SUBJECT).length, 1, 'a 7-day window sends after 8 days');
+    assert.match(getEmailsWithSubject(WELCOME_BACK_SUBJECT)[0].text, /more than 7 days away/);
+
+    process.env.WELCOME_BACK_INACTIVITY_DAYS = 'soon';
+    await registerPasswordAccount(server, 'invalid-window@example.com');
+    await backdateAccountActivity('invalid-window@example.com', 8 * DAY_MS);
+    await loginPasswordAccount(server, 'invalid-window@example.com');
+    assert.equal(getEmailsWithSubject(WELCOME_BACK_SUBJECT).length, 0, 'an invalid window falls back to 30 days');
+    assert.ok(
+      warnings.some((line) => line.includes('WELCOME_BACK_INACTIVITY_DAYS') && line.includes('backend/.env')),
+      'the invalid value is reported with what to fix',
+    );
+  } finally {
+    delete process.env.WELCOME_BACK_INACTIVITY_DAYS;
+    console.warn = originalWarn;
+    await stopHttpServer(server);
+  }
+});
+
+test('a recent Google sign-in sends no welcome-back email', async () => {
+  const server = await startHttpServer();
+
+  try {
+    setGoogleMock();
+    const firstStart = await startGoogleOAuth(server);
+    await completeGoogleCallback(server, { state: firstStart.state, stateCookie: firstStart.stateCookie });
+    clearEmailMessages();
+
+    const secondStart = await startGoogleOAuth(server);
+    const second = await completeGoogleCallback(server, {
+      state: secondStart.state,
+      stateCookie: secondStart.stateCookie,
+    });
+    assert.equal(second.response.status, 302);
+    assert.equal(emailMessages.length, 0);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+/* ===========================================================
+   Themed email content
+   =========================================================== */
+
+const TEST_ASSET_BASE_URL = 'https://cdn.example.com/email-assets';
+
+// Images are linked, never attached: every <img> points at the asset base and
+// names a file that exists and is email sized.
+function assertLinkedImagesResolve(message) {
+  assert.equal(message.attachments, undefined, 'no image is sent as an attachment');
+  assert.ok(!message.html.includes('cid:'), 'no cid: references remain');
+  const sources = [...message.html.matchAll(/<img[^>]+src="([^"]+)"/g)].map((match) => match[1]);
+  assert.ok(sources.length > 0, 'the html links its images');
+  for (const source of sources) {
+    assert.ok(source.startsWith(`${TEST_ASSET_BASE_URL}/`), `${source} is served from the asset base`);
+    const file = path.join(__dirname, '..', 'assets', 'email', decodeURIComponent(source.slice(TEST_ASSET_BASE_URL.length + 1)));
+    assert.ok(fs.existsSync(file), `${source} exists on disk`);
+    assert.ok(fs.statSync(file).size < 200 * 1024, `${source} is email sized`);
+  }
+}
+
+async function registerForWelcome(server, email) {
+  const registered = await requestJson(server, '/api/v1/auth/register', {
+    method: 'POST',
+    body: { email, password: 'asset-base-password-123' },
+  });
+  assert.equal(registered.response.status, 201);
+}
+
+function assertImageFree(message) {
+  assert.equal(message.attachments, undefined, 'no image is sent as an attachment');
+  assert.ok(!/<img\b/.test(message.html), 'no image tags, so nothing renders broken');
+  assert.ok(message.html.includes('>A</td>'), 'the logo is drawn in CSS instead');
+}
+
+test('welcome emails link their artwork from EMAIL_ASSET_BASE_URL and escape the greeting', async () => {
+  const server = await startHttpServer();
+  process.env.EMAIL_ASSET_BASE_URL = `${TEST_ASSET_BASE_URL}/`;
+
+  try {
+    const registered = await requestJson(server, '/api/v1/auth/register', {
+      method: 'POST',
+      body: {
+        name: 'Ada "Ace" & O\'Neil',
+        email: 'themed-welcome@example.com',
+        password: 'themed-welcome-password-123',
+      },
+    });
+    assert.equal(registered.response.status, 201);
+
+    const [welcome] = getEmailsWithSubject(WELCOME_SUBJECT);
+    assertLinkedImagesResolve(welcome);
+    assert.ok(welcome.html.includes(`${TEST_ASSET_BASE_URL}/${EMAIL_IMAGES.heroWelcome.filename}`), 'the floating character is the hero');
+    assert.ok(welcome.html.includes(`${TEST_ASSET_BASE_URL}/${EMAIL_IMAGES.cube.filename}`), 'the floating cube sits by the call to action');
+    assert.ok(welcome.html.includes('#0b0316'), 'the Arcadia background colour is used');
+    assert.ok(!welcome.html.includes('fonts.googleapis.com'), 'no external stylesheet is requested');
+    assert.ok(welcome.html.includes('Ada &quot;Ace&quot; &amp; O&#039;Neil'), 'the display name is escaped');
+    assert.ok(!welcome.html.includes('"Ace" & O'));
+    assert.match(welcome.text, /support-inbox@example\.com/, 'the support contact is included');
+
+    await backdateAccountActivity('themed-welcome@example.com', 31 * DAY_MS);
+    clearEmailMessages();
+    await requestJson(server, '/api/v1/auth/login', {
+      method: 'POST',
+      body: { email: 'themed-welcome@example.com', password: 'themed-welcome-password-123' },
+    });
+    const [welcomeBack] = getEmailsWithSubject(WELCOME_BACK_SUBJECT);
+    assertLinkedImagesResolve(welcomeBack);
+    assert.ok(welcomeBack.html.includes(`${TEST_ASSET_BASE_URL}/${EMAIL_IMAGES.heroWelcomeBack.filename}`));
+  } finally {
+    delete process.env.EMAIL_ASSET_BASE_URL;
+    await stopHttpServer(server);
+  }
+});
+
+test('without a public https EMAIL_ASSET_BASE_URL emails use the image-free layout and say what to fix', async () => {
+  const server = await startHttpServer();
+  const originalWarn = console.warn;
+  const warnings = [];
+  console.warn = (message) => warnings.push(String(message));
+
+  try {
+    delete process.env.EMAIL_ASSET_BASE_URL;
+    await registerForWelcome(server, 'no-asset-base@example.com');
+    assertImageFree(getEmailsWithSubject(WELCOME_SUBJECT)[0]);
+
+    for (const unusable of ['http://localhost:4000/email-assets', 'https://localhost/email-assets', 'http://cdn.example.com/x', 'not a url']) {
+      process.env.EMAIL_ASSET_BASE_URL = unusable;
+      clearEmailMessages();
+      await registerForWelcome(server, `asset-${crypto.randomBytes(4).toString('hex')}@example.com`);
+      assertImageFree(getEmailsWithSubject(WELCOME_SUBJECT)[0]);
+    }
+    assert.ok(
+      warnings.some((line) => line.includes('EMAIL_ASSET_BASE_URL') && line.includes('public https') && line.includes('backend/.env')),
+      'an unusable value is reported with what to fix',
+    );
+  } finally {
+    delete process.env.EMAIL_ASSET_BASE_URL;
+    console.warn = originalWarn;
+    await stopHttpServer(server);
+  }
+});
+
+test('the backend serves email artwork publicly with long caching and nothing outside the folder', async () => {
+  const server = await startHttpServer();
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  try {
+    for (const { filename } of Object.values(EMAIL_IMAGES)) {
+      const response = await fetch(`${base}/email-assets/${filename}`);
+      assert.equal(response.status, 200, `${filename} is served`);
+      assert.match(response.headers.get('content-type'), /^image\/(png|jpeg)/);
+      assert.equal(response.headers.get('cross-origin-resource-policy'), 'cross-origin', 'web mail clients may embed it');
+      assert.equal(response.headers.get('cache-control'), 'public, max-age=604800');
+      await response.arrayBuffer();
+    }
+
+    const crossOrigin = await fetch(`${base}/email-assets/logo.png`, { headers: { Origin: 'https://mail.example.com' } });
+    assert.equal(crossOrigin.status, 200, 'any origin may load the artwork');
+    await crossOrigin.arrayBuffer();
+
+    for (const probe of ['/email-assets/', '/email-assets/missing.png', '/email-assets/..%2F..%2F.env', '/email-assets/%2e%2e/%2e%2e/package.json']) {
+      const response = await fetch(`${base}${probe}`);
+      assert.equal(response.status, 404, `${probe} is not served`);
+      assert.equal(response.headers.get('cache-control'), 'no-store', `${probe} keeps the API headers`);
+      await response.arrayBuffer();
+    }
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+/* ===========================================================
+   Problem reports
+   =========================================================== */
+
+const REPORT_SUBJECT_PREFIX = '[Arcadia Report]';
+
+function validReport(overrides = {}) {
+  return {
+    category: 'Bug',
+    subject: 'Snake freezes on level 3',
+    description: 'The snake stops moving after the third apple and the timer keeps running.',
+    ...overrides,
+  };
+}
+
+function getReportEmails() {
+  return emailMessages.filter((message) => message.subject.startsWith(REPORT_SUBJECT_PREFIX));
+}
+
+async function submitReport(server, token, body = validReport()) {
+  return requestJson(server, '/api/v1/support/reports', {
+    method: 'POST',
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+    body,
+  });
+}
+
+test('a signed-in player can file a report that is stored and emailed to the support inbox', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const player = await registerAndLogin(server, 'reporter@example.com');
+    clearEmailMessages();
+
+    const response = await submitReport(server, player.loggedIn.body.token, validReport({
+      subject: 'Line one\r\nBcc: attacker@example.com',
+      description: 'Steps:\n1. Open <script>alert(1)</script>\n2. Watch it break',
+    }));
+
+    assert.equal(response.response.status, 201);
+    assert.equal(response.body.report.category, 'Bug');
+    assert.equal(response.body.report.status, 'OPEN');
+    assert.ok(response.body.report.id);
+    assert.equal(response.body.report.description, undefined, 'the response echoes only a summary');
+
+    const stored = await SupportReport.findById(response.body.report.id);
+    assert.equal(String(stored.userId), player.registered.body.user.id);
+    assert.equal(stored.subject, 'Line one Bcc: attacker@example.com', 'line breaks are removed from the subject');
+    assert.equal(stored.emailDelivery.status, 'SENT');
+    assert.ok(stored.emailDelivery.attemptedAt instanceof Date);
+
+    const [email] = getReportEmails();
+    assert.equal(getReportEmails().length, 1);
+    assert.equal(email.to, 'support-inbox@example.com');
+    assert.equal(email.replyTo, 'reporter@example.com', 'replying answers the player');
+    assert.equal(email.subject, '[Arcadia Report] Bug: Line one Bcc: attacker@example.com');
+    assert.ok(!/[\r\n]/.test(email.subject));
+    assert.ok(email.html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'), 'the description is escaped');
+    assert.ok(!email.html.includes('<script>alert(1)</script>'));
+    assert.match(email.text, new RegExp(String(stored._id)));
+    assertImageFree(email);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('filing a report requires a signed-in account', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const response = await submitReport(server, null);
+    assert.equal(response.response.status, 401);
+    assert.equal(await SupportReport.countDocuments(), 0);
+    assert.equal(getReportEmails().length, 0);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('report input is validated with the same rules as the form', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const player = await registerAndLogin(server, 'validation-reporter@example.com');
+    const token = player.loggedIn.body.token;
+    const cases = [
+      [validReport({ category: 'Billing' }), /Category must be one of/],
+      [validReport({ subject: '   ' }), /Enter a subject/],
+      [validReport({ subject: 'x'.repeat(101) }), /under 100 characters/],
+      [validReport({ description: '' }), /Describe the problem/],
+      [validReport({ description: 'too short' }), /at least 10 characters/],
+      [validReport({ description: 'x'.repeat(2001) }), /under 2000 characters/],
+      [validReport({ subject: 42 }), /must be text/],
+      [{ ...validReport(), userId: player.registered.body.user.id }, /unsupported fields/],
+      [[validReport()], /must be an object/],
+    ];
+
+    for (const [body, message] of cases) {
+      // Rejected requests count toward the hourly limit too; reset it so each
+      // case reaches validation.
+      await RateLimitBucket.deleteMany({});
+      const response = await submitReport(server, token, body);
+      assert.equal(response.response.status, 400, `rejected: ${JSON.stringify(body).slice(0, 60)}`);
+      assert.match(response.body.error, message);
+    }
+
+    // The boundaries themselves are accepted.
+    const atLimits = await submitReport(server, token, validReport({
+      subject: 'x'.repeat(100),
+      description: 'y'.repeat(10),
+    }));
+    assert.equal(atLimits.response.status, 201);
+    assert.equal(await SupportReport.countDocuments(), 1, 'only the valid report was stored');
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('a report is saved and reported as submitted even when the support email fails', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const player = await registerAndLogin(server, 'mail-down-reporter@example.com');
+    emailService.setEmailTransportForTests(async () => {
+      throw new Error('test transport failure');
+    });
+
+    const response = await submitReport(server, player.loggedIn.body.token);
+    assert.equal(response.response.status, 201);
+
+    const stored = await SupportReport.findById(response.body.report.id);
+    assert.equal(stored.emailDelivery.status, 'FAILED');
+    assert.equal(stored.emailDelivery.reason, 'delivery_failed');
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('without a support inbox a report is saved and marked as not emailed', async () => {
+  const server = await startHttpServer();
+  const originalInbox = process.env.SUPPORT_INBOX_EMAIL;
+  const originalWarn = console.warn;
+  const warnings = [];
+  console.warn = (message) => warnings.push(String(message));
+
+  try {
+    delete process.env.SUPPORT_INBOX_EMAIL;
+    const player = await registerAndLogin(server, 'no-inbox-reporter@example.com');
+    clearEmailMessages();
+
+    const response = await submitReport(server, player.loggedIn.body.token);
+    assert.equal(response.response.status, 201);
+    const stored = await SupportReport.findById(response.body.report.id);
+    assert.equal(stored.emailDelivery.status, 'SKIPPED');
+    assert.equal(stored.emailDelivery.reason, 'no_support_inbox');
+    assert.equal(getReportEmails().length, 0);
+    assert.ok(warnings.some((line) => line.includes('SUPPORT_INBOX_EMAIL') && line.includes('backend/.env')));
+  } finally {
+    process.env.SUPPORT_INBOX_EMAIL = originalInbox;
+    console.warn = originalWarn;
+    await stopHttpServer(server);
+  }
+});
+
+test('a player can file at most five reports an hour', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const player = await registerAndLogin(server, 'busy-reporter@example.com');
+    for (let index = 0; index < 5; index += 1) {
+      const response = await submitReport(server, player.loggedIn.body.token);
+      assert.equal(response.response.status, 201, `report ${index + 1} is accepted`);
+    }
+
+    const limited = await submitReport(server, player.loggedIn.body.token);
+    assert.equal(limited.response.status, 429);
+    assert.equal(await SupportReport.countDocuments(), 5);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('admins can list reports newest first, filter by status and resolve them', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const player = await registerAndLogin(server, 'listed-reporter@example.com');
+    const first = await submitReport(server, player.loggedIn.body.token, validReport({ subject: 'First report' }));
+    const second = await submitReport(server, player.loggedIn.body.token, validReport({
+      category: 'Account',
+      subject: 'Second report',
+    }));
+    assert.equal(first.response.status, 201);
+    assert.equal(second.response.status, 201);
+
+    const unauthenticated = await requestJson(server, '/api/v1/admin/reports');
+    assert.equal(unauthenticated.response.status, 401);
+    const asPlayer = await requestJson(server, '/api/v1/admin/reports', {
+      headers: { authorization: `Bearer ${player.loggedIn.body.token}` },
+    });
+    assert.equal(asPlayer.response.status, 403);
+
+    const admin = await provisionAndLoginAdmin(server, 'reports-admin@example.com');
+    const adminHeaders = { authorization: `Bearer ${admin.token}` };
+
+    const listed = await requestJson(server, '/api/v1/admin/reports', { headers: adminHeaders });
+    assert.equal(listed.response.status, 200);
+    assert.equal(listed.response.headers.get('cache-control'), 'no-store');
+    assert.deepEqual(listed.body.reports.map((report) => report.subject), ['Second report', 'First report']);
+    assert.equal(listed.body.pagination.total, 2);
+    const [newest] = listed.body.reports;
+    assert.equal(newest.reporter.email, 'listed-reporter@example.com');
+    assert.equal(newest.emailDelivery.status, 'SENT');
+    assert.ok(newest.description.length > 10);
+    assertNoSensitiveFields(listed.body);
+
+    const resolved = await requestJson(server, `/api/v1/admin/reports/${first.body.report.id}/status`, {
+      method: 'PATCH',
+      headers: adminHeaders,
+      body: { status: 'RESOLVED' },
+    });
+    assert.equal(resolved.response.status, 200);
+    assert.equal(resolved.body.report.status, 'RESOLVED');
+    assert.ok(resolved.body.report.resolvedAt);
+
+    const open = await requestJson(server, '/api/v1/admin/reports?status=OPEN', { headers: adminHeaders });
+    assert.deepEqual(open.body.reports.map((report) => report.subject), ['Second report']);
+    const done = await requestJson(server, '/api/v1/admin/reports?status=RESOLVED&limit=1', { headers: adminHeaders });
+    assert.deepEqual(done.body.reports.map((report) => report.subject), ['First report']);
+    assert.equal(done.body.pagination.limit, 1);
+
+    const reopened = await requestJson(server, `/api/v1/admin/reports/${first.body.report.id}/status`, {
+      method: 'PATCH',
+      headers: adminHeaders,
+      body: { status: 'OPEN' },
+    });
+    assert.equal(reopened.body.report.status, 'OPEN');
+    assert.equal(reopened.body.report.resolvedAt, null);
+
+    const badFilter = await requestJson(server, '/api/v1/admin/reports?status=CLOSED', { headers: adminHeaders });
+    assert.equal(badFilter.response.status, 400);
+    const badId = await requestJson(server, '/api/v1/admin/reports/not-an-id/status', {
+      method: 'PATCH',
+      headers: adminHeaders,
+      body: { status: 'RESOLVED' },
+    });
+    assert.equal(badId.response.status, 400);
+    const missing = await requestJson(server, `/api/v1/admin/reports/${new mongoose.Types.ObjectId()}/status`, {
+      method: 'PATCH',
+      headers: adminHeaders,
+      body: { status: 'RESOLVED' },
+    });
+    assert.equal(missing.response.status, 404);
+    const extraField = await requestJson(server, `/api/v1/admin/reports/${first.body.report.id}/status`, {
+      method: 'PATCH',
+      headers: adminHeaders,
+      body: { status: 'RESOLVED', subject: 'rewritten' },
+    });
+    assert.equal(extraField.response.status, 400);
+
+    const playerResolve = await requestJson(server, `/api/v1/admin/reports/${first.body.report.id}/status`, {
+      method: 'PATCH',
+      headers: { authorization: `Bearer ${player.loggedIn.body.token}` },
+      body: { status: 'RESOLVED' },
+    });
+    assert.equal(playerResolve.response.status, 403);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('an empty report list is a valid admin response', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const admin = await provisionAndLoginAdmin(server, 'empty-reports-admin@example.com');
+    const listed = await requestJson(server, '/api/v1/admin/reports', {
+      headers: { authorization: `Bearer ${admin.token}` },
+    });
+    assert.equal(listed.response.status, 200);
+    assert.deepEqual(listed.body.reports, []);
+    assert.deepEqual(listed.body.pagination, { page: 1, limit: 20, total: 0, totalPages: 0 });
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('deleting an account deletes its own reports only', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const leaving = await registerAndLogin(server, 'leaving-reporter@example.com');
+    const staying = await registerAndLogin(server, 'staying-reporter@example.com');
+    await submitReport(server, leaving.loggedIn.body.token);
+    await submitReport(server, staying.loggedIn.body.token);
+
+    const deleted = await requestJson(server, '/api/v1/account', {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${leaving.loggedIn.body.token}` },
+      body: { confirmation: 'DELETE', password: 'session-password-123' },
+    });
+    assert.equal(deleted.response.status, 200);
+    assert.equal(await SupportReport.countDocuments({ userId: leaving.registered.body.user.id }), 0);
+    assert.equal(await SupportReport.countDocuments({ userId: staying.registered.body.user.id }), 1);
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('a startup on a port that is already taken names the port and what to do', async () => {
+  const { getSafeStartupErrorMessage } = require('../server');
+  const net = require('node:net');
+  const blocker = net.createServer();
+  await new Promise((resolve) => blocker.listen(0, '127.0.0.1', resolve));
+  const { port } = blocker.address();
+
+  try {
+    const second = net.createServer();
+    const error = await new Promise((resolve) => {
+      second.once('error', resolve);
+      second.listen(port, '127.0.0.1');
+    });
+    assert.equal(error.code, 'EADDRINUSE');
+    const message = getSafeStartupErrorMessage(error);
+    assert.match(message, new RegExp(`Port ${port} is already in use`));
+    assert.match(message, /backend\/\.env/);
+    assert.doesNotMatch(message, /MongoDB/, 'a port clash is not blamed on the database');
+  } finally {
+    await new Promise((resolve) => blocker.close(resolve));
+  }
+});
+
+test('every email attempt logs whether it was sent, skipped or failed, with what to fix', async () => {
+  const originalInfo = console.info;
+  const originalWarn = console.warn;
+  const originalProvider = process.env.EMAIL_PROVIDER;
+  const lines = [];
+  console.info = (message) => lines.push(String(message));
+  console.warn = (message) => lines.push(String(message));
+  fs.rmSync(testEmailLogPath, { force: true });
+
+  try {
+    emailService.setEmailTransportForTests(async () => ({ sent: true, messageId: '<abc@test>' }));
+    assert.equal((await emailService.sendWelcomeEmail({ to: 'player@example.com', displayName: 'P' })).sent, true);
+
+    emailService.setEmailTransportForTests(async () => ({ sent: false, reason: 'delivery_failed', code: 'EAUTH' }));
+    await emailService.sendWelcomeBackEmail({ to: 'player@example.com', displayName: 'P' });
+
+    emailService.setEmailTransportForTests(async () => { throw Object.assign(new Error('boom'), { code: 'ETIMEDOUT' }); });
+    await assert.rejects(emailService.sendPasswordResetEmail({ to: 'player@example.com', token: 'x' }), /boom/);
+
+    process.env.EMAIL_PROVIDER = 'disabled';
+    const skipped = await emailService.sendWelcomeEmail({ to: 'a@example.com', displayName: 'A' });
+    assert.equal(skipped.reason, 'not_configured');
+
+    assert.deepEqual(lines.length, 4, 'one line per attempt');
+    assert.equal(lines[0], '[email] welcome to=p****r@example.com sent messageId=<abc@test>');
+    assert.match(lines[1], /^\[email\] welcome_back to=p\*\*\*\*r@example\.com FAILED \(EAUTH\): .*App Password.*backend\/\.env/);
+    assert.match(lines[2], /^\[email\] password_reset to=p\*\*\*\*r@example\.com FAILED \(ETIMEDOUT\): .*SMTP_HOST/);
+    assert.match(lines[3], /^\[email\] welcome to=a\*@example\.com SKIPPED \(not_configured\): .*EMAIL_PROVIDER=smtp.*restart the backend/);
+    assert.ok(lines.every((line) => !line.includes('player@example.com')), 'full addresses are never logged');
+
+    const fileLines = fs.readFileSync(testEmailLogPath, 'utf8').trim().split('\n');
+    assert.equal(fileLines.length, 4, 'the same lines are appended to the email log file');
+    assert.match(fileLines[0], /^\d{4}-\d{2}-\d{2}T\S+Z \[email\] welcome to=p\*\*\*\*r@example\.com sent/);
+  } finally {
+    process.env.EMAIL_PROVIDER = originalProvider;
+    console.info = originalInfo;
+    console.warn = originalWarn;
   }
 });
