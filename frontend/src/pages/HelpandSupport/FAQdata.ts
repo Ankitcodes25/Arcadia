@@ -125,7 +125,7 @@ export const FAQ_ITEMS: FaqItem[] = [
       },
       {
         type: "paragraph",
-        text: "Do not include passwords, OAuth tokens, or authentication codes. If submission fails or the form says reporting is unavailable, review the displayed message before retrying. For direct email help, contact arcadiahelpsupport@gmail.com.",
+        text: "Do not include passwords, OAuth tokens, or authentication codes. If submission fails or the form says reporting is unavailable, review the displayed message before retrying. For direct email help, contact helpsupportarcadia@gmail.com.",
       },
     ],
   },

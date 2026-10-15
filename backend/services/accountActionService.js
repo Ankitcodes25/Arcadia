@@ -3,6 +3,7 @@ const { User, ACCOUNT_STATUSES, GOOGLE_PROVIDER } = require('../models/User');
 const { Session } = require('../models/Session');
 const { OAuthHandoff } = require('../models/OAuthHandoff');
 const { Match } = require('../models/Match');
+const { SupportReport } = require('../models/SupportReport');
 const normalizeEmail = require('../utils/normalizeEmail');
 const {
   generatePasswordResetToken,
@@ -266,6 +267,7 @@ async function deleteAccount({ userId, body }) {
   await PasswordResetToken.deleteMany({ userId: user._id });
   await OAuthHandoff.deleteMany({ userId: user._id });
   await Match.deleteMany({ userId: user._id });
+  await SupportReport.deleteMany({ userId: user._id });
 
   // 3. Delete the account itself, guarded so a concurrent status change (an
   //    admin suspension racing this write) cannot be overwritten.

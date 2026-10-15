@@ -1,5 +1,6 @@
 const authService = require('../services/authService');
 const emailService = require('../services/emailService');
+const welcomeBackService = require('../services/welcomeBackService');
 const refreshSessionService = require('../services/refreshSessionService');
 const { revokeAllUserSessions } = require('../services/userSecurityService');
 const {
@@ -35,8 +36,18 @@ async function sendWelcomeAfterSignup(user) {
   }
 }
 
-async function sendWelcomeBackAfterLogin(user) {
+// Sends the welcome-back email only when this sign-in follows the configured
+// inactivity period (WELCOME_BACK_INACTIVITY_DAYS, default 30).
+async function sendWelcomeBackIfReturning(user, previousLoginAt, signInStartedAt) {
   try {
+    const returning = await welcomeBackService.isReturningAfterInactivity({
+      userId: user.id,
+      previousLoginAt,
+      createdAt: user.createdAt,
+      signInStartedAt,
+    });
+    if (!returning) return;
+
     await emailService.sendWelcomeBackEmail({
       to: user.email,
       displayName: getWelcomeGreetingName(user),
@@ -69,12 +80,13 @@ async function login(req, res, next) {
     const validationError = validateLogin(req.body);
     if (validationError) return res.status(400).json({ error: validationError });
 
-    const result = await authService.login(req.body, {
+    const signInStartedAt = new Date();
+    const { previousLoginAt, ...result } = await authService.login(req.body, {
       ip: req.ip,
       userAgent: req.get('user-agent'),
     });
     await issueRefreshCookie(res, result.user.id, req);
-    await sendWelcomeBackAfterLogin(result.user);
+    await sendWelcomeBackIfReturning(result.user, previousLoginAt, signInStartedAt);
     return res.json(result);
   } catch (error) {
     return next(error);

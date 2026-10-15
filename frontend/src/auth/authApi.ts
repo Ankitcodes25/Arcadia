@@ -17,6 +17,8 @@ import type {
   PublicPlayerProfileResponse,
   RegisterValues,
   RevokeSessionResponse,
+  SupportReportRequest,
+  SupportReportResponse,
   UsernameAvailabilityResponse,
 } from "./authTypes";
 
@@ -524,6 +526,15 @@ export const authApi = {
       "/api/v1/account/sessions/logout-others",
       { method: "POST" },
       { credentials: "include" },
+    );
+  },
+
+  /** Files a problem report for the signed-in account. Resolves once it is stored. */
+  submitSupportReport(report: SupportReportRequest) {
+    return request<SupportReportResponse>(
+      "/api/v1/support/reports",
+      { method: "POST", body: report },
+      { credentials: "omit" },
     );
   },
 

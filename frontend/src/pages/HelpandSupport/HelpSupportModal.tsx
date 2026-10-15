@@ -160,6 +160,7 @@ export type SupportReportPayload = {
 };
 
 const SUBJECT_MAX = 100;
+const SUPPORT_MAIL_SUBJECT = "Arcadia support request";
 const DESCRIPTION_MIN = 10;
 const DESCRIPTION_MAX = 2000;
 
@@ -299,6 +300,9 @@ type HelpSupportModalProps = {
 
 function HelpSupportModal({ onClose, onSubmitReport, supportEmail }: HelpSupportModalProps) {
   const email = (supportEmail ?? SUPPORT_EMAIL).trim();
+  const mailtoHref = email
+    ? `mailto:${email}?subject=${encodeURIComponent(SUPPORT_MAIL_SUBJECT)}`
+    : "";
   const uid = useId();
   const titleId = `${uid}-title`;
 
@@ -717,8 +721,14 @@ function HelpSupportModal({ onClose, onSubmitReport, supportEmail }: HelpSupport
                 Contact Support
               </h3>
               <p>Still need help? Get in touch with our support team.</p>
-              {email && <a href={`mailto:${email}`}>{email}</a>}
+              {email && <a href={mailtoHref}>{email}</a>}
             </div>
+            {email && (
+              <a className="hsm-contact-btn" href={mailtoHref} aria-label={`Email support at ${email}`}>
+                <MailIcon />
+                <span>Email us</span>
+              </a>
+            )}
           </section>
         </div>
       </section>

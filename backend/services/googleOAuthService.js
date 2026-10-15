@@ -273,6 +273,10 @@ async function findOrCreateGoogleUser(identity, req) {
       throw createError('Google sign-in could not be completed', 403, 'authentication_failed');
     }
 
+    // Read before it is overwritten: the welcome-back decision needs the
+    // sign-in before this one.
+    const previousLoginAt = linkedUser.lastLoginAt || null;
+
     await User.updateOne(
       { _id: linkedUser._id },
       {
@@ -291,7 +295,7 @@ async function findOrCreateGoogleUser(identity, req) {
     linkedUser.google.linkedAt = now;
     linkedUser.lastLoginAt = now;
     Object.assign(linkedUser, metadata);
-    return { user: linkedUser, created: false };
+    return { user: linkedUser, created: false, previousLoginAt };
   }
 
   const existingEmailUser = await User.findOne({ email: identity.email });
@@ -325,7 +329,7 @@ async function findOrCreateGoogleUser(identity, req) {
       lastLoginAt: now,
       ...metadata,
     });
-    return { user, created: true };
+    return { user, created: true, previousLoginAt: null };
   } catch (error) {
     if (error && error.code === 11000) {
       const isEmailConflict = Boolean(

@@ -193,6 +193,25 @@ export type AccountPreferencesResponse = {
 /** Only the keys actually changed are sent; the backend applies them together. */
 export type AccountPreferencesUpdate = Partial<AccountPreferences>;
 
+/** Body of POST /api/v1/support/reports (Help & Support > Report a Problem). */
+export type SupportReportRequest = {
+  category: string;
+  subject: string;
+  description: string;
+};
+
+/** The backend stores the report, then emails it to the support inbox. */
+export type SupportReportResponse = {
+  message: string;
+  report: {
+    id: string;
+    category: string;
+    subject: string;
+    status: "OPEN" | "RESOLVED";
+    createdAt: string;
+  };
+};
+
 /* ------------------------------------------------------------------
    Match history
 

@@ -146,6 +146,9 @@ async function login({ email, password } = {}, metadata = {}) {
     throw createError(INVALID_CREDENTIALS, 401);
   }
 
+  // Read before it is overwritten: the welcome-back decision needs the sign-in
+  // before this one.
+  const previousLoginAt = user.lastLoginAt || null;
   const lastLoginAt = new Date();
   const loginUpdate = { lastLoginAt };
 
@@ -160,9 +163,12 @@ async function login({ email, password } = {}, metadata = {}) {
   await User.updateOne({ _id: user._id }, { $set: loginUpdate });
   user.lastLoginAt = lastLoginAt;
 
+  // previousLoginAt is server-side context for the controller, not part of the
+  // login response body.
   return {
     token: signAccessToken(user),
     user: toSafeUser(user),
+    previousLoginAt,
   };
 }
 
