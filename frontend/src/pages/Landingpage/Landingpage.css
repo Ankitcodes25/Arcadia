@@ -7169,6 +7169,19 @@ footer p {
   letter-spacing: 0.3px;
 }
 
+.leaderboard-home-demo {
+  width: fit-content;
+  margin: 10px 0 0;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 209, 102, 0.4);
+  border-radius: 999px;
+  background: rgba(255, 196, 64, 0.1);
+  color: #ffd978;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 900px) {

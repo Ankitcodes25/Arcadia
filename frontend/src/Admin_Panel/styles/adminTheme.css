@@ -351,6 +351,7 @@
 .adm-tier--gold { background: rgba(255, 212, 92, 0.15); color: #ffd45c; }
 .adm-tier--diamond { background: rgba(122, 214, 255, 0.15); color: #7ad6ff; }
 .adm-tier--crown { background: rgba(224, 105, 255, 0.16); color: #e069ff; }
+.adm-tier--flame { background: rgba(255, 138, 76, 0.16); color: #ff8a4c; }
 
 /* -------------------------------------------------------------------------
  * Avatars
