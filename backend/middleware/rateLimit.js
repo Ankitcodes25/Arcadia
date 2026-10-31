@@ -250,6 +250,7 @@ module.exports = {
   RATE_LIMIT_MESSAGE,
   createRateLimit,
   incrementBucket,
+  getRequestIp,
   getIpIdentifier,
   getEmailIdentifier,
   getUserIdentifier,

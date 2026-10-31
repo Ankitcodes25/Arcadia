@@ -10,6 +10,7 @@ const { RateLimitBucket } = require('./models/RateLimitBucket');
 const { AdminMutationLock } = require('./models/AdminMutationLock');
 const { isEmailConfigured, getEmailConfig } = require('./config/email');
 const { getGoogleOAuthConfig, isGoogleOAuthConfigured } = require('./config/googleOAuth');
+const { isAdminPanelConfigured } = require('./config/adminPanel');
 
 function getSafeStartupErrorMessage(error) {
   if (typeof error?.safeMessage === 'string' && error.safeMessage.trim()) {
@@ -28,6 +29,9 @@ function getSafeStartupErrorMessage(error) {
 }
 
 async function startServer({ port = env.port, mongoUri = env.mongoUri } = {}) {
+  // Throws a safe, variable-naming error when the admin account is half-configured.
+  const adminPanelConfigured = isAdminPanelConfigured();
+
   if (env.isProduction) {
     getGoogleOAuthConfig();
     const emailConfig = getEmailConfig();
@@ -51,6 +55,9 @@ async function startServer({ port = env.port, mongoUri = env.mongoUri } = {}) {
   }
   if (!isGoogleOAuthConfigured()) {
     console.warn('Google OAuth is not configured; set the four server-side Google OAuth variables before using Google sign-in.');
+  }
+  if (!adminPanelConfigured) {
+    console.warn('Admin Panel sign-in is disabled; set ADMIN_USERNAME, ADMIN_PASSWORD_HASH and ADMIN_JWT_SECRET (with ADMIN_EMAIL) before using /admin.');
   }
 
   const app = createApp();

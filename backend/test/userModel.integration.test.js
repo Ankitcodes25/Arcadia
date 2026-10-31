@@ -21,6 +21,7 @@ let toSafeUser;
 let connectDatabase;
 let disconnectDatabase;
 let validateEnvironment;
+let validateMongoUri;
 let createApp;
 let signAccessToken;
 let verifyAccessToken;
@@ -37,6 +38,7 @@ let PasswordResetToken;
 let RateLimitBucket;
 let AdminMutationLock;
 let accountProfileService;
+let resetAdminPanelConfigForTests;
 let emailService;
 let testEmailLogPath;
 let LOCAL_AVATAR_IDS;
@@ -110,7 +112,7 @@ before(async () => {
   ({ provisionAdmin } = require('../services/adminProvisioner'));
   ({ toSafeUser } = require('../utils/safeUser'));
   ({ connectDatabase, disconnectDatabase } = require('../config/database'));
-  ({ validateEnvironment } = require('../config/env'));
+  ({ validateEnvironment, validateMongoUri } = require('../config/env'));
   createApp = require('../app');
   ({ signAccessToken, verifyAccessToken } = require('../utils/jwt'));
   ({ Session } = require('../models/Session'));
@@ -126,6 +128,7 @@ before(async () => {
   ({ SupportReport } = require('../models/SupportReport'));
   ({ EMAIL_IMAGES } = require('../services/emailTemplates/arcadiaLayout'));
   accountProfileService = require('../services/accountProfileService');
+  ({ resetAdminPanelConfigForTests } = require('../config/adminPanel'));
   preferencesUtils = require('../utils/preferences');
   ({ LOCAL_AVATAR_IDS } = require('../config/avatar'));
   ({ USERNAME_CHANGE_COOLDOWN_MS } = accountProfileService);
@@ -3417,6 +3420,66 @@ test('password change verifies the current password, revokes sessions, and never
   }
 });
 
+test('Admin Panel login uses the provisioned admin password after an account password change', async () => {
+  const server = await startHttpServer();
+  const envNames = [
+    'ADMIN_USERNAME',
+    'ADMIN_EMAIL',
+    'ADMIN_PASSWORD_HASH',
+    'ADMIN_JWT_SECRET',
+    'ADMIN_SESSION_TTL_MINUTES',
+  ];
+  const originalEnv = Object.fromEntries(envNames.map((name) => [name, process.env[name]]));
+  const email = 'admin-password-change@example.com';
+  const oldPassword = 'old-admin-password-123';
+  const newPassword = 'new-admin-password-456';
+
+  try {
+    const provisioned = await provisionAdmin({
+      email,
+      password: oldPassword,
+      name: 'Password Change Admin',
+    });
+    process.env.ADMIN_USERNAME = 'password-change-admin';
+    process.env.ADMIN_EMAIL = email;
+    process.env.ADMIN_PASSWORD_HASH = await bcrypt.hash(oldPassword, 10);
+    process.env.ADMIN_JWT_SECRET = crypto.randomBytes(48).toString('hex');
+    process.env.ADMIN_SESSION_TTL_MINUTES = '60';
+    resetAdminPanelConfigForTests();
+
+    await accountProfileService.changePassword({
+      userId: provisioned.user.id,
+      body: { currentPassword: oldPassword, newPassword },
+    });
+
+    const newPasswordLogin = await requestJson(server, '/api/admin/auth/login', {
+      method: 'POST',
+      headers: { 'x-arcadia-request': '1' },
+      body: { email, password: newPassword },
+    });
+    assert.equal(newPasswordLogin.response.status, 200);
+    assert.equal(newPasswordLogin.body.accountType, 'admin');
+    assert.ok(getSetCookieHeader(newPasswordLogin.response).includes('arcadia_admin_session='));
+
+    const oldPasswordLogin = await requestJson(server, '/api/admin/auth/login', {
+      method: 'POST',
+      headers: { 'x-arcadia-request': '1' },
+      body: { email, password: oldPassword },
+    });
+    assert.equal(oldPasswordLogin.response.status, 401);
+  } finally {
+    for (const name of envNames) {
+      if (originalEnv[name] === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = originalEnv[name];
+      }
+    }
+    resetAdminPanelConfigForTests();
+    await stopHttpServer(server);
+  }
+});
+
 test('account sessions are owner-scoped, safely listed, individually revocable, and support logout-others', async () => {
   const server = await startHttpServer();
 
@@ -3528,6 +3591,24 @@ test('environment validation requires a database URI and a sufficiently long JWT
   assert.throws(
     () => validateEnvironment({ MONGODB_URI: 'mongodb+srv://cluster.example', JWT_SECRET: 'a'.repeat(32) }),
     /MONGODB_URI must include a database name/,
+  );
+});
+
+test('MongoDB URI validation accepts replica-set seed lists and requires TLS in production', () => {
+  const uri = 'mongodb://user:pass@db-0.example:27017,db-1.example:27017/arcadia?ssl=true&replicaSet=atlas-shard-0&authSource=admin';
+  assert.equal(validateMongoUri(uri), uri);
+  assert.equal(validateMongoUri(uri, 'production'), uri);
+  assert.throws(
+    () => validateMongoUri(uri.replace('?ssl=true&', '?'), 'production'),
+    /MONGODB_URI must enable TLS in production/,
+  );
+  assert.throws(
+    () => validateMongoUri('mongodb+srv://db-0.example,db-1.example/arcadia'),
+    /MONGODB_URI must be a valid mongodb/,
+  );
+  assert.throws(
+    () => validateMongoUri('mongodb://db-0.example:27017,,db-1.example:27017/arcadia'),
+    /MONGODB_URI must be a valid mongodb/,
   );
 });
 

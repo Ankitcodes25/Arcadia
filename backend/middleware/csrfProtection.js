@@ -1,8 +1,8 @@
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-function hasRefreshCookie(req) {
+function hasSessionCookie(req) {
   const cookie = req.get('cookie');
-  return typeof cookie === 'string' && /(?:^|;\s*)arcadia_refresh=/.test(cookie);
+  return typeof cookie === 'string' && /(?:^|;\s*)(?:arcadia_refresh|arcadia_admin_session)=/.test(cookie);
 }
 
 function csrfProtection(req, res, next) {
@@ -15,7 +15,7 @@ function csrfProtection(req, res, next) {
 
   // Cookie-authenticated state changes always require the non-simple custom
   // header. This also protects clients that omit Origin/Fetch Metadata.
-  if ((hasBrowserContext || hasRefreshCookie(req)) && !hasClientHeader) {
+  if ((hasBrowserContext || hasSessionCookie(req)) && !hasClientHeader) {
     return res.status(403).json({ error: 'Request verification failed' });
   }
 

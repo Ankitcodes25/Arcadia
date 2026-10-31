@@ -10,9 +10,10 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "provision:admin": "node scripts/provision-admin.js",
+    "hash:admin-password": "node scripts/generate-admin-hash.js",
     "backfill:player-ids": "node scripts/backfill-player-ids.js",
     "migrate:drop-email-verification": "node scripts/drop-email-verification.js",
-    "test": "node --test test/userModel.integration.test.js",
+    "test": "node --test test/userModel.integration.test.js test/adminPanelAuth.test.js",
     "check": "node scripts/check-syntax.js"
   },
   "dependencies": {
