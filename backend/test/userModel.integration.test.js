@@ -38,6 +38,7 @@ let PasswordResetToken;
 let RateLimitBucket;
 let AdminMutationLock;
 let accountProfileService;
+let resetAdminPanelConfigForTests;
 let emailService;
 let testEmailLogPath;
 let LOCAL_AVATAR_IDS;
@@ -127,6 +128,7 @@ before(async () => {
   ({ SupportReport } = require('../models/SupportReport'));
   ({ EMAIL_IMAGES } = require('../services/emailTemplates/arcadiaLayout'));
   accountProfileService = require('../services/accountProfileService');
+  ({ resetAdminPanelConfigForTests } = require('../config/adminPanel'));
   preferencesUtils = require('../utils/preferences');
   ({ LOCAL_AVATAR_IDS } = require('../config/avatar'));
   ({ USERNAME_CHANGE_COOLDOWN_MS } = accountProfileService);
@@ -3414,6 +3416,66 @@ test('password change verifies the current password, revokes sessions, and never
     const unchangedGoogleUser = await User.findById(googleUser._id).select('+passwordHash');
     assert.equal(unchangedGoogleUser.passwordHash, undefined);
   } finally {
+    await stopHttpServer(server);
+  }
+});
+
+test('Admin Panel login uses the provisioned admin password after an account password change', async () => {
+  const server = await startHttpServer();
+  const envNames = [
+    'ADMIN_USERNAME',
+    'ADMIN_EMAIL',
+    'ADMIN_PASSWORD_HASH',
+    'ADMIN_JWT_SECRET',
+    'ADMIN_SESSION_TTL_MINUTES',
+  ];
+  const originalEnv = Object.fromEntries(envNames.map((name) => [name, process.env[name]]));
+  const email = 'admin-password-change@example.com';
+  const oldPassword = 'old-admin-password-123';
+  const newPassword = 'new-admin-password-456';
+
+  try {
+    const provisioned = await provisionAdmin({
+      email,
+      password: oldPassword,
+      name: 'Password Change Admin',
+    });
+    process.env.ADMIN_USERNAME = 'password-change-admin';
+    process.env.ADMIN_EMAIL = email;
+    process.env.ADMIN_PASSWORD_HASH = await bcrypt.hash(oldPassword, 10);
+    process.env.ADMIN_JWT_SECRET = crypto.randomBytes(48).toString('hex');
+    process.env.ADMIN_SESSION_TTL_MINUTES = '60';
+    resetAdminPanelConfigForTests();
+
+    await accountProfileService.changePassword({
+      userId: provisioned.user.id,
+      body: { currentPassword: oldPassword, newPassword },
+    });
+
+    const newPasswordLogin = await requestJson(server, '/api/admin/auth/login', {
+      method: 'POST',
+      headers: { 'x-arcadia-request': '1' },
+      body: { email, password: newPassword },
+    });
+    assert.equal(newPasswordLogin.response.status, 200);
+    assert.equal(newPasswordLogin.body.accountType, 'admin');
+    assert.ok(getSetCookieHeader(newPasswordLogin.response).includes('arcadia_admin_session='));
+
+    const oldPasswordLogin = await requestJson(server, '/api/admin/auth/login', {
+      method: 'POST',
+      headers: { 'x-arcadia-request': '1' },
+      body: { email, password: oldPassword },
+    });
+    assert.equal(oldPasswordLogin.response.status, 401);
+  } finally {
+    for (const name of envNames) {
+      if (originalEnv[name] === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = originalEnv[name];
+      }
+    }
+    resetAdminPanelConfigForTests();
     await stopHttpServer(server);
   }
 });

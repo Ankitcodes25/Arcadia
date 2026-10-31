@@ -3,8 +3,9 @@
  *
  * Environment variables are set BEFORE any app module is loaded, because
  * config/env.js validates at import time (and dotenv never overrides a value
- * that is already set). No database connection is needed: the admin routes
- * never touch MongoDB. Every flow runs over real HTTP on an ephemeral port.
+ * that is already set). This suite verifies the environment-hash fallback
+ * without a database connection. The integration suite covers provisioned
+ * admin credentials. Every flow runs over real HTTP on an ephemeral port.
  */
 
 const { test, before, after, beforeEach } = require('node:test');
