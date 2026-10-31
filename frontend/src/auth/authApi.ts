@@ -22,7 +22,7 @@ import type {
   UsernameAvailabilityResponse,
 } from "./authTypes";
 
-function getApiBaseUrl() {
+export function getApiBaseUrl() {
   const configured = import.meta.env.VITE_API_URL?.trim();
   if (!configured && import.meta.env.PROD) {
     throw new Error("VITE_API_URL must be configured for a production frontend build");

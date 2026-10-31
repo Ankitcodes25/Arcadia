@@ -1,7 +1,7 @@
 /*
  * Admin authentication context.
  *
- * Connects ONLY to the separate Admin Backend (see services/adminAuthService).
+ * Connects ONLY to the backend's /api/admin/auth routes (see services/adminAuthService).
  * The session itself lives in an HTTP-only cookie — this context holds just
  * the safe identity returned by the backend, in memory, and never persists a
  * token anywhere in web storage.

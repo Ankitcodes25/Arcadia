@@ -288,7 +288,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
 
     /*
      * LOGIN: server-side account resolution. The browser never compares
-     * credentials — it sends them once to the admin backend's resolver, which
+     * credentials — it sends them once to the backend's admin login resolver, which
      * reports the account type (or a definitive failure). Branching on that
      * server-issued accountType is what routes admin vs player.
      */
@@ -304,7 +304,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
         return false;
       }
 
-      // Admin: the session cookie is already set by the admin backend. Close
+      // Admin: the admin session cookie is already set by the backend. Close
       // the modal and mount ONLY the Admin Portal — never player UI.
       if (resolution.kind === "admin") {
         closeAuthMode();

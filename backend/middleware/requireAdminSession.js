@@ -1,17 +1,11 @@
-/*
- * Authentication middleware for admin routes.
- *
- * Reads the session token from the HTTP-only cookie, verifies it, checks
- * server-side revocation, and attaches the safe admin identity to the request.
- * Any failure is an opaque 401 — no detail about why the session was rejected
- * is ever disclosed.
- */
-
-const { getSessionToken } = require('../config/cookie');
+const { getAdminSessionToken } = require('../config/adminSessionCookie');
 const { verifySessionToken } = require('../services/adminSessionService');
 
+// Admin Panel session guard (the HTTP-only admin cookie). Unrelated to
+// requireAdmin.js, which checks a player account's database role. Any failure
+// is an opaque 401 that never says why the session was rejected.
 function requireAdminSession(req, res, next) {
-  const token = getSessionToken(req);
+  const token = getAdminSessionToken(req);
   if (!token) {
     return res.status(401).json({ error: 'Authentication required' });
   }
