@@ -3,9 +3,9 @@
  *
  * Every Arcadia login passes through the resolver first, so this cannot use
  * the shared Mongo limiter in rateLimit.js: that one counts every request and
- * would throttle ordinary players. Only rejected admin logins (401) are
+ * would throttle ordinary players. Only rejected admin logins (401) stay
  * counted, per IP and per submitted email, in a fixed 15-minute window held in
- * process memory. A restart resets the counters, which can only loosen the
+ * process memory; in-flight attempts hold a slot until they finish. A restart resets the counters, which can only loosen the
  * limit, never lock the admin out. The 429 never says which bucket was hit.
  */
 
@@ -27,13 +27,20 @@ function pruneExpired(now) {
   }
 }
 
-function registerFailure(key, now) {
+function reserveAttempt(key, now) {
   const existing = buckets.get(key);
   if (!existing || existing.resetAt <= now) {
     buckets.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
     return;
   }
   existing.count += 1;
+}
+
+function releaseAttempt(key) {
+  const bucket = buckets.get(key);
+  if (bucket && bucket.count > 0) {
+    bucket.count -= 1;
+  }
 }
 
 function isExhausted(key, limit) {
@@ -54,17 +61,22 @@ function adminLoginRateLimit(req, res, next) {
     return res.status(429).json({ error: RATE_LIMIT_MESSAGE });
   }
 
-  // Count the attempt only once the controller answers with a rejected login.
-  const originalJson = res.json.bind(res);
-  res.json = (body) => {
-    if (res.statusCode === 401) {
-      registerFailure(ipKey, now);
-      if (emailKey) {
-        registerFailure(emailKey, now);
-      }
+  // Reserve the slot before the (slow, bcrypt) password check so parallel
+  // attempts cannot all pass the check above, then hand it back unless the
+  // attempt ended as a rejected login.
+  const keys = emailKey ? [ipKey, emailKey] : [ipKey];
+  keys.forEach((key) => reserveAttempt(key, now));
+
+  let settled = false;
+  const settle = () => {
+    if (settled) return;
+    settled = true;
+    if (res.statusCode !== 401) {
+      keys.forEach(releaseAttempt);
     }
-    return originalJson(body);
   };
+  res.once('finish', settle);
+  res.once('close', settle);
 
   return next();
 }

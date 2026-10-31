@@ -209,6 +209,30 @@ test('admin login is rate limited after repeated failures on the admin email', a
   assert.equal(player.status, 200);
 });
 
+test('parallel wrong-password attempts cannot exceed the per-email cap', async () => {
+  const attempts = ADMIN_LOGIN_LIMITS.perEmail + 6;
+  const responses = await Promise.all(
+    Array.from({ length: attempts }, (_, index) => login(TEST_EMAIL, `parallel-wrong-${index}`)),
+  );
+  const statuses = responses.map((response) => response.status);
+
+  assert.equal(statuses.filter((status) => status === 401).length, ADMIN_LOGIN_LIMITS.perEmail);
+  assert.equal(statuses.filter((status) => status === 429).length, attempts - ADMIN_LOGIN_LIMITS.perEmail);
+});
+
+test('successful and player attempts give their reserved slot back', async () => {
+  for (let i = 0; i < ADMIN_LOGIN_LIMITS.perEmail + 2; i += 1) {
+    assert.equal((await login(TEST_EMAIL, TEST_PASSWORD)).status, 200);
+  }
+  for (let i = 0; i < ADMIN_LOGIN_LIMITS.perIp + 2; i += 1) {
+    assert.equal((await login(`player-${i}@example.com`, 'pw')).status, 200);
+  }
+  // Nothing was consumed, so the full failure budget is still available.
+  for (let attempt = 0; attempt < ADMIN_LOGIN_LIMITS.perEmail; attempt += 1) {
+    assert.equal((await login(TEST_EMAIL, `wrong-${attempt}`)).status, 401);
+  }
+});
+
 // ---- Session verification (me) ----------------------------------------------
 
 test('GET /me requires authentication', async () => {
