@@ -21,6 +21,12 @@ import CopyButton from "../auth/CopyButton";
 import { getBadgeDisplay } from "../auth/tierEligibility";
 import { getProgressionView } from "../auth/progression";
 import { getLocalAvatarOption, getSafeGoogleAvatarUrl } from "../auth/avatarCatalog";
+import {
+  DUMMY_PLAYERS_ENABLED,
+  getDummyPlayerByUsername,
+  getDummyPlayerForPublicProfile,
+  toDummyPublicProfile,
+} from "../data/development/dummyPlayers";
 import "../pages/Myprofile/MyProfileModal.css";
 import "./PlayerProfileModal.css";
 import ReportPlayerModal from "./ReportPlayerModal";
@@ -42,96 +48,10 @@ const SUPPORTED_GAMES = [
   { id: "memory", name: "Memory", emoji: "🧠" },
 ] as const;
 
-const PREVIEW_PLAYER_IDS: Record<string, string> = {
-  playerone: "ARC-PLYR0001",
-  shadowx: "ARC-PLYR0002",
-  nova: "ARC-PLYR0003",
-  pixelrush: "ARC-PLYR0004",
-  void: "ARC-PLYR0005",
-  arcadion: "ARC-PLYR0006",
-  ghostbyte: "ARC-PLYR0007",
-  neonfox: "ARC-PLYR0008",
-  drift: "ARC-PLYR0009",
-  zyro: "ARC-PLYR0010",
-  shadowbyte: "ARC-PLYR0011",
-  pixelrogue: "ARC-PLYR0012",
-  gamezen: "ARC-PLYR0013",
-  novastrike: "ARC-PLYR0014",
-  roguesoul: "ARC-PLYR0015",
-  crystalvex: "ARC-PLYR0016",
-  zenithx: "ARC-PLYR0017",
-  blazefang: "ARC-PLYR0018",
-  stormrider: "ARC-PLYR0019",
-  voidwalker: "ARC-PLYR0020",
-};
-
-const PREVIEW_PROGRESSION: Record<string, Partial<PublicPlayerProfile["progression"]>> = {
-  shadowx: {
-    totalXp: 2_460,
-    level: 12,
-    title: "Arcadia Veteran",
-    badgeKey: "gold",
-    themeKey: "gold",
-  },
-  shadowbyte: {
-    totalXp: 2_460,
-    level: 12,
-    title: "Arcadia Veteran",
-    badgeKey: "gold",
-    themeKey: "gold",
-  },
-  pixelrogue: {
-    totalXp: 1_140,
-    level: 7,
-    title: "Arcadia Challenger",
-    badgeKey: "silver",
-    themeKey: "silver",
-  },
-};
-
-const PREVIEW_STATS = {
-  gamesPlayed: 128,
-  gamesWon: 82,
-  totalScore: 48_320,
-  bestScore: 1_240,
-  winRate: "64.1%",
-  arcadionMatches: 36,
-  arcadionWins: 24,
-  arcadionWinRate: "66.7%",
-  arcadionBestScore: 860,
-  games: {
-    ludo: { totalScore: 16_800, played: 42, highestScore: 1_240 },
-    "tic-tac-toe": { totalScore: 8_400, played: 28, highestScore: 720 },
-    "rock-paper-scissors": { totalScore: 12_420, played: 36, highestScore: 940 },
-    "snake-ladder": { totalScore: 6_000, played: 12, highestScore: 860 },
-    memory: { totalScore: 4_700, played: 10, highestScore: 680 },
-  },
-} as const;
-
-function createPreviewProfile(name: string): PublicPlayerProfile {
-  const normalizedName = name.toLowerCase().replace(/\s+/g, "");
-  const progression = {
-    totalXp: 0,
-    level: 0,
-    currentLevelXp: 0,
-    nextLevelXp: 100,
-    progressPercent: 0,
-    title: "Arcadia Rookie",
-    badgeKey: "bronze" as const,
-    themeKey: "bronze" as const,
-    ...PREVIEW_PROGRESSION[normalizedName],
-  };
-
-  return {
-    id: `preview:${normalizedName}`,
-    username: name,
-    playerId: PREVIEW_PLAYER_IDS[normalizedName] ?? "ARC-PLYR9999",
-    avatar: { type: "local", value: "avatar-01" },
-    avatarUrl: null,
-    progression,
-    completedMatches: PREVIEW_STATS.arcadionMatches,
-    createdAt: "2024-03-15T08:00:00.000Z",
-  };
+function formatPercent(value: number | null | undefined): string {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? `${value.toFixed(1)}%`
+    : "—";
 }
 
 function displayNumber(value: number | null | undefined): string {
@@ -195,8 +115,12 @@ function PlayerProfile({
         setIsPrivate(true);
         setLoadError("This profile is private.");
       } else if (error instanceof AuthApiError && error.status === 404) {
-        if (demoFallback && lookupUsername) {
-          setProfile(createPreviewProfile(lookupUsername));
+        const dummyPlayer =
+          demoFallback && DUMMY_PLAYERS_ENABLED && lookupUsername
+            ? getDummyPlayerByUsername(lookupUsername)
+            : null;
+        if (dummyPlayer) {
+          setProfile(toDummyPublicProfile(dummyPlayer));
         } else {
           setProfile(null);
           setLoadError("No public player profile was found. Progression and statistics are unavailable.");
@@ -232,7 +156,9 @@ function PlayerProfile({
     ? getBadgeDisplay(getProgressionView(progression), profile?.completedMatches ?? 0)
     : null;
   const validPlayerId = isValidPlayerId(profile?.playerId) ? profile.playerId : null;
-  const isPreviewProfile = profile?.id.startsWith("preview:") ?? false;
+  const previewPlayer = getDummyPlayerForPublicProfile(profile);
+  const previewStats = previewPlayer?.stats ?? null;
+  const isPreviewProfile = previewStats !== null;
   const shownUsername = profile?.username ?? username ?? "Player";
   const googleAvatarUrl = profile?.avatar.type === "google"
     ? getSafeGoogleAvatarUrl(profile.avatarUrl)
@@ -280,6 +206,11 @@ function PlayerProfile({
         </header>
 
         <div className="player-profile-body mpm-body">
+          {isPreviewProfile && (
+            <p className="player-profile-demo-note" role="note">
+              Development demo profile — sample data only, not a real account.
+            </p>
+          )}
           {profile && profile.id !== currentUserId && (
             <button
               type="button"
@@ -405,21 +336,21 @@ function PlayerProfile({
               <section className="mpm-section">
                 <h3 className="mpm-section-title"><Gamepad2 aria-hidden="true" />Gaming Stats</h3>
                 <div className="mpm-stat-grid mpm-stat-grid--5">
-                  <StatCard Icon={Gamepad2} tone="mpm-tone-violet" label="Games Played" value={isPreviewProfile ? displayNumber(PREVIEW_STATS.gamesPlayed) : "—"} />
-                  <StatCard Icon={Trophy} tone="mpm-tone-amber" label="Games Won" value={isPreviewProfile ? displayNumber(PREVIEW_STATS.gamesWon) : "—"} />
-                  <StatCard Icon={ChartNoAxesColumn} tone="mpm-tone-rose" label="Total Score" value={isPreviewProfile ? displayNumber(PREVIEW_STATS.totalScore) : "—"} />
-                  <StatCard Icon={Star} tone="mpm-tone-sky" label="Best Score" value={isPreviewProfile ? displayNumber(PREVIEW_STATS.bestScore) : "—"} />
-                  <StatCard Icon={Percent} tone="mpm-tone-emerald" label="Win Rate" value={isPreviewProfile ? PREVIEW_STATS.winRate : "—"} />
+                  <StatCard Icon={Gamepad2} tone="mpm-tone-violet" label="Games Played" value={displayNumber(previewStats?.gamesPlayed)} />
+                  <StatCard Icon={Trophy} tone="mpm-tone-amber" label="Games Won" value={displayNumber(previewStats?.wins)} />
+                  <StatCard Icon={ChartNoAxesColumn} tone="mpm-tone-rose" label="Total Score" value={displayNumber(previewStats?.totalScore)} />
+                  <StatCard Icon={Star} tone="mpm-tone-sky" label="Best Score" value={displayNumber(previewStats?.bestScore)} />
+                  <StatCard Icon={Percent} tone="mpm-tone-emerald" label="Win Rate" value={formatPercent(previewStats?.winRatePercent)} />
                 </div>
               </section>
 
               <section className="mpm-section">
                 <h3 className="mpm-section-title"><Trophy aria-hidden="true" />Played with Arcadion</h3>
                 <div className="mpm-stat-grid">
-                  <StatCard Icon={Gamepad2} tone="mpm-tone-violet" label="Total Matches" value={isPreviewProfile ? displayNumber(PREVIEW_STATS.arcadionMatches) : "—"} />
-                  <StatCard Icon={Trophy} tone="mpm-tone-amber" label="Total Wins" value={isPreviewProfile ? displayNumber(PREVIEW_STATS.arcadionWins) : "—"} />
-                  <StatCard Icon={Star} tone="mpm-tone-rose" label="Best Score" value={isPreviewProfile ? displayNumber(PREVIEW_STATS.arcadionBestScore) : "—"} />
-                  <StatCard Icon={Percent} tone="mpm-tone-emerald" label="Win Rate" value={isPreviewProfile ? PREVIEW_STATS.arcadionWinRate : "—"} />
+                  <StatCard Icon={Gamepad2} tone="mpm-tone-violet" label="Total Matches" value={displayNumber(previewStats?.arcadion.matches)} />
+                  <StatCard Icon={Trophy} tone="mpm-tone-amber" label="Total Wins" value={displayNumber(previewStats?.arcadion.wins)} />
+                  <StatCard Icon={Star} tone="mpm-tone-rose" label="Best Score" value={displayNumber(previewStats?.arcadion.bestScore)} />
+                  <StatCard Icon={Percent} tone="mpm-tone-emerald" label="Win Rate" value={formatPercent(previewStats?.arcadion.winRatePercent)} />
                 </div>
               </section>
 
@@ -437,7 +368,7 @@ function PlayerProfile({
                     </thead>
                     <tbody>
                       {SUPPORTED_GAMES.map((game) => {
-                        const stats = isPreviewProfile ? PREVIEW_STATS.games[game.id] : null;
+                        const stats = previewStats?.games[game.id] ?? null;
                         return (
                         <tr key={game.id}>
                           <td>

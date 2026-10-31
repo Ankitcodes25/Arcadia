@@ -36,7 +36,7 @@ export type PreviewAccountStatus = "Active" | "Suspended" | "Pending";
 
 export interface PreviewBadge {
   label: string;
-  tone: "bronze" | "silver" | "gold" | "diamond" | "crown";
+  tone: "bronze" | "silver" | "gold" | "diamond" | "crown" | "flame";
 }
 
 export interface PreviewPlayer {

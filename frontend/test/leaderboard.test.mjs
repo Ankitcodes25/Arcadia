@@ -304,7 +304,7 @@ test("the Leaderboard is a full page, not a modal or overlay", async () => {
   assert.ok(q(".leaderboard-page"), "the page container is rendered");
   assert.match(q("main").className, /\bleaderboard-page\b/, "it is a main landmark");
   assert.ok(q(".leaderboard-hero"), "with the hero section");
-  assert.ok(q("#leaderboard-rankings"), "and the rankings section");
+  assert.ok(q(".leaderboard-podium"), "and the podium rankings");
 
   // Nothing about a modal survives: no backdrop, no dialog role, no X.
   assert.equal(q('[role="dialog"]') === null, true, "nothing claims to be a dialog");
@@ -316,27 +316,24 @@ test("the Leaderboard is a full page, not a modal or overlay", async () => {
    2. The hero
    ================================================================== */
 
-test("the hero shows the season card and the View rankings button", async () => {
+test("the hero presents the competition headline and copy", async () => {
   const unmount = await renderPage();
 
-  assert.equal(
-    q(".leaderboard-hero-eyebrow").textContent,
-    "COMPETE • CLIMB • CONQUER",
-    "the eyebrow is present",
+  assert.match(
+    q(".leaderboard-hero-kicker").textContent,
+    /Compete · Climb · Conquer/,
+    "the kicker is present",
   );
   assert.equal(
-    q(".leaderboard-hero-content h1").textContent,
-    "Leaderboard.",
+    q(".leaderboard-hero-heading h1").textContent,
+    "LEADERBOARD",
     "the heading is present",
   );
-
-  const season = q(".leaderboard-season");
-  assert.match(season.textContent, /Season 01/, "the season card names the season");
-  assert.match(season.textContent, /Active/, "and its status");
-
-  const button = q(".leaderboard-hero-button");
-  assert.ok(button, "the View rankings button is rendered");
-  assert.match(button.textContent, /View rankings/, "with its label");
+  assert.match(
+    q(".leaderboard-hero-heading p").textContent,
+    /Rise through the ranks/,
+    "with the competition copy",
+  );
 
   await unmount();
 });
@@ -344,26 +341,26 @@ test("the hero shows the season card and the View rankings button", async () => 
 test("the hero visual uses the ranking card and Arcadion artwork", async () => {
   const unmount = await renderPage();
 
-  const cards = qa(".leaderboard-rank-card img");
+  const cards = qa(".leaderboard-hero-card");
   assert.equal(cards.length, 3, "three ranking cards");
   for (const card of cards) {
     assert.match(card.getAttribute("src"), /lead[123]\.png/, "each card uses its real artwork");
   }
 
-  const arcadion = q(".leaderboard-arcadion img");
+  const arcadion = q(".leaderboard-hero-character");
   assert.ok(arcadion, "the Arcadion artwork is present");
   assert.match(arcadion.getAttribute("src"), /leadArc\.png/, "using its real artwork");
 
-  const ranks = qa(".leaderboard-floating-rank").map((n) => n.textContent);
-  assert.deepEqual(ranks, ["#1", "#2", "#3"], "the floating rank labels");
+  assert.match(q(".leaderboard-hero-note").textContent, /Only one.*wears.*the crown/, "the crown note");
   await unmount();
 });
 
-test("View rankings scrolls to the rankings section without throwing", async () => {
+test("the rankings are reachable on the same page as the hero", async () => {
   const unmount = await renderPage();
 
-  await click(q(".leaderboard-hero-button"));
-  assert.ok(q("#leaderboard-rankings"), "the scroll target exists");
+  assert.ok(q(".leaderboard-hero"), "the hero is rendered");
+  assert.ok(q(".leaderboard-filters"), "the filters follow it");
+  assert.ok(q(".leaderboard-table"), "and the ranking table is on the same page");
   await unmount();
 });
 
@@ -371,32 +368,31 @@ test("View rankings scrolls to the rankings section without throwing", async () 
    3. The rankings section
    ================================================================== */
 
-test("the rankings section offers an honest empty state, never invented scores", async () => {
+test("the default rankings come from the centralized development fixtures", async () => {
   const unmount = await renderPage();
 
-  const section = q("#leaderboard-rankings");
-  assert.equal(
-    q(".leaderboard-rankings-header h2").textContent,
-    "Top Players",
-    "the section heading is present",
-  );
-  assert.match(
-    q(".leaderboard-rankings-eyebrow").textContent,
-    /Season 01 • Active/,
-    "with the season eyebrow",
+  const notice = q(".leaderboard-demo-note");
+  assert.ok(notice, "the development demo notice is shown");
+  assert.match(notice.textContent, /development demo/i, "and says the data is demo-only");
+
+  // The podium is the top three by XP from the single fixture file.
+  assert.equal(q(".leaderboard-slot-1 .leaderboard-card-player").textContent, "SolarisPrime");
+  assert.equal(q(".leaderboard-slot-2 .leaderboard-card-player").textContent, "AstralFox");
+  assert.equal(q(".leaderboard-slot-3 .leaderboard-card-player").textContent, "Crownless");
+
+  // The table continues from rank 4, so no fixture is duplicated.
+  assert.ok(q(".leaderboard-table"), "the ranking table is rendered");
+  assert.deepEqual(
+    qa(".leaderboard-cell-name").map((node) => node.textContent),
+    ["TitanVale", "PixelSage", "EchoWarden", "LudoLynx", "QuasarKid", "ByteBard", "NovaRider"],
+    "the table continues the same fixture order",
   );
 
-  const empty = q(".leaderboard-rankings-empty");
-  assert.ok(empty, "the empty state is rendered");
-  assert.match(empty.textContent, /Rankings are on their way/, "with an honest message");
-
-  // No fabricated rankings: no player rows, no names, no points anywhere.
-  assert.equal(qa(".leaderboard-rankings-empty ~ *").length, 0, "nothing follows the empty state");
-  for (const invented of ["PlayerOne", "ShadowX", "Nova", "PixelRush", "GhostByte"]) {
-    assert.equal(section.textContent.includes(invented), false, `no invented player "${invented}"`);
+  // None of the old scattered demo names survive anywhere on the page.
+  for (const invented of ["PlayerOne", "ShadowX", "PixelRogue", "GhostByte"]) {
+    assert.equal(document.body.textContent.includes(invented), false,
+      `no old scattered player "${invented}"`);
   }
-  assert.equal(/\b\d{1,3}(,\d{3})+\s*(pts|points)/i.test(section.textContent), false,
-    "no invented point totals");
   await unmount();
 });
 
@@ -432,11 +428,13 @@ test("Return restores the Profile Popup through a transient, once-only marker", 
 
 test("the restored popup does not appear again on an unrelated navigation", async () => {
   const unmount = await renderNavbarWithPage(navbarUser(), "/games");
+  await click(q(".avatar-button"));
+  assert.equal(q(".profile-popup") === null, false, "the popup starts open");
   await click(q(".leaderboard-return"));
   assert.equal(q(".profile-popup") === null, false, "the popup came back once");
 
   // The reader dismisses the popup again, then navigates somewhere unrelated.
-  await pointerDown(q(".leaderboard-rankings-header h2"));
+  await pointerDown(q(".leaderboard-hero-kicker"));
   assert.equal(q(".profile-popup") === null, true, "the popup was dismissed");
 
   await act(async () => {
@@ -596,13 +594,13 @@ test("clicking anywhere on a leaderboard podium card opens that player's profile
 
 test("default leaderboard preview cards open profiles by authorized username lookup", async () => {
   const unmount = await renderPage();
-  const firstCard = q(".leaderboard-card");
+  const firstCard = q(".leaderboard-card.is-first");
 
   assert.ok(firstCard);
   await click(firstCard.querySelector(".leaderboard-card-rank"));
-  assert.deepEqual(profileLookups.at(-1), { username: "PixelRogue" });
+  assert.deepEqual(profileLookups.at(-1), { username: "SolarisPrime" });
   assert.equal(q('[role="dialog"]')?.getAttribute("aria-labelledby"), "player-profile-title");
-  assert.match(q(".player-profile-username").textContent, /PixelRogue/);
+  assert.match(q(".player-profile-username").textContent, /SolarisPrime/);
 
   await click(q(".player-profile-close"));
   assert.equal(q('[role="dialog"]'), null);
@@ -613,45 +611,49 @@ test("clicking anywhere on Home Top 10 cards opens the corresponding public prof
   const unmount = await renderLeaderboardHome();
   const cards = qa(".leaderboard-home-profile-card");
 
+  assert.equal(cards.length, 10, "the centralized fixture fills the whole Top 10");
+  assert.match(q(".leaderboard-home-demo").textContent, /development demo/i);
+
   await click(cards[0].querySelector(".leaderboard-home-score"));
-  assert.deepEqual(profileLookups.at(-1), { username: "PlayerOne" });
-  assert.match(q(".player-profile-username").textContent, /PlayerOne/);
+  assert.deepEqual(profileLookups.at(-1), { username: "SolarisPrime" });
+  assert.match(q(".player-profile-username").textContent, /SolarisPrime/);
   await click(q(".player-profile-close"));
 
   await click(cards[1]);
-  assert.deepEqual(profileLookups.at(-1), { username: "ShadowX" });
-  assert.match(q(".player-profile-username").textContent, /ShadowX/);
+  assert.deepEqual(profileLookups.at(-1), { username: "AstralFox" });
+  assert.match(q(".player-profile-username").textContent, /AstralFox/);
   await click(q(".player-profile-close"));
 
   await unmount();
 });
 
-test("unresolved preview players receive the complete hard-coded profile", async () => {
+test("unresolved preview players receive the complete centralized development profile", async () => {
   authApi.getPublicPlayerProfile = async () => {
     throw new AuthApiError("Player profile not found", 404);
   };
   const unmount = await renderLeaderboardHome();
 
   await click(q(".leaderboard-home-profile-card .leaderboard-home-score"));
-  assert.match(q(".player-profile-username").textContent, /PlayerOne/);
-  assert.equal(q(".player-profile-player-id-value").textContent, "ARC-PLYR0001");
+  assert.match(q(".player-profile-username").textContent, /SolarisPrime/);
+  assert.match(q(".player-profile-demo-note").textContent, /development demo/i);
+  assert.equal(q(".player-profile-player-id-value").textContent, "ARC-0F9V4K7M");
   assert.deepEqual(
     [...q(".player-profile-progression-badges").children].map((badge) => badge.textContent.trim().replace(/\s+/g, " ")),
-    ["Arcadia Rookie", "LEVEL 00", "0 XP"],
+    ["Arcadia Supreme", "LEVEL 40", "51,000 XP"],
   );
   assert.equal(q(".mpm-level-card"), null);
-  assert.equal(q(".player-profile-member-since").textContent.includes("15 March 2024"), true);
+  assert.equal(q(".player-profile-member-since").textContent.includes("19 July 2024"), true);
   assert.match(q(".player-profile-rank-pill").textContent, /#1/);
   assert.equal(qa(".mpm-stat-card").length, 9);
   assert.deepEqual(
     [...qa(".mpm-section")[1].querySelectorAll(".mpm-stat-label")].map((node) => node.textContent),
     ["Total Matches", "Total Wins", "Best Score", "Win Rate"],
   );
-  assert.equal(q(".mpm-stat-card .mpm-stat-value").textContent, "128");
-  assert.equal(q(".mpm-table tbody tr:first-child td:nth-child(2)").textContent, "16,800");
+  assert.equal(q(".mpm-stat-card .mpm-stat-value").textContent, "612");
+  assert.equal(q(".mpm-table tbody tr:first-child td:nth-child(2)").textContent, "168,000");
   await click(q(".player-profile-report-button"));
-  assert.equal(q(".report-player-target-identity strong").textContent, "PlayerOne");
-  assert.equal(q(".report-player-target-identity > span").textContent, "Player ID: ARC-PLYR0001");
+  assert.equal(q(".report-player-target-identity strong").textContent, "SolarisPrime");
+  assert.equal(q(".report-player-target-identity > span").textContent, "Player ID: ARC-0F9V4K7M");
   await click(q(".report-player-cancel"));
   assert.ok(q(".player-profile-modal"), "cancel reveals the still-open preview profile");
   assert.ok(q(".player-profile-report-button"), "Report Player remains available on the profile");
@@ -781,7 +783,7 @@ test("private profiles show a clear privacy state and never fall back to preview
   await click(q(".leaderboard-home-profile-card"));
 
   assert.match(q(".player-profile-state").textContent, /This profile is private/);
-  assert.equal(q(".player-profile-username").textContent, "PlayerOne");
+  assert.equal(q(".player-profile-username").textContent, "SolarisPrime");
   assert.equal(q(".mpm-stat-card"), null);
   assert.equal(q(".player-profile-friend-button"), null);
   await unmount();
@@ -816,7 +818,7 @@ test("App renders the Leaderboard for the /leaderboard route", async () => {
 
     assert.ok(q(".leaderboard-page"), "App renders the Leaderboard page for the route");
     assert.ok(q(".leaderboard-hero"), "with its hero");
-    assert.ok(q("#leaderboard-rankings"), "and the rankings section");
+    assert.ok(q(".leaderboard-podium"), "and the rankings");
     assert.equal(q(".profile-popup") === null, true, "no popup on a direct visit");
     await unmount();
   } finally {

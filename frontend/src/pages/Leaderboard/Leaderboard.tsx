@@ -12,6 +12,13 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
+import { getLocalAvatarOption } from "../../auth/avatarCatalog";
+import {
+  DUMMY_GAMES,
+  DUMMY_PLAYERS,
+  DUMMY_PLAYERS_ENABLED,
+  type DummyPlayer,
+} from "../../data/development/dummyPlayers";
 import { navigateTo } from "../../lib/navigation";
 import PlayerProfile from "../../components/PlayerProfileModal";
 import "./Leaderboard.css";
@@ -39,12 +46,11 @@ import rankCard3 from "./Assets/lead3.png";
        jagah aati hai, wahin dock ho jata hai aur normal scroll karta hai.
 
    DATA
-   Abhi koi API nahi hai, isliye SHOW_PREVIEW_DATA = true par preview data
-   dikhta hai. Real data `entries` prop se do (aur games `games` prop se).
-   Ship karne se pehle SHOW_PREVIEW_DATA = false kar dena.
+   Real standings aate hain `entries` prop se (aur games `games` prop se).
+   Jab tak API nahi hai, development build me centralized dummy players
+   (src/data/development/dummyPlayers.ts) dikhte hain. Production build me
+   DUMMY_PLAYERS_ENABLED false hai, isliye wahan koi dummy player nahi aata.
    =========================================================== */
-
-const SHOW_PREVIEW_DATA = true;
 
 /** Is rank se (aur neeche) "You" ka card neeche freeze hota hai. */
 const PIN_FROM_RANK = 10;
@@ -67,21 +73,20 @@ export type LeaderboardEntry = {
   games?: Record<string, GameStat>;
   /** Optional picture. Bina iske initials dikhte hain. */
   avatarUrl?: string;
+  /** Local avatar catalogue id, jab picture na ho. */
+  avatarId?: string;
   /** Signed-in player. "You" dikhta hai aur highlight hota hai. */
   isYou?: boolean;
 };
 
 export type GameOption = { value: string; label: string };
 
-/* TODO: apne asli games yahan daalo (ya `games` prop se bhejo). */
-const DEFAULT_GAMES: GameOption[] = [
-  { value: "tic-tac-toe", label: "Tic Tac Toe" },
-  { value: "chess", label: "Chess" },
-  { value: "snake", label: "Snake" },
-  { value: "memory-match", label: "Memory Match" },
-  { value: "2048", label: "2048" },
-  { value: "ludo", label: "Ludo" },
-];
+/* Real data ke liye games `games` prop se bhejo. Default wahi five games hain
+   jo account screens aur development fixtures use karte hain. */
+const DEFAULT_GAMES: GameOption[] = DUMMY_GAMES.map((game) => ({
+  value: game.id,
+  label: game.name,
+}));
 
 type RankedEntry = LeaderboardEntry & {
   rank: number;
@@ -99,32 +104,33 @@ type LeaderboardProps = {
   games?: GameOption[];
 };
 
-/* ---------------- Preview data (sirf design check ke liye) ---------------- */
+/* ---------------- Development preview data ---------------- */
 
-const BASE_PREVIEW: LeaderboardEntry[] = [
-  { id: "p1", name: "ShadowByte", level: 12, xp: 1860, wins: 52 },
-  { id: "p2", name: "PixelRogue", level: 10, xp: 1420, wins: 47 },
-  { id: "p3", name: "GameZen", level: 9, xp: 980, wins: 39 },
-  { id: "p4", name: "NovaStrike", level: 8, xp: 860, wins: 35 },
-  { id: "p5", name: "RogueSoul", level: 7, xp: 720, wins: 28 },
-  { id: "p6", name: "CrystalVex", level: 6, xp: 690, wins: 26 },
-  { id: "p7", name: "ZenithX", level: 7, xp: 590, wins: 20 },
-  { id: "p8", name: "BlazeFang", level: 6, xp: 540, wins: 18 },
-  { id: "p9", name: "StormRider", level: 5, xp: 480, wins: 15 },
-  { id: "p10", name: "VoidWalker", level: 5, xp: 455, wins: 14 },
-  { id: "p11", name: "NeonFox", level: 5, xp: 430, wins: 13 },
-  /* Preview me "You" rank 12 par hai -> neeche freeze hoga.
-     Test karne ke liye xp badlo (jaise 650 -> rank 7, normal highlight). */
-  { id: "p12", name: "You", level: 4, xp: 410, wins: 12, isYou: true },
-  { id: "p13", name: "GhostByte", level: 4, xp: 390, wins: 11 },
-  { id: "p14", name: "PixelRush", level: 4, xp: 360, wins: 10 },
-  { id: "p15", name: "Drift", level: 3, xp: 330, wins: 9 },
-  { id: "p16", name: "Zyro", level: 3, xp: 300, wins: 8 },
-  { id: "p17", name: "Luna", level: 3, xp: 280, wins: 7 },
-  { id: "p18", name: "Echo", level: 2, xp: 250, wins: 6 },
-  { id: "p19", name: "Rift", level: 2, xp: 220, wins: 5 },
-  { id: "p20", name: "Kairo", level: 2, xp: 190, wins: 4 },
-];
+/**
+ * The leaderboard rows are a projection of the centralized dummy players: the
+ * fixture stays the single source, so the card, the table, the per-game filters
+ * and the profile modal can never describe different numbers.
+ */
+function toLeaderboardEntry(player: DummyPlayer): LeaderboardEntry {
+  const games: Record<string, GameStat> = {};
+
+  for (const game of DUMMY_GAMES) {
+    const stats = player.stats.games[game.id];
+    games[game.id] = { score: stats.totalScore, wins: stats.wins };
+  }
+
+  return {
+    id: `dummy:${player.id}`,
+    name: player.username,
+    level: player.progression.level,
+    xp: player.totalXp,
+    wins: player.stats.wins,
+    games,
+    avatarId: player.avatarId,
+  };
+}
+
+const PREVIEW_ENTRIES: LeaderboardEntry[] = DUMMY_PLAYERS.map(toLeaderboardEntry);
 
 function hashOf(text: string): number {
   let hash = 0;
@@ -133,28 +139,6 @@ function hashOf(text: string): number {
   }
   return hash;
 }
-
-/* Preview ke liye har game ka alag score banata hai (sab ek hi order me
-   na dikhein). Real data aane par yeh function hata sakte ho. */
-function withPreviewGames(list: LeaderboardEntry[]): LeaderboardEntry[] {
-  return list.map((entry) => {
-    const games: Record<string, GameStat> = {};
-
-    for (const game of DEFAULT_GAMES) {
-      const hash = hashOf(`${entry.name}:${game.value}`);
-      if (!entry.isYou && hash % 4 === 0) continue; // sab sab game nahi khelte
-
-      games[game.value] = {
-        score: Math.round((entry.xp * (0.7 + (hash % 70) / 100) * 3) / 10) * 10,
-        wins: Math.max(1, Math.round(entry.wins * (0.4 + (hash % 50) / 100))),
-      };
-    }
-
-    return { ...entry, games };
-  });
-}
-
-const PREVIEW_ENTRIES = withPreviewGames(BASE_PREVIEW);
 
 /* ---------------- Small helpers ---------------- */
 
@@ -232,13 +216,16 @@ function Avatar({ entry, className }: { entry: LeaderboardEntry; className: stri
   }
 
   const hue = hueFor(entry.name);
+  const catalogAvatar = entry.avatarId ? getLocalAvatarOption(entry.avatarId) : null;
 
   return (
     <span
       className={`${className} leaderboard-initials`}
       aria-hidden="true"
       style={{
-        background: `linear-gradient(135deg, hsl(${hue} 72% 58%), hsl(${hue + 28} 62% 30%))`,
+        background:
+          catalogAvatar?.background
+          ?? `linear-gradient(135deg, hsl(${hue} 72% 58%), hsl(${hue + 28} 62% 30%))`,
       }}
     >
       {entry.name.slice(0, 2).toUpperCase()}
@@ -699,9 +686,10 @@ function Leaderboard({ returnPath, entries, games }: LeaderboardProps) {
     navigateTo(returnPath);
   }, [returnPath]);
 
+  const showingDummyPlayers = entries === undefined && DUMMY_PLAYERS_ENABLED;
   const source = useMemo(
-    () => entries ?? (SHOW_PREVIEW_DATA ? PREVIEW_ENTRIES : []),
-    [entries],
+    () => entries ?? (showingDummyPlayers ? PREVIEW_ENTRIES : []),
+    [entries, showingDummyPlayers],
   );
   const handlePlayerOpen = useCallback((entry: RankedEntry) => {
     if (
@@ -826,7 +814,8 @@ function Leaderboard({ returnPath, entries, games }: LeaderboardProps) {
           <span className="leaderboard-empty-icon" aria-hidden="true">
             <Trophy />
           </span>
-          <h3>{ranked.length === 0 ? "Rankings are on their way" : "No players found"}</h3>
+          <h3>{ranked.length === 0 ? "No players found" : "No players found"}</h3>
+          <p>Try adjusting or clearing your filters above.</p>
         </div>
       )}
       </div>

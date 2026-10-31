@@ -13,6 +13,9 @@ pnpm-debug.log*
 .env.*
 !.env.example
 
+# Local development test-player credentials
+.dev-test-players*.json
+
 # Build outputs
 dist/
 build/
