@@ -7,6 +7,12 @@ import {
 } from "react";
 import { ArrowLeft, ArrowRight, Crown, Star } from "lucide-react";
 import { useAuth } from "../../../auth/AuthContext";
+import { getLocalAvatarOption } from "../../../auth/avatarCatalog";
+import {
+  DUMMY_PLAYERS_BY_SCORE,
+  DUMMY_PLAYERS_ENABLED,
+  type DummyPlayer,
+} from "../../../data/development/dummyPlayers";
 import PlayerProfile from "../../../components/PlayerProfileModal";
 import {
   LEADERBOARD_PATH,
@@ -15,66 +21,12 @@ import {
   rememberLeaderboardReturnPath,
 } from "../../../lib/navigation";
 
-type Player = {
-  name: string;
-  avatar: string;
-  score: number;
-};
-
-/* Avatars: PlayerOne / Nova / Zyro pehle multi-part emoji (ZWJ) the jo
-   Windows par 2 alag glyph me toot jaate the — ab single emoji hain. */
-const PLAYERS: Player[] = [
-  {
-    name: "PlayerOne",
-    avatar: "🎮",
-    score: 12840,
-  },
-  {
-    name: "ShadowX",
-    avatar: "🥷",
-    score: 11920,
-  },
-  {
-    name: "Nova",
-    avatar: "🐱",
-    score: 10740,
-  },
-  {
-    name: "PixelRush",
-    avatar: "👾",
-    score: 9860,
-  },
-  {
-    name: "Void",
-    avatar: "🧙🏻‍♀️",
-    score: 9120,
-  },
-  {
-    name: "Arcadion",
-    avatar: "🤖",
-    score: 8940,
-  },
-  {
-    name: "GhostByte",
-    avatar: "🐺",
-    score: 8760,
-  },
-  {
-    name: "NeonFox",
-    avatar: "😈",
-    score: 8210,
-  },
-  {
-    name: "Drift",
-    avatar: "😎",
-    score: 7860,
-  },
-  {
-    name: "Zyro",
-    avatar: "😵",
-    score: 7420,
-  },
-];
+/*
+ * The Home Top 10 reads the same centralized development fixtures as the full
+ * leaderboard, so the two surfaces can never drift apart. In a production build
+ * the flag is off and the section renders no dummy cards.
+ */
+const PLAYERS: readonly DummyPlayer[] = DUMMY_PLAYERS_ENABLED ? DUMMY_PLAYERS_BY_SCORE : [];
 
 /* armed   = section abhi screen par nahi aaya (cards hidden, score 0)
    shown   = screen par aaya -> cards ek-ek karke aate hain, score count-up
@@ -243,13 +195,13 @@ export default function LeaderboardHome() {
     navigateTo(LEADERBOARD_PATH);
   };
 
-  const handlePlayerProfile = (player: Player) => {
+  const handlePlayerProfile = (player: DummyPlayer) => {
     if (!isAuthenticated) {
       window.dispatchEvent(new Event("arcadia:open-login"));
       return;
     }
-    if (player.name.toLowerCase() === user?.username?.trim().toLowerCase()) return;
-    setSelectedPlayer({ username: player.name, rank: PLAYERS.indexOf(player) + 1 });
+    if (player.username.toLowerCase() === user?.username?.trim().toLowerCase()) return;
+    setSelectedPlayer({ username: player.username, rank: PLAYERS.indexOf(player) + 1 });
   };
 
   const scrollCards = (direction: "previous" | "next") => {
@@ -350,15 +302,16 @@ export default function LeaderboardHome() {
             {PLAYERS.map((player, index) => {
               const rank = index + 1;
               const isPodium = rank <= 3;
+              const avatar = getLocalAvatarOption(player.avatarId);
 
               return (
                 <article
-                  key={player.name}
+                  key={player.id}
                   className={`leaderboard-home-card leaderboard-home-profile-card ${getRankClass(rank)}`}
                   style={{ "--i": index } as CSSProperties}
                   role="button"
                   tabIndex={0}
-                  aria-label={`View ${player.name}'s profile`}
+                  aria-label={`View ${player.username}'s profile`}
                   onClick={() => handlePlayerProfile(player)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
@@ -378,8 +331,9 @@ export default function LeaderboardHome() {
                     <div
                       className="leaderboard-home-avatar leaderboard-home-profile-trigger"
                       aria-hidden="true"
+                      style={{ background: avatar.background }}
                     >
-                      {player.avatar}
+                      {player.username.slice(0, 1).toUpperCase()}
                     </div>
 
                     <span className="leaderboard-home-rank">
@@ -390,14 +344,14 @@ export default function LeaderboardHome() {
                   <div
                     className="leaderboard-home-player leaderboard-home-profile-name"
                   >
-                    {player.name}
+                    {player.username}
                   </div>
 
                   <div className="leaderboard-home-score">
                     <Star aria-hidden="true" />
 
                     <CountUp
-                      value={player.score}
+                      value={player.stats.totalScore}
                       reveal={reveal}
                       delay={index * STAGGER_MS + 250}
                     />

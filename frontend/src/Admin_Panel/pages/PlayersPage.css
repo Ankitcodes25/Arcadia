@@ -1,24 +1,418 @@
 /*
- * Players page: search icon inside the search field, identity row in the
- * details modal, and the display-only moderation note.
+ * Players page: one-row toolbar (search + themed dropdowns + Clear filters),
+ * identity row in the details modal, and the display-only moderation note.
  */
 
-.adm-toolbar__search {
+/* =========================================================
+   TOOLBAR  (ek hi row; chhoti screen par wrap hota hai)
+   ========================================================= */
+
+/* "All Players" heading page ke saath scroll hoti hai; filter bar (bg nahi) upar
+   chipak jaata hai. --plp-sticky-top = admin topbar (Super Admin / Logout) ki
+   height, taaki filter uske neeche ruke. Alag ho to sirf yeh number badlo. */
+.plp-toolbar {
+  --plp-sticky-top: 68px;
+
+  position: sticky;
+  top: var(--plp-sticky-top);
+  z-index: 9; /* dropdown menu list ke upar khule */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 6px 0;
+}
+
+/* ---------- search ---------- */
+
+.plp-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 320px;
+  min-width: 0;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid rgba(180, 105, 255, 0.55);
+  box-shadow:
+    0 0 6px rgba(170, 85, 255, 0.26),
+    inset 0 0 6px rgba(170, 85, 255, 0.08);
+  border-radius: 14px;
+  background: #1a0b30;
+  color: var(--adm-text-muted, #a68bc4);
+  cursor: text;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.plp-search:hover,
+.plp-search:focus-within {
+  border-color: rgba(210, 145, 255, 0.85);
+  box-shadow:
+    0 0 9px rgba(190, 100, 255, 0.42),
+    inset 0 0 8px rgba(190, 100, 255, 0.12);
+}
+
+.plp-search > svg {
+  flex: none;
+}
+
+.plp-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--adm-text, #ffffff);
+  font: inherit;
+  font-size: 14px;
+}
+
+.plp-search input::placeholder {
+  color: rgba(190, 165, 220, 0.6);
+}
+
+.plp-search__clear {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(190, 120, 255, 0.2);
+  color: #ead7ff;
+  cursor: pointer;
+}
+
+.plp-search__clear:hover {
+  background: rgba(190, 120, 255, 0.42);
+}
+
+/* ---------- themed dropdown ---------- */
+
+.plp-select {
   position: relative;
+  flex: 0 0 auto;
 }
 
-.adm-toolbar__search > svg {
+.plp-select__trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid rgba(180, 105, 255, 0.55);
+  box-shadow:
+    0 0 6px rgba(170, 85, 255, 0.26),
+    inset 0 0 6px rgba(170, 85, 255, 0.08);
+  border-radius: 14px;
+  background: #1a0b30;
+  color: var(--adm-text, #ffffff);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.plp-select__trigger:hover,
+.plp-select__trigger--open {
+  border-color: rgba(210, 145, 255, 0.85);
+  box-shadow:
+    0 0 9px rgba(190, 100, 255, 0.42),
+    inset 0 0 8px rgba(190, 100, 255, 0.12);
+}
+
+/* filter laga ho to trigger alag dikhe */
+.plp-select__trigger--active {
+  border-color: color-mix(in srgb, var(--plp-accent, #cf9bff) 85%, transparent);
+  box-shadow:
+    0 0 8px color-mix(in srgb, var(--plp-accent, #cf9bff) 38%, transparent),
+    inset 0 0 7px color-mix(in srgb, var(--plp-accent, #cf9bff) 10%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--plp-accent, #cf9bff) 20%, #1a0b30),
+    #261048
+  );
+}
+
+/* select hone par icon us option ke rang me */
+.plp-select__trigger--active .plp-select__icon {
+  color: var(--plp-accent, #cf9bff);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--plp-accent, #cf9bff) 70%, transparent));
+}
+
+.plp-select__icon,
+.plp-select__chevron {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: #cf9bff;
+}
+
+.plp-select__chevron {
+  margin-left: auto;
+  color: rgba(216, 200, 250, 0.75);
+  transition: transform 0.18s ease;
+}
+
+.plp-select__trigger--open .plp-select__chevron {
+  transform: rotate(180deg);
+}
+
+.plp-select__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plp-select__menu {
   position: absolute;
-  top: 50%;
-  left: 13px;
-  transform: translateY(-50%);
-  color: var(--adm-text-muted);
-  pointer-events: none;
+  z-index: 50;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 100%;
+  width: max-content;
+  max-width: 320px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid rgba(200, 130, 255, 0.45);
+  border-radius: 14px;
+  background: linear-gradient(155deg, rgba(48, 20, 84, 0.99), rgba(18, 7, 36, 0.99));
+  box-shadow:
+    0 20px 44px rgba(0, 0, 0, 0.6),
+    0 0 24px rgba(170, 80, 255, 0.22),
+    inset 0 1px rgba(255, 255, 255, 0.06);
+  animation: plpMenuIn 0.15s ease-out;
 }
 
-.adm-toolbar__search .adm-input {
-  padding-left: 36px;
+@keyframes plpMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
+
+.plp-select__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(245, 235, 255, 0.9);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.plp-select__option + .plp-select__option,
+.plp-select__menu li + li {
+  margin-top: 2px;
+}
+
+.plp-select__option:hover,
+.plp-select__option:focus-visible {
+  background: rgba(190, 110, 255, 0.2);
+  color: #ffffff;
+}
+
+.plp-select__option--selected {
+  background: rgba(170, 80, 250, 0.3);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.plp-select__option-label {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.plp-select__option-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--plp-accent, #cf9bff);
+}
+
+.plp-select__check {
+  flex: none;
+  width: 6px;
+  height: 11px;
+  margin: 0 3px 3px 0;
+  border: solid #e3b8ff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* ---------- clear filters ---------- */
+
+.plp-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  height: 46px;
+  padding: 0 20px;
+  border: 1px solid rgba(180, 105, 255, 0.55);
+  box-shadow:
+    0 0 6px rgba(170, 85, 255, 0.26),
+    inset 0 0 6px rgba(170, 85, 255, 0.08);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(167, 67, 242, 0.2), rgba(88, 34, 158, 0.16)), #1a0b30;
+  color: #ead7ff;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+}
+
+.plp-clear svg {
+  transition: transform 0.3s ease;
+}
+
+.plp-clear:hover:not(:disabled) {
+  transform: translateY(-2px);
+  color: #ffffff;
+  background: linear-gradient(135deg, #c46aff, #7c35df);
+  box-shadow: 0 10px 26px rgba(174, 69, 255, 0.4);
+}
+
+.plp-clear:hover:not(:disabled) svg {
+  transform: rotate(-180deg);
+}
+
+.plp-clear:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.plp-search__clear:focus-visible,
+.plp-select__trigger:focus-visible,
+.plp-select__option:focus-visible,
+.plp-clear:focus-visible {
+  outline: 2px solid rgba(224, 140, 255, 0.9);
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .plp-search {
+    flex-basis: 100%;
+  }
+
+  .plp-select {
+    flex: 1 1 calc(50% - 6px);
+  }
+
+  .plp-select__trigger {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .plp-select__menu {
+    width: 100%;
+    max-width: none;
+  }
+
+  .plp-clear {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plp-select__menu {
+    animation: none;
+  }
+
+  .plp-select__trigger,
+  .plp-select__chevron,
+  .plp-clear,
+  .plp-clear svg {
+    transition: none;
+  }
+}
+
+/* =========================================================
+   LIST  (fixed-height box: heading upar fixed, rows andar scroll)
+   ========================================================= */
+
+.adm-table-wrap.plp-list {
+  /* TSX asli height set karta hai (bachi hui screen); yeh sirf fallback hai */
+  height: calc(100vh - 300px);
+  min-height: 260px;
+  overflow-x: auto;
+  overflow-y: auto;
+  /* scrollbar chhupa hai (scroll wheel / touch se chalta hai). Dikhana ho to
+     neeche ki do lines hata do. */
+  scrollbar-width: none;
+}
+
+.adm-table-wrap.plp-list::-webkit-scrollbar {
+  display: none;
+}
+
+/* heading list ke top par chipki rehti hai; rows uske neeche se gayab hoti hain */
+.plp-list thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  text-align: center;
+  background: #170a2c;
+  box-shadow: 0 1px 0 rgba(160, 92, 255, 0.25);
+}
+
+.plp-list thead th:first-child { border-top-left-radius: 14px; }
+.plp-list thead th:last-child { border-top-right-radius: 14px; }
+
+.plp-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.plp-sort svg {
+  color: #cf9bff;
+}
+
+.plp-sort:hover {
+  color: #ffffff;
+}
+
+.plp-sort:focus-visible {
+  outline: 2px solid rgba(224, 140, 255, 0.9);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* =========================================================
+   DETAILS MODAL
+   ========================================================= */
 
 .plm-identity {
   display: flex;

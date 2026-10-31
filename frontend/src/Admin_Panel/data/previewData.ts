@@ -7,14 +7,28 @@
  * presented as real Arcadia statistics. Pages that render preview data show a
  * visible "Preview data" notice.
  *
+ * Player-facing rows are projected from the ONE centralized development
+ * fixture (src/data/development/dummyPlayers.ts), so the admin table, the
+ * reports, the support inbox and the moderation log all name the same ten
+ * sample accounts. No extra hardcoded player profile lives here.
+ *
  * When real admin APIs are built, pages should source their data through
  * src/Admin_Panel/services/ and this file can be deleted. The authenticated
  * admin identity is NEVER stored here — it comes only from the admin session.
  */
 
+import { getLocalAvatarOption } from "../../auth/avatarCatalog";
+import {
+  DUMMY_GAMES,
+  DUMMY_PLAYERS,
+  getDummyPlayerByUsername,
+  type DummyPlayer,
+} from "../../data/development/dummyPlayers";
 import type {
+  PreviewAccountStatus,
   PreviewActivityEntry,
   PreviewAnnouncement,
+  PreviewBadge,
   PreviewDashboardStats,
   PreviewGame,
   PreviewModerationAction,
@@ -26,166 +40,122 @@ import type {
 export const PREVIEW_DATA_NOTICE =
   "Preview data — this page uses development samples until the admin management APIs are connected.";
 
-export const previewDashboardStats: PreviewDashboardStats = {
-  totalPlayers: 1284,
-  activePlayers: 312,
-  totalMatches: 48210,
-  pendingReports: 6,
+const BADGE_LABELS: Record<PreviewBadge["tone"], string> = {
+  bronze: "Bronze",
+  silver: "Silver",
+  gold: "Gold",
+  diamond: "Diamond",
+  crown: "Crown",
+  flame: "Flame",
 };
 
-export const previewRecentActivity: PreviewActivityEntry[] = [
-  { id: "act-1", icon: "user", text: "NovaRider_92 registered a new player account", timestamp: "2026-10-30T09:12:00Z" },
-  { id: "act-2", icon: "flag", text: "Report #R-1041 opened against ShadowByte by MiraZen", timestamp: "2026-10-30T08:47:00Z" },
-  { id: "act-3", icon: "shield", text: "Moderator note added for player ARC-9QX2LM4T", timestamp: "2026-10-29T18:05:00Z" },
-  { id: "act-4", icon: "megaphone", text: "Announcement 'Season 4 Kickoff' published", timestamp: "2026-10-29T15:30:00Z" },
-  { id: "act-5", icon: "gamepad", text: "Memory set to Maintenance in Game Management", timestamp: "2026-10-29T11:20:00Z" },
-  { id: "act-6", icon: "user", text: "PixelDrift registered a new player account", timestamp: "2026-10-29T10:02:00Z" },
-];
+function playerByUsername(username: string): DummyPlayer {
+  const player = getDummyPlayerByUsername(username);
+  if (!player) throw new Error(`Unknown development preview player: ${username}`);
+  return player;
+}
 
-export const previewPlayers: PreviewPlayer[] = [
+function accountStatus(player: DummyPlayer): PreviewAccountStatus {
+  return player.status === "SUSPENDED" ? "Suspended" : "Active";
+}
+
+function playerIdentity(player: DummyPlayer) {
+  return {
+    username: player.username,
+    playerId: player.playerId,
+    displayName: player.displayName,
+  };
+}
+
+function supportEmail(player: DummyPlayer): string {
+  return `${player.username.toLowerCase()}@example.com`;
+}
+
+function gameName(player: DummyPlayer): string {
+  return DUMMY_GAMES.find((game) => game.id === player.favoriteGame)?.name
+    ?? player.favoriteGame;
+}
+
+function toPreviewPlayer(player: DummyPlayer): PreviewPlayer {
+  return {
+    id: `pv-${player.id}`,
+    playerId: player.playerId,
+    username: player.username,
+    displayName: player.displayName,
+    avatar: getLocalAvatarOption(player.avatarId).label.slice(0, 1).toUpperCase(),
+    badge: {
+      label: BADGE_LABELS[player.progression.badgeKey],
+      tone: player.progression.badgeKey,
+    },
+    level: player.progression.level,
+    totalXp: player.totalXp,
+    xpIntoLevel: player.progression.currentLevelXp,
+    xpPerLevel: player.progression.nextLevelXp,
+    status: accountStatus(player),
+    joinedDate: player.joinedAt,
+    lastActive: player.lastActiveAt,
+    stats: {
+      matchesPlayed: player.stats.gamesPlayed,
+      wins: player.stats.wins,
+      losses: player.stats.losses,
+      draws: player.stats.draws,
+      favoriteGame: gameName(player),
+      winRate: player.stats.winRatePercent,
+    },
+    moderation: { ...player.moderation },
+  };
+}
+
+export const previewPlayers: PreviewPlayer[] = DUMMY_PLAYERS.map(toPreviewPlayer);
+
+const recentPlayers = [...DUMMY_PLAYERS].sort(
+  (a, b) => Date.parse(b.joinedAt) - Date.parse(a.joinedAt),
+);
+
+export const previewRecentActivity: PreviewActivityEntry[] = [
   {
-    id: "pv-player-1",
-    playerId: "ARC-7K4M2P9Q",
-    username: "MiraZen",
-    displayName: "Mira Zen",
-    avatar: "🧘‍♀️",
-    badge: { label: "Gold", tone: "gold" },
-    level: 42,
-    totalXp: 184320,
-    xpIntoLevel: 3420,
-    xpPerLevel: 5000,
-    status: "Active",
-    joinedDate: "2025-03-14T10:00:00Z",
-    lastActive: "2026-10-30T07:15:00Z",
-    stats: { matchesPlayed: 812, wins: 470, losses: 289, draws: 53, favoriteGame: "Ludo", winRate: 57.9 },
-    moderation: { warnings: 0, reportsAgainst: 1, lastAction: null },
+    id: "act-1",
+    icon: "user",
+    text: `${recentPlayers[0].username} registered a new player account`,
+    timestamp: "2026-10-30T09:12:00Z",
   },
   {
-    id: "pv-player-2",
-    playerId: "ARC-3RT8WZ5N",
-    username: "ShadowByte",
-    displayName: "Shadow Byte",
-    avatar: "🥷",
-    badge: { label: "Silver", tone: "silver" },
-    level: 27,
-    totalXp: 71840,
-    xpIntoLevel: 1250,
-    xpPerLevel: 3000,
-    status: "Suspended",
-    joinedDate: "2025-08-02T14:30:00Z",
-    lastActive: "2026-10-27T22:41:00Z",
-    stats: { matchesPlayed: 394, wins: 231, losses: 149, draws: 14, favoriteGame: "Snake", winRate: 58.6 },
-    moderation: { warnings: 2, reportsAgainst: 4, lastAction: "7-day suspension (2026-10-27)" },
+    id: "act-2",
+    icon: "flag",
+    text: `Report #R-1041 opened against ${playerByUsername("Crownless").username} by ${playerByUsername("SolarisPrime").username}`,
+    timestamp: "2026-10-30T08:47:00Z",
   },
   {
-    id: "pv-player-3",
-    playerId: "ARC-5HD9QJ2V",
-    username: "NovaRider_92",
-    displayName: "Nova Rider",
-    avatar: "🚀",
-    badge: { label: "Bronze", tone: "bronze" },
-    level: 8,
-    totalXp: 9410,
-    xpIntoLevel: 910,
-    xpPerLevel: 1200,
-    status: "Active",
-    joinedDate: "2026-10-12T09:20:00Z",
-    lastActive: "2026-10-30T09:12:00Z",
-    stats: { matchesPlayed: 63, wins: 28, losses: 31, draws: 4, favoriteGame: "Tic Tac Toe", winRate: 44.4 },
-    moderation: { warnings: 0, reportsAgainst: 0, lastAction: null },
+    id: "act-3",
+    icon: "shield",
+    text: `Moderator note added for player ${playerByUsername("Crownless").playerId}`,
+    timestamp: "2026-10-29T18:05:00Z",
   },
   {
-    id: "pv-player-4",
-    playerId: "ARC-2FB6XC8L",
-    username: "LudoLegendary",
-    displayName: "Ludo Legendary",
-    avatar: "👑",
-    badge: { label: "Crown", tone: "crown" },
-    level: 65,
-    totalXp: 412980,
-    xpIntoLevel: 4800,
-    xpPerLevel: 7000,
-    status: "Active",
-    joinedDate: "2024-11-05T16:45:00Z",
-    lastActive: "2026-10-30T08:03:00Z",
-    stats: { matchesPlayed: 1921, wins: 1198, losses: 644, draws: 79, favoriteGame: "Ludo", winRate: 62.4 },
-    moderation: { warnings: 0, reportsAgainst: 0, lastAction: null },
+    id: "act-4",
+    icon: "megaphone",
+    text: "Announcement 'Season 4 Kickoff' published",
+    timestamp: "2026-10-29T15:30:00Z",
   },
   {
-    id: "pv-player-5",
-    playerId: "ARC-8MN4RT6D",
-    username: "PixelDrift",
-    displayName: "Pixel Drift",
-    avatar: "🎨",
-    badge: { label: "Silver", tone: "silver" },
-    level: 19,
-    totalXp: 41250,
-    xpIntoLevel: 2100,
-    xpPerLevel: 2400,
-    status: "Active",
-    joinedDate: "2026-02-18T12:00:00Z",
-    lastActive: "2026-10-29T19:55:00Z",
-    stats: { matchesPlayed: 218, wins: 104, losses: 101, draws: 13, favoriteGame: "Memory", winRate: 47.7 },
-    moderation: { warnings: 1, reportsAgainst: 0, lastAction: "Warning — chat conduct (2026-09-30)" },
+    id: "act-5",
+    icon: "gamepad",
+    text: "Memory set to Maintenance in Game Management",
+    timestamp: "2026-10-29T11:20:00Z",
   },
   {
-    id: "pv-player-6",
-    playerId: "ARC-6QP3GH7S",
-    username: "SerpentQueen",
-    displayName: "Serpent Queen",
-    avatar: "🐍",
-    badge: { label: "Diamond", tone: "diamond" },
-    level: 51,
-    totalXp: 268140,
-    xpIntoLevel: 5300,
-    xpPerLevel: 6000,
-    status: "Active",
-    joinedDate: "2025-01-22T08:10:00Z",
-    lastActive: "2026-10-30T06:44:00Z",
-    stats: { matchesPlayed: 1104, wins: 702, losses: 371, draws: 31, favoriteGame: "Snake & Ladder", winRate: 63.6 },
-    moderation: { warnings: 0, reportsAgainst: 2, lastAction: null },
-  },
-  {
-    id: "pv-player-7",
-    playerId: "ARC-1ZT5NK9B",
-    username: "CasualCarl",
-    displayName: "Casual Carl",
-    avatar: "🧢",
-    badge: { label: "Bronze", tone: "bronze" },
-    level: 4,
-    totalXp: 2180,
-    xpIntoLevel: 180,
-    xpPerLevel: 600,
-    status: "Pending",
-    joinedDate: "2026-10-28T17:26:00Z",
-    lastActive: "2026-10-28T17:40:00Z",
-    stats: { matchesPlayed: 11, wins: 3, losses: 7, draws: 1, favoriteGame: "Rock Paper Scissors", winRate: 27.3 },
-    moderation: { warnings: 0, reportsAgainst: 0, lastAction: null },
-  },
-  {
-    id: "pv-player-8",
-    playerId: "ARC-4VJ7DL3C",
-    username: "ArcadionFan",
-    displayName: "Arcadion Fan",
-    avatar: "✨",
-    badge: { label: "Gold", tone: "gold" },
-    level: 33,
-    totalXp: 118670,
-    xpIntoLevel: 2890,
-    xpPerLevel: 3600,
-    status: "Active",
-    joinedDate: "2025-06-30T11:15:00Z",
-    lastActive: "2026-10-29T21:12:00Z",
-    stats: { matchesPlayed: 540, wins: 299, losses: 218, draws: 23, favoriteGame: "Snake", winRate: 55.4 },
-    moderation: { warnings: 0, reportsAgainst: 0, lastAction: null },
+    id: "act-6",
+    icon: "user",
+    text: `${recentPlayers[1].username} registered a new player account`,
+    timestamp: "2026-10-29T10:02:00Z",
   },
 ];
 
 export const previewReports: PreviewReport[] = [
   {
     id: "R-1041",
-    reportedPlayer: { username: "ShadowByte", playerId: "ARC-3RT8WZ5N", displayName: "Shadow Byte" },
-    reportingPlayer: { username: "MiraZen", playerId: "ARC-7K4M2P9Q", displayName: "Mira Zen" },
+    reportedPlayer: playerIdentity(playerByUsername("Crownless")),
+    reportingPlayer: playerIdentity(playerByUsername("SolarisPrime")),
     reason: "Unsportsmanlike conduct",
     details: "Repeated abusive chat messages after every match in the Ludo queue on 29 October. Screenshots attached in the original ticket.",
     submittedDate: "2026-10-30T08:47:00Z",
@@ -193,8 +163,8 @@ export const previewReports: PreviewReport[] = [
   },
   {
     id: "R-1040",
-    reportedPlayer: { username: "CasualCarl", playerId: "ARC-1ZT5NK9B", displayName: "Casual Carl" },
-    reportingPlayer: { username: "PixelDrift", playerId: "ARC-8MN4RT6D", displayName: "Pixel Drift" },
+    reportedPlayer: playerIdentity(playerByUsername("NovaRider")),
+    reportingPlayer: playerIdentity(playerByUsername("TitanVale")),
     reason: "Suspected automation",
     details: "Player completes memory rounds in under two seconds with perfect accuracy every time.",
     submittedDate: "2026-10-29T20:14:00Z",
@@ -202,8 +172,8 @@ export const previewReports: PreviewReport[] = [
   },
   {
     id: "R-1039",
-    reportedPlayer: { username: "ArcadionFan", playerId: "ARC-4VJ7DL3C", displayName: "Arcadion Fan" },
-    reportingPlayer: { username: "NovaRider_92", playerId: "ARC-5HD9QJ2V", displayName: "Nova Rider" },
+    reportedPlayer: playerIdentity(playerByUsername("ByteBard")),
+    reportingPlayer: playerIdentity(playerByUsername("AstralFox")),
     reason: "Inappropriate username",
     details: "Name changes frequently to impersonate official Arcadion announcements in the leaderboard chat.",
     submittedDate: "2026-10-28T16:02:00Z",
@@ -211,8 +181,8 @@ export const previewReports: PreviewReport[] = [
   },
   {
     id: "R-1038",
-    reportedPlayer: { username: "SerpentQueen", playerId: "ARC-6QP3GH7S", displayName: "Serpent Queen" },
-    reportingPlayer: { username: "CasualCarl", playerId: "ARC-1ZT5NK9B", displayName: "Casual Carl" },
+    reportedPlayer: playerIdentity(playerByUsername("LudoLynx")),
+    reportingPlayer: playerIdentity(playerByUsername("EchoWarden")),
     reason: "Exploit abuse",
     details: "Claimed the snake-head square grants double turns. Could not reproduce.",
     submittedDate: "2026-10-26T10:31:00Z",
@@ -220,8 +190,8 @@ export const previewReports: PreviewReport[] = [
   },
   {
     id: "R-1037",
-    reportedPlayer: { username: "LudoLegendary", playerId: "ARC-2FB6XC8L", displayName: "Ludo Legendary" },
-    reportingPlayer: { username: "ShadowByte", playerId: "ARC-3RT8WZ5N", displayName: "Shadow Byte" },
+    reportedPlayer: playerIdentity(playerByUsername("QuasarKid")),
+    reportingPlayer: playerIdentity(playerByUsername("PixelSage")),
     reason: "Harassment",
     details: "Reporter claims targeted rematch follows; match logs show random matchmaking. Needs a second look.",
     submittedDate: "2026-10-24T13:55:00Z",
@@ -232,7 +202,11 @@ export const previewReports: PreviewReport[] = [
 export const previewSupportRequests: PreviewSupportRequest[] = [
   {
     id: "S-2210",
-    user: { username: "NovaRider_92", playerId: "ARC-5HD9QJ2V", email: "nova.rider@example.com" },
+    user: {
+      username: playerByUsername("NovaRider").username,
+      playerId: playerByUsername("NovaRider").playerId,
+      email: supportEmail(playerByUsername("NovaRider")),
+    },
     subject: "Cannot link Google account",
     category: "Account",
     message: "The Google sign-in button returns me to the landing page without linking. I already have a username.",
@@ -242,7 +216,11 @@ export const previewSupportRequests: PreviewSupportRequest[] = [
   },
   {
     id: "S-2209",
-    user: { username: "PixelDrift", playerId: "ARC-8MN4RT6D", email: "pixel.drift@example.com" },
+    user: {
+      username: playerByUsername("PixelSage").username,
+      playerId: playerByUsername("PixelSage").playerId,
+      email: supportEmail(playerByUsername("PixelSage")),
+    },
     subject: "Sound settings do not persist",
     category: "Settings",
     message: "Turning sound effects off resets after every page reload on my tablet.",
@@ -252,7 +230,11 @@ export const previewSupportRequests: PreviewSupportRequest[] = [
   },
   {
     id: "S-2208",
-    user: { username: "MiraZen", playerId: "ARC-7K4M2P9Q", email: "mira.zen@example.com" },
+    user: {
+      username: playerByUsername("TitanVale").username,
+      playerId: playerByUsername("TitanVale").playerId,
+      email: supportEmail(playerByUsername("TitanVale")),
+    },
     subject: "Match history shows a missing game",
     category: "Bug",
     message: "A Ludo match from 27 October never appeared in my history. Match ID if needed: MD-8841.",
@@ -262,7 +244,11 @@ export const previewSupportRequests: PreviewSupportRequest[] = [
   },
   {
     id: "S-2207",
-    user: { username: "CasualCarl", playerId: "ARC-1ZT5NK9B", email: "casual.carl@example.com" },
+    user: {
+      username: playerByUsername("ByteBard").username,
+      playerId: playerByUsername("ByteBard").playerId,
+      email: supportEmail(playerByUsername("ByteBard")),
+    },
     subject: "How do leaderboards work?",
     category: "Question",
     message: "Do weekly leaderboards reset every Monday? Where can I see my rank history?",
@@ -286,8 +272,8 @@ export const previewModerationActions: PreviewModerationAction[] = [
     id: "M-512",
     actionType: "Warning",
     targetType: "Player",
-    targetReference: "ARC-8MN4RT6D",
-    targetUsername: "PixelDrift",
+    targetReference: playerByUsername("PixelSage").playerId,
+    targetUsername: playerByUsername("PixelSage").username,
     reason: "Chat conduct",
     details: "Friendly warning after an argument in leaderboard chat. Player acknowledged.",
     moderator: "admin",
@@ -299,7 +285,7 @@ export const previewModerationActions: PreviewModerationAction[] = [
     actionType: "Report Review",
     targetType: "Report",
     targetReference: "R-1039",
-    targetUsername: "ArcadionFan",
+    targetUsername: playerByUsername("ByteBard").username,
     reason: "Inappropriate username",
     details: "Username reviewed against policy; no violation found at this time. Report resolved with note.",
     moderator: "admin",
@@ -311,7 +297,7 @@ export const previewModerationActions: PreviewModerationAction[] = [
     actionType: "Escalation",
     targetType: "Report",
     targetReference: "R-1040",
-    targetUsername: "CasualCarl",
+    targetUsername: playerByUsername("NovaRider").username,
     reason: "Suspected automation",
     details: "Gameplay telemetry requested from the game service before any action. Awaiting data.",
     moderator: "admin",
@@ -322,8 +308,8 @@ export const previewModerationActions: PreviewModerationAction[] = [
     id: "M-509",
     actionType: "Note",
     targetType: "Player",
-    targetReference: "ARC-3RT8WZ5N",
-    targetUsername: "ShadowByte",
+    targetReference: playerByUsername("Crownless").playerId,
+    targetUsername: playerByUsername("Crownless").username,
     reason: "Behaviour trend",
     details: "Third report in a month. Next offence should escalate to suspension per policy draft.",
     moderator: "admin",
@@ -371,10 +357,28 @@ export const previewAnnouncements: PreviewAnnouncement[] = [
   },
 ];
 
-/** Recent registrations shown on the dashboard (subset of preview players). */
-export const previewRecentRegistrations = [
-  { playerId: "ARC-1ZT5NK9B", username: "CasualCarl", level: 4, joinedDate: "2026-10-28T17:26:00Z", status: "Pending" as const },
-  { playerId: "ARC-5HD9QJ2V", username: "NovaRider_92", level: 8, joinedDate: "2026-10-12T09:20:00Z", status: "Active" as const },
-  { playerId: "ARC-9WL2PQ6H", username: "StarGazer", level: 2, joinedDate: "2026-10-09T13:45:00Z", status: "Active" as const },
-  { playerId: "ARC-0KC8MN5F", username: "BitBard", level: 6, joinedDate: "2026-10-04T19:08:00Z", status: "Active" as const },
-];
+/** Recent registrations shown on the dashboard (the four newest fixtures). */
+export const previewRecentRegistrations: Array<{
+  playerId: string;
+  username: string;
+  level: number;
+  joinedDate: string;
+  status: PreviewAccountStatus;
+}> = recentPlayers.slice(0, 4).map((player) => ({
+  playerId: player.playerId,
+  username: player.username,
+  level: player.progression.level,
+  joinedDate: player.joinedAt,
+  status: accountStatus(player),
+}));
+
+/** Headline counts, all derived from the same fixtures. */
+export const previewDashboardStats: PreviewDashboardStats = {
+  totalPlayers: previewPlayers.length,
+  activePlayers: previewPlayers.filter((player) => player.status === "Active").length,
+  totalMatches: previewPlayers.reduce(
+    (total, player) => total + player.stats.matchesPlayed,
+    0,
+  ),
+  pendingReports: previewReports.filter((report) => report.status === "Open").length,
+};
