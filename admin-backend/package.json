@@ -1,0 +1,24 @@
+{
+  "name": "arcadia-admin-backend",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Independent authentication backend for the Arcadia Admin Panel. Single admin account, no registration, no player data.",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "hash-password": "node scripts/generate-admin-hash.js",
+    "test": "node --test test/adminAuth.test.js",
+    "check": "node scripts/check-syntax.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

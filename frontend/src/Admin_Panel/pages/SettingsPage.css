@@ -1,0 +1,18 @@
+/*
+ * Settings page styling.
+ */
+
+.adm-settings-row__value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--adm-text);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.adm-settings-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--adm-text-muted);
+}

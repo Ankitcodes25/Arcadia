@@ -21,6 +21,7 @@ let toSafeUser;
 let connectDatabase;
 let disconnectDatabase;
 let validateEnvironment;
+let validateMongoUri;
 let createApp;
 let signAccessToken;
 let verifyAccessToken;
@@ -110,7 +111,7 @@ before(async () => {
   ({ provisionAdmin } = require('../services/adminProvisioner'));
   ({ toSafeUser } = require('../utils/safeUser'));
   ({ connectDatabase, disconnectDatabase } = require('../config/database'));
-  ({ validateEnvironment } = require('../config/env'));
+  ({ validateEnvironment, validateMongoUri } = require('../config/env'));
   createApp = require('../app');
   ({ signAccessToken, verifyAccessToken } = require('../utils/jwt'));
   ({ Session } = require('../models/Session'));
@@ -3528,6 +3529,24 @@ test('environment validation requires a database URI and a sufficiently long JWT
   assert.throws(
     () => validateEnvironment({ MONGODB_URI: 'mongodb+srv://cluster.example', JWT_SECRET: 'a'.repeat(32) }),
     /MONGODB_URI must include a database name/,
+  );
+});
+
+test('MongoDB URI validation accepts replica-set seed lists and requires TLS in production', () => {
+  const uri = 'mongodb://user:pass@db-0.example:27017,db-1.example:27017/arcadia?ssl=true&replicaSet=atlas-shard-0&authSource=admin';
+  assert.equal(validateMongoUri(uri), uri);
+  assert.equal(validateMongoUri(uri, 'production'), uri);
+  assert.throws(
+    () => validateMongoUri(uri.replace('?ssl=true&', '?'), 'production'),
+    /MONGODB_URI must enable TLS in production/,
+  );
+  assert.throws(
+    () => validateMongoUri('mongodb+srv://db-0.example,db-1.example/arcadia'),
+    /MONGODB_URI must be a valid mongodb/,
+  );
+  assert.throws(
+    () => validateMongoUri('mongodb://db-0.example:27017,,db-1.example:27017/arcadia'),
+    /MONGODB_URI must be a valid mongodb/,
   );
 });
 
