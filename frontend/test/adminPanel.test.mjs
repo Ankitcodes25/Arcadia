@@ -178,7 +178,7 @@ test("admin credentials resolve to the admin routing intent via the server", asy
   assert.equal(sent.email, "admin@arcadia.gg");
   assert.equal(sent.password, "correct-password");
   assert.equal(call.options.credentials, "include");
-  assert.equal(call.options.headers["X-Admin-Request"], "1");
+  assert.equal(call.options.headers["X-Arcadia-Request"], "1");
 });
 
 test("player credentials resolve to the player routing intent (continue player flow)", async () => {
@@ -215,7 +215,7 @@ test("a rate-limited resolution (429) stops with the rate-limit message", async 
   assert.match(resolution.message, /too many login attempts/i);
 });
 
-test("an unreachable admin backend fails closed instead of trying player authentication", async () => {
+test("an unreachable admin login resolver fails closed instead of trying player authentication", async () => {
   globalThis.fetch = (url, options) => {
     fetchCalls.push({ url: String(url), options });
     if (String(url).includes("/api/admin/auth/login")) {

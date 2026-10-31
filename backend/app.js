@@ -6,6 +6,7 @@ const authRoutes = require('./routes/authRoutes');
 const accountRoutes = require('./routes/accountRoutes');
 const publicPlayerRoutes = require('./routes/publicPlayerRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const adminAuthRoutes = require('./routes/adminAuthRoutes');
 const supportRoutes = require('./routes/supportRoutes');
 const csrfProtection = require('./middleware/csrfProtection');
 const errorHandler = require('./middleware/errorHandler');
@@ -47,6 +48,8 @@ function createApp() {
   app.use('/api/v1/admin', adminRoutes);
   // Keep the admin compatibility alias aligned with the existing auth aliases.
   app.use('/admin', adminRoutes);
+  // Admin Panel sign-in (single env-configured account, own session cookie).
+  app.use('/api/admin/auth', adminAuthRoutes);
   app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
   app.use(errorHandler);
 

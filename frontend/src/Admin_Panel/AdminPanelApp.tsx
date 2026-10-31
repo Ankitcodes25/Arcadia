@@ -12,8 +12,8 @@
  * There is deliberately no admin login page: the single login/signup modal
  * serves players and the admin alike, and the server reports which account type
  * the attempt belongs to. The player authentication system is untouched: this
- * tree talks only to the separate Admin Backend, and a player session grants
- * nothing here.
+ * tree talks only to the backend's /api/admin/auth routes with its own admin
+ * session cookie, and a player session grants nothing here.
  */
 
 import { useEffect } from "react";

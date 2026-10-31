@@ -1,18 +1,16 @@
 /*
- * Admin API client for the separate Admin Backend.
+ * Admin API client for the Admin Panel sign-in routes (/api/admin/auth/*).
  *
- * This is the ONLY module in the Admin Panel that talks to the admin backend.
- * It mirrors the player-side authApi conventions: JSON in/out, credentials
- * included for the HTTP-only cookie, a custom header for the backend's request
- * verification, an abort timeout, and generic safe error messages.
- *
- * The session token lives exclusively in the HTTP-only cookie set by the
- * admin backend — this client never touches localStorage or sessionStorage.
+ * The admin auth routes live on the main Arcadia backend, so this client uses
+ * the same origin (VITE_API_URL) and request-verification header
+ * (X-Arcadia-Request) as the player authApi, but its own session: the
+ * HTTP-only admin cookie, never the player access token. It never touches
+ * localStorage or sessionStorage.
  */
 
+import { getApiBaseUrl } from "../../auth/authApi";
 import type { AdminIdentity } from "../types/adminTypes";
 
-const DEV_FALLBACK_BASE_URL = "http://localhost:4100";
 const REQUEST_TIMEOUT_MS = 15000;
 
 export class AdminApiError extends Error {
@@ -25,33 +23,14 @@ export class AdminApiError extends Error {
   }
 }
 
-/**
- * Base URL resolution. In development the admin backend runs on port 4100 by
- * default; production builds must set VITE_ADMIN_API_URL to the deployed
- * admin backend origin.
- */
+/** The backend origin (VITE_API_URL; http://localhost:4000 in development). */
 export function getAdminApiBaseUrl(): string {
-  const configured = import.meta.env.VITE_ADMIN_API_URL?.trim();
-
-  if (configured) {
-    let parsed: URL;
-    try {
-      parsed = new URL(configured);
-    } catch {
-      throw new AdminApiError("Admin API URL is misconfigured", 0);
-    }
-    if (parsed.protocol !== "https:" && import.meta.env.PROD) {
-      throw new AdminApiError("Admin API URL must use HTTPS in production", 0);
-    }
-    return configured.replace(/\/+$/, "");
+  try {
+    return getApiBaseUrl();
+  } catch {
+    // Fail closed: never silently call an unintended origin.
+    throw new AdminApiError("API URL is misconfigured", 0);
   }
-
-  if (import.meta.env.PROD) {
-    // Fail closed in production: never silently call an unintended origin.
-    throw new AdminApiError("Admin API URL is not configured", 0);
-  }
-
-  return DEV_FALLBACK_BASE_URL;
 }
 
 interface RequestOptions {
@@ -76,8 +55,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       method,
       headers: {
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-        // Required by the admin backend's request-verification layer on writes.
-        "X-Admin-Request": "1",
+        // Required by the backend's CSRF check on cookie-authenticated writes.
+        "X-Arcadia-Request": "1",
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
       // The HTTP-only admin session cookie travels with every call.
@@ -86,7 +65,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       signal: controller.signal,
     });
   } catch {
-    throw new AdminApiError("Could not reach the admin service", 0);
+    throw new AdminApiError("Could not reach the Arcadia server", 0);
   } finally {
     clearTimeout(timeout);
   }

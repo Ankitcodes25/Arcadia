@@ -2,7 +2,7 @@
  * Server-side login account resolution (frontend side of the hand-off).
  *
  * The frontend NEVER compares credentials. On login it relays the submitted
- * email + password ONCE to the admin backend's login resolver, which decides —
+ * email + password ONCE to the backend's admin login resolver, which decides —
  * server-side — whether the attempt belongs to the single admin account or to
  * a player, and answers with an explicit accountType (or a failure). This
  * module just relays that decision and maps backend outcomes to a routing
@@ -15,7 +15,7 @@
  *               NEVER retried as a player login.
  *
  * No admin credential, hash or session value is handled or persisted here; the
- * session itself lives only in the admin backend's HTTP-only cookie.
+ * session itself lives only in the backend's HTTP-only admin cookie.
  */
 
 import { adminApi, AdminApiError } from "../Admin_Panel/services/adminAuthService";
@@ -30,7 +30,7 @@ const RATE_LIMIT_MESSAGE = "Too many login attempts. Please try again later.";
 const RESOLUTION_ERROR_MESSAGE = "Unable to verify your account right now. Please try again.";
 
 /**
- * Asks the admin backend's resolver which kind of account this login attempt
+ * Asks the backend's admin login resolver which kind of account this login attempt
  * belongs to. The account type is only ever reported by the server, after it
  * has resolved the credentials — never inferred in the browser.
  */

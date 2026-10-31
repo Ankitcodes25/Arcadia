@@ -1,8 +1,8 @@
 /*
  * Types for the Arcadia Admin Panel.
  *
- * The admin identity (AdminIdentity) comes from the real Admin Backend auth
- * API. Everything under "preview data" types (PreviewPlayer, PreviewReport,
+ * The admin identity (AdminIdentity) comes from the real admin auth API
+ * (/api/admin/auth). Everything under "preview data" types (PreviewPlayer, PreviewReport,
  * ...) describes DEVELOPMENT-PREVIEW data shapes only — see
  * ../data/previewData.ts. They are placeholders for future management APIs
  * and are never presented as real production statistics.

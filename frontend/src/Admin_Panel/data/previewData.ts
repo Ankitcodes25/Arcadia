@@ -9,7 +9,7 @@
  *
  * When real admin APIs are built, pages should source their data through
  * src/Admin_Panel/services/ and this file can be deleted. The authenticated
- * admin identity is NEVER stored here — it comes only from the Admin Backend.
+ * admin identity is NEVER stored here — it comes only from the admin session.
  */
 
 import type {

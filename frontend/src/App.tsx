@@ -82,7 +82,7 @@ function AppContent() {
 
   /*
    * The Admin Panel (/admin/*) is a self-contained application with its own
-   * authentication against the separate Admin Backend. It is mounted here,
+   * authentication (/api/admin/auth, its own session cookie). It is mounted here,
    * ahead of the player-session gates below, so admin login/refresh is never
    * blocked by (and never blocks) the player auth bootstrap — a player
    * session grants no admin access, and vice versa.

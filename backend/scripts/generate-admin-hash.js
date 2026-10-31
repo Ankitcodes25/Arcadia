@@ -2,28 +2,31 @@
  * Generates a bcrypt hash for ADMIN_PASSWORD_HASH without ever printing the
  * password or writing it to any file.
  *
- * Usage:
- *   npm run hash-password              → interactive, hidden prompt (asks twice)
- *   echo "correct horse battery staple" | npm run hash-password -- --stdin
- *   ADMIN_NEW_PASSWORD="..." npm run hash-password -- --env
+ * Usage (from backend/):
+ *   npm run hash:admin-password              → interactive, hidden prompt (asks twice)
+ *   echo "correct horse battery staple" | npm run hash:admin-password -- --stdin
+ *   ADMIN_NEW_PASSWORD="..." npm run hash:admin-password -- --env
  *
- * Only the resulting hash is printed to stdout. Copy it into admin-backend/.env
- * as ADMIN_PASSWORD_HASH. The plaintext password is never echoed, logged or
+ * Only the resulting hash is printed to stdout. Copy it into backend/.env as
+ * ADMIN_PASSWORD_HASH. The plaintext password is never echoed, logged or
  * stored anywhere by this script.
  */
 
+const path = require('node:path');
 const readline = require('node:readline');
 
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
+
 /*
- * Deliberately does NOT load config/env.js: that module validates
- * ADMIN_PASSWORD_HASH, which does not exist yet on a fresh setup — the whole
- * point of this script is to create it. The bcrypt cost is read directly with
- * the same bounds so behaviour stays consistent with the server.
+ * Deliberately does NOT load config/env.js or config/adminPanel.js: a fresh
+ * setup has no ADMIN_PASSWORD_HASH yet, and the point of this script is to
+ * create it. BCRYPT_COST is read with the same bounds and default as
+ * config/env.js.
  */
 function resolveBcryptCost() {
   const raw = process.env.BCRYPT_COST;
   if (!raw) {
-    return 10;
+    return process.env.NODE_ENV === 'production' ? 12 : 10;
   }
   const parsed = Number(raw);
   if (!Number.isInteger(parsed) || parsed < 10 || parsed > 15) {
@@ -109,7 +112,7 @@ async function main() {
   const bcrypt = require('bcryptjs');
   const hash = await bcrypt.hash(password, bcryptCost);
   // The only thing ever printed: the hash itself.
-  process.stdout.write(`\nbcrypt hash (copy into admin-backend/.env as ADMIN_PASSWORD_HASH):\n\n${hash}\n\n`);
+  process.stdout.write(`\nbcrypt hash (copy into backend/.env as ADMIN_PASSWORD_HASH):\n\n${hash}\n\n`);
 }
 
 main().catch((error) => {

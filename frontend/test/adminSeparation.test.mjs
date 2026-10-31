@@ -270,7 +270,7 @@ test("the player home route renders the player Navbar and no admin chrome", asyn
    ================================================================== */
 
 test("a valid PLAYER session does not unlock /admin — gated to the shared login", async () => {
-  // Player backend says fully signed in; admin backend says 401.
+  // Player session is fully signed in; the admin session check says 401.
   fetchPlan = [
     { match: "/api/v1/auth/refresh", status: 200, body: {} },
     { match: "/api/v1/auth/me", status: 200, body: { user: { username: "player1" } } },

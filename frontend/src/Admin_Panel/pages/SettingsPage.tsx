@@ -1,7 +1,7 @@
 /*
  * Settings — configuration for the Admin Panel itself (NOT player settings).
  *
- * Sections: admin account (real identity from the Admin Backend session),
+ * Sections: admin account (real identity from the admin session),
  * session security info, and panel preferences (local UI state). Credential
  * management is intentionally absent: the single admin account is configured
  * through the backend environment, so there is nothing to edit here.
@@ -59,7 +59,7 @@ function SettingsPage() {
           <div className="adm-settings-row">
             <div className="adm-settings-row__text">
               <span className="adm-settings-row__label">Username</span>
-              <span className="adm-settings-row__hint">Configured via the admin backend environment</span>
+              <span className="adm-settings-row__hint">Configured in backend/.env</span>
             </div>
             <span className="adm-settings-row__value">{admin?.username ?? "—"}</span>
           </div>
@@ -148,12 +148,12 @@ function SettingsPage() {
 
         <section className="adm-card">
           <h3 className="adm-card__title">System</h3>
-          <p className="adm-card__subtitle">Admin service connection details.</p>
+          <p className="adm-card__subtitle">Backend connection details.</p>
 
           <div className="adm-settings-row">
             <div className="adm-settings-row__text">
-              <span className="adm-settings-row__label">Admin API origin</span>
-              <span className="adm-settings-row__hint">Separate from the player backend (port 4000)</span>
+              <span className="adm-settings-row__label">API origin</span>
+              <span className="adm-settings-row__hint">Main Arcadia backend (VITE_API_URL)</span>
             </div>
             <span className="adm-settings-row__value adm-mono">{apiOrigin}</span>
           </div>
