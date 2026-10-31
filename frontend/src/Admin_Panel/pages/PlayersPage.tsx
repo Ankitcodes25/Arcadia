@@ -509,7 +509,7 @@ function PlayersPage() {
                 <td>
                   <StatusBadge status={player.status} />
                 </td>
-                <td>{formatDate(player.joinedDate)}</td>
+                 <td>{formatDate(player.joinedDate)}</td>
               </tr>
             ))}
             {filteredPlayers.length === 0 ? (
