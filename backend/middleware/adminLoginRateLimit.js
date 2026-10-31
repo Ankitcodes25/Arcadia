@@ -5,7 +5,7 @@
  * the shared Mongo limiter in rateLimit.js: that one counts every request and
  * would throttle ordinary players. Only rejected admin logins (401) stay
  * counted, per IP and per submitted email, in a fixed 15-minute window held in
- * process memory; in-flight attempts hold a slot until they finish. A restart resets the counters, which can only loosen the
+ * process memory; in-flight and aborted attempts hold their slot too. A restart resets the counters, which can only loosen the
  * limit, never lock the admin out. The 429 never says which bucket was hit.
  */
 
@@ -27,18 +27,21 @@ function pruneExpired(now) {
   }
 }
 
+/** Counts the attempt and returns the exact bucket (window) it was counted in. */
 function reserveAttempt(key, now) {
   const existing = buckets.get(key);
   if (!existing || existing.resetAt <= now) {
-    buckets.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
-    return;
+    const bucket = { count: 1, resetAt: now + LOGIN_WINDOW_MS };
+    buckets.set(key, bucket);
+    return bucket;
   }
   existing.count += 1;
+  return existing;
 }
 
-function releaseAttempt(key) {
-  const bucket = buckets.get(key);
-  if (bucket && bucket.count > 0) {
+/** Gives a slot back only to the window it was taken from, never a newer one. */
+function releaseAttempt(key, bucket) {
+  if (buckets.get(key) === bucket && bucket.count > 0) {
     bucket.count -= 1;
   }
 }
@@ -62,21 +65,17 @@ function adminLoginRateLimit(req, res, next) {
   }
 
   // Reserve the slot before the (slow, bcrypt) password check so parallel
-  // attempts cannot all pass the check above, then hand it back unless the
-  // attempt ended as a rejected login.
-  const keys = emailKey ? [ipKey, emailKey] : [ipKey];
-  keys.forEach((key) => reserveAttempt(key, now));
+  // attempts cannot all pass the check above. It is handed back only once a
+  // response has been fully sent with a non-401 status; an attempt the client
+  // aborts before that keeps its slot, counted like a failure.
+  const reservations = (emailKey ? [ipKey, emailKey] : [ipKey])
+    .map((key) => [key, reserveAttempt(key, now)]);
 
-  let settled = false;
-  const settle = () => {
-    if (settled) return;
-    settled = true;
+  res.once('finish', () => {
     if (res.statusCode !== 401) {
-      keys.forEach(releaseAttempt);
+      reservations.forEach(([key, bucket]) => releaseAttempt(key, bucket));
     }
-  };
-  res.once('finish', settle);
-  res.once('close', settle);
+  });
 
   return next();
 }

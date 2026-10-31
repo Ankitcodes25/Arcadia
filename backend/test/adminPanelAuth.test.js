@@ -43,6 +43,7 @@ const {
   resetAdminPanelConfigForTests,
 } = require('../config/adminPanel');
 const {
+  adminLoginRateLimit,
   resetAdminLoginRateLimitForTests,
   ADMIN_LOGIN_LIMITS,
 } = require('../middleware/adminLoginRateLimit');
@@ -230,6 +231,64 @@ test('successful and player attempts give their reserved slot back', async () =>
   // Nothing was consumed, so the full failure budget is still available.
   for (let attempt = 0; attempt < ADMIN_LOGIN_LIMITS.perEmail; attempt += 1) {
     assert.equal((await login(TEST_EMAIL, `wrong-${attempt}`)).status, 401);
+  }
+});
+
+// Drives the limiter middleware directly with a fake response, so aborts and
+// window rollovers can be staged deterministically.
+function startLimitedAttempt(email) {
+  const { EventEmitter } = require('node:events');
+  const res = Object.assign(new EventEmitter(), {
+    statusCode: 200,
+    set() { return res; },
+    status(code) { res.statusCode = code; return res; },
+    json() { return res; },
+  });
+  let passed = false;
+  adminLoginRateLimit({ ip: '203.0.113.9', body: { email } }, res, () => { passed = true; });
+  return { res, passed };
+}
+
+function finishWith(res, statusCode) {
+  res.statusCode = statusCode;
+  res.emit('finish');
+  res.emit('close');
+}
+
+test('an attempt aborted before its response keeps its slot', () => {
+  for (let i = 0; i < ADMIN_LOGIN_LIMITS.perEmail; i += 1) {
+    const attempt = startLimitedAttempt(TEST_EMAIL);
+    assert.equal(attempt.passed, true);
+    attempt.res.emit('close'); // client hung up; no 'finish', status still 200
+  }
+  const blocked = startLimitedAttempt(TEST_EMAIL);
+  assert.equal(blocked.passed, false);
+  assert.equal(blocked.res.statusCode, 429);
+});
+
+test('a release after the window rolls over never frees a slot in the new window', (t) => {
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+
+  const stale = startLimitedAttempt(TEST_EMAIL);
+  now += ADMIN_LOGIN_LIMITS.windowMs + 1;
+
+  for (let i = 0; i < ADMIN_LOGIN_LIMITS.perEmail; i += 1) {
+    const attempt = startLimitedAttempt(TEST_EMAIL);
+    assert.equal(attempt.passed, true);
+    finishWith(attempt.res, 401);
+  }
+  // The old-window attempt succeeds now; it must not hand back a new-window slot.
+  finishWith(stale.res, 200);
+
+  assert.equal(startLimitedAttempt(TEST_EMAIL).passed, false);
+});
+
+test('a finished non-401 attempt in the same window gives its slot back', () => {
+  for (let i = 0; i < ADMIN_LOGIN_LIMITS.perEmail * 2; i += 1) {
+    const attempt = startLimitedAttempt(TEST_EMAIL);
+    assert.equal(attempt.passed, true);
+    finishWith(attempt.res, 200);
   }
 });
 
