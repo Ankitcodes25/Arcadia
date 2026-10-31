@@ -7,7 +7,8 @@
  *   ADMIN_EMAIL                 the login identifier the shared login modal sends
  *                               (also used by `npm run provision:admin`)
  *   ADMIN_USERNAME              session identity, 3-64 characters
- *   ADMIN_PASSWORD_HASH         bcrypt hash - generate with `npm run hash:admin-password`
+ *   ADMIN_PASSWORD_HASH         bcrypt fallback hash - generate with `npm run hash:admin-password`;
+ *                               an active MongoDB ADMIN account's password takes precedence
  *   ADMIN_JWT_SECRET            >= 32 characters, different from JWT_SECRET
  *   ADMIN_SESSION_TTL_MINUTES   optional, 5-720, default 240
  *

@@ -1,18 +1,22 @@
 /*
  * Admin Panel session lifecycle: login resolution, token issue, verification
- * and logout revocation for the single env-configured admin account
- * (config/adminPanel.js).
+ * and logout revocation for the single configured admin account
+ * (config/adminPanel.js). A provisioned MongoDB admin's current password is
+ * authoritative; the configured bcrypt hash is used when no admin is provisioned.
  *
  * resolveLogin() decides the account type server-side by identifier before any
  * password work: a non-admin email is routed to the player flow untouched,
- * while the admin email is always checked with bcrypt. When the panel is not
- * configured there is no admin account, so every email resolves to a player.
+ * while the admin email is checked against the provisioned account or the
+ * configured fallback hash. When the panel is not configured there is no
+ * admin account, so every email resolves to a player.
  * No credential material is ever returned or logged.
  */
 
 const crypto = require('node:crypto');
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const { getAdminPanelConfig } = require('../config/adminPanel');
+const { User, USER_ROLES, ACCOUNT_STATUSES } = require('../models/User');
 const normalizeEmail = require('../utils/normalizeEmail');
 const { signAdminSession, verifyAdminSession } = require('../utils/adminSessionToken');
 
@@ -68,9 +72,26 @@ async function resolveLogin(submittedEmail, submittedPassword) {
     return { accountType: 'player' };
   }
 
+  let passwordHash = config.passwordHash;
+  if (mongoose.connection.readyState === 1) {
+    const adminAccount = await User.findOne({
+      email: config.email,
+      role: USER_ROLES.ADMIN,
+    }).select('+passwordHash');
+
+    if (adminAccount) {
+      if (adminAccount.status !== ACCOUNT_STATUSES.ACTIVE || !adminAccount.passwordHash) {
+        return { accountType: 'admin', failure: 'invalid_credentials' };
+      }
+      passwordHash = adminAccount.passwordHash;
+    }
+  } else if (process.env.NODE_ENV === 'production') {
+    throw new Error('Admin account verification is unavailable');
+  }
+
   let passwordMatch = false;
   try {
-    passwordMatch = await bcrypt.compare(String(submittedPassword ?? ''), config.passwordHash);
+    passwordMatch = await bcrypt.compare(String(submittedPassword ?? ''), passwordHash);
   } catch {
     passwordMatch = false;
   }
