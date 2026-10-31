@@ -1,0 +1,7 @@
+# Environment files hold credentials — never commit them.
+.env
+.env.*
+!.env.example
+
+node_modules/
+*.log

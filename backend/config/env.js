@@ -64,19 +64,43 @@ function validateMongoUri(value, nodeEnv = 'development') {
     throw createSafeConfigError('MONGODB_URI contains invalid characters');
   }
 
+  const uriParts = value.match(/^(mongodb(?:\+srv)?:\/\/)([^/?#]+)([^?#]*)(?:\?([^#]*))?$/i);
+  let scheme;
+  let pathname;
+  let query;
   let parsed;
   try {
-    parsed = new URL(value);
+    if (!uriParts) {
+      throw new Error('Invalid MongoDB URI');
+    }
+
+    [, scheme, , pathname] = uriParts;
+    const authority = uriParts[2];
+    query = uriParts[4];
+    const credentialsEnd = authority.lastIndexOf('@');
+    const credentials = credentialsEnd === -1 ? '' : authority.slice(0, credentialsEnd + 1);
+    const hosts = authority.slice(credentialsEnd + 1).split(',');
+
+    if (!hosts.length || hosts.some((host) => !host) || (scheme.toLowerCase().startsWith('mongodb+srv') && hosts.length !== 1)) {
+      throw new Error('Invalid MongoDB hosts');
+    }
+
+    for (const host of hosts) {
+      parsed = new URL(`${scheme}${credentials}${host}${pathname}${query === undefined ? '' : `?${query}`}`);
+      if (!parsed.hostname) {
+        throw new Error('Invalid MongoDB host');
+      }
+    }
   } catch {
     throw createSafeConfigError('MONGODB_URI must be a valid mongodb:// or mongodb+srv:// URI');
   }
 
-  if (!parsed.hostname || !parsed.pathname || parsed.pathname === '/') {
+  if (!pathname || pathname === '/' || !parsed.hostname) {
     throw createSafeConfigError('MONGODB_URI must include a database name');
   }
 
-  if (nodeEnv === 'production' && parsed.protocol === 'mongodb:') {
-    const tlsEnabled = /(?:^|&)(?:tls|ssl)=true(?:&|$)/i.test(parsed.search);
+  if (nodeEnv === 'production' && scheme.toLowerCase() === 'mongodb://') {
+    const tlsEnabled = /(?:^|&)(?:tls|ssl)=true(?:&|$)/i.test(query || '');
     if (!tlsEnabled) {
       throw createSafeConfigError('MONGODB_URI must enable TLS in production');
     }

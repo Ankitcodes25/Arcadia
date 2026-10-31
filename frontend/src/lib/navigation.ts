@@ -151,6 +151,36 @@ export function consumeProfilePopupReopenRequest(): boolean {
   return requested;
 }
 
+/*
+   Shared login modal, opened on the next mount
+
+   The Admin Portal has no login page of its own — signing out, or reaching an
+   admin page while signed out, lands on the landing page with the ONE existing
+   Arcadia login/signup modal opened. The redirect happens first, so by the time
+   the Navbar (the modal's host) mounts, the intent has to be parked here for
+   the length of one navigation — exactly like the Profile Popup reopen above.
+
+   In-memory only: a reload or a new tab must not resurrect a modal the reader
+   never asked for.
+   ----------------------------------------- */
+
+let shouldOpenLoginOnNextMount = false;
+
+/** Parks the intent to open the shared login modal once the Navbar mounts. */
+export function requestLoginOnNextMount() {
+  shouldOpenLoginOnNextMount = true;
+}
+
+/**
+ * Reads and clears the intent in one step, so it fires exactly once (on the
+ * Navbar's first mount after the request).
+ */
+export function consumeLoginOnNextMount(): boolean {
+  const requested = shouldOpenLoginOnNextMount;
+  shouldOpenLoginOnNextMount = false;
+  return requested;
+}
+
 /**
  * Records the page the reader was on when they left for Match History, so Return
  * sends them back to exactly that page rather than to a hard-coded guess.

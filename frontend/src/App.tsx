@@ -18,6 +18,8 @@ import AccountActionPanel from "./auth/AccountActionPanel";
 import PasswordChangeSuccessModal from "./auth/PasswordChangeSuccessModal";
 import AuthLoading from "./auth/AuthLoading";
 import UsernameOnboarding from "./auth/UsernameOnboarding";
+import AdminPanelApp from "./Admin_Panel/AdminPanelApp";
+import { isAdminPath } from "./Admin_Panel/hooks/adminRouting";
 
 function AuthNotice() {
   const { authError, authErrorKind, authMode, clearError } = useAuth();
@@ -77,6 +79,18 @@ function AppContent() {
       });
     });
   }, [path]);
+
+  /*
+   * The Admin Panel (/admin/*) is a self-contained application with its own
+   * authentication against the separate Admin Backend. It is mounted here,
+   * ahead of the player-session gates below, so admin login/refresh is never
+   * blocked by (and never blocks) the player auth bootstrap — a player
+   * session grants no admin access, and vice versa.
+   */
+  const currentPathname = new URL(path, window.location.origin).pathname;
+  if (isAdminPath(currentPathname)) {
+    return <AdminPanelApp />;
+  }
 
   if (isLoading) {
     return <AuthLoading />;

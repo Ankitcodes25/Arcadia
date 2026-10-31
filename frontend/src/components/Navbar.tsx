@@ -4,6 +4,7 @@ import logo from "../assets/ArcadialogoA.png";
 import {
   MATCH_HISTORY_PATH,
   LEADERBOARD_PATH,
+  consumeLoginOnNextMount,
   consumeProfilePopupReopenRequest,
   consumeLeaderboardOrigin,
   navigateTo,
@@ -14,6 +15,7 @@ import {
   rememberReturningToProfilePopup,
 } from "../lib/navigation";
 import { useAuth } from "../auth/AuthContext";
+import { resolveLoginAccount } from "../auth/loginResolution";
 import AvatarPreview from "../pages/Myprofile/AvatarPreview";
 import { getUserProgressionView } from "../auth/progression";
 import type { AuthFormValues } from "../auth/authTypes";
@@ -80,6 +82,17 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
     logout,
   } = useAuth();
 
+  /*
+   * Login-account resolution state. The shared modal does not decide admin vs
+   * player — it relays the attempt to the server-side resolver, which answers
+   * with an explicit accountType. These hold that answer's UI side-effects: a
+   * definitive failure (e.g. wrong admin password) is surfaced here so it merges
+   * into the SAME error slot the player auth flow already uses, and the busy
+   * flag keeps the modal's submit button disabled while resolving.
+   */
+  const [resolutionError, setResolutionError] = useState<string | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
+
   const [activeNavItem, setActiveNavItem] =
     useState<NavItem>(getInitialNavItem);
 
@@ -100,6 +113,24 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
     window.addEventListener("arcadia:open-login", handleOpenLogin);
     return () => window.removeEventListener("arcadia:open-login", handleOpenLogin);
   }, [openAuthMode]);
+
+  /*
+   * Admin sign-out and unauthenticated admin routes both redirect here first,
+   * so the modal has to be opened once, on the mount that follows. The intent
+   * is parked in navigation.ts (it survives the redirect) and consumed exactly
+   * once here.
+   */
+  useEffect(() => {
+    if (consumeLoginOnNextMount()) {
+      openAuthMode("login");
+    }
+  }, [openAuthMode]);
+
+  /* A stale resolution error must not linger across closing, reopening or
+     switching the modal — it only ever describes the attempt that produced it. */
+  useEffect(() => {
+    setResolutionError(null);
+  }, [authMode]);
 
   const isGamesPage = window.location.pathname === "/games";
 
@@ -249,15 +280,46 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
   ------------------------------------------------------- */
 
   const handleAuthSubmit = async (values: AuthFormValues) => {
-    const success = authMode === "login"
-      ? await login({ email: values.email, password: values.password })
-      : await register(values);
-
-    if (success) {
-      closeAuthMode();
+    if (authMode !== "login") {
+      const registered = await register(values);
+      if (registered) closeAuthMode();
+      return registered;
     }
 
-    return success;
+    /*
+     * LOGIN: server-side account resolution. The browser never compares
+     * credentials — it sends them once to the admin backend's resolver, which
+     * reports the account type (or a definitive failure). Branching on that
+     * server-issued accountType is what routes admin vs player.
+     */
+    setResolutionError(null);
+    setIsResolving(true);
+    try {
+      const resolution = await resolveLoginAccount(values.email, values.password);
+
+      // Definitive failure (e.g. wrong admin password or rate limit): surface
+      // it in the modal and STOP — never retried as a player login.
+      if (resolution.kind === "failed") {
+        setResolutionError(resolution.message);
+        return false;
+      }
+
+      // Admin: the session cookie is already set by the admin backend. Close
+      // the modal and mount ONLY the Admin Portal — never player UI.
+      if (resolution.kind === "admin") {
+        closeAuthMode();
+        navigateTo("/admin/dashboard");
+        return true;
+      }
+
+      // Player: not the admin account — continue the existing player login
+      // flow completely unchanged.
+      const success = await login({ email: values.email, password: values.password });
+      if (success) closeAuthMode();
+      return success;
+    } finally {
+      setIsResolving(false);
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -602,7 +664,10 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
           onClose={closeAuthMode}
           onSubmit={handleAuthSubmit}
           onGoogleLogin={handleGoogleLogin}
-          onClearError={clearError}
+          onClearError={() => {
+            setResolutionError(null);
+            clearError();
+          }}
           onForgotPassword={forgotPassword}
           onSwitchMode={() =>
             openAuthMode(
@@ -611,8 +676,8 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
                 : "login"
             )
           }
-          isSubmitting={isSubmitting}
-          error={authErrorKind === "form" ? authError : null}
+          isSubmitting={isResolving || isSubmitting}
+          error={resolutionError ?? (authErrorKind === "form" ? authError : null)}
           oauthError={authErrorKind === "oauth" ? authError : null}
         />
       )}

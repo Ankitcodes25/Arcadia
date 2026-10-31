@@ -1,0 +1,589 @@
+/*
+ * Arcadia Admin Panel — shared theme and primitives.
+ *
+ * Reuses the Arcadia design language (deep purple-black surfaces, the
+ * #a640ff → #6331ff accent gradient, Inter typography, soft glass borders) in
+ * a calmer, denser arrangement suited to a working dashboard. Everything is
+ * namespaced under .adm-* to guarantee zero interaction with the
+ * player-facing stylesheets, whose global selectors (body, html, buttons)
+ * must not leak into the admin surface.
+ */
+
+.adm-root {
+  --adm-bg: #0a0512;
+  --adm-bg-elevated: #120a20;
+  --adm-surface: rgba(255, 255, 255, 0.035);
+  --adm-surface-hover: rgba(255, 255, 255, 0.06);
+  --adm-surface-strong: rgba(30, 15, 55, 0.72);
+  --adm-border: rgba(255, 255, 255, 0.08);
+  --adm-border-strong: rgba(200, 117, 255, 0.28);
+  --adm-text: #f2ecfa;
+  --adm-text-soft: #c9bce0;
+  --adm-text-muted: #8f80ad;
+  --adm-accent: #b95cff;
+  --adm-accent-deep: #7a3bff;
+  --adm-accent-gradient: linear-gradient(135deg, #a640ff, #6331ff);
+  --adm-accent-soft: rgba(166, 64, 255, 0.14);
+  --adm-success: #56d9a3;
+  --adm-success-soft: rgba(86, 217, 163, 0.14);
+  --adm-warning: #ffc966;
+  --adm-warning-soft: rgba(255, 201, 102, 0.14);
+  --adm-danger: #ff6b8b;
+  --adm-danger-soft: rgba(255, 107, 139, 0.14);
+  --adm-info: #7aa8ff;
+  --adm-info-soft: rgba(122, 168, 255, 0.14);
+  --adm-sidebar-width: 248px;
+  --adm-topbar-height: 64px;
+  --adm-radius: 14px;
+  --adm-radius-sm: 9px;
+  --adm-font: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --adm-font-display: "Orbitron", "Rajdhani", "Segoe UI", system-ui, sans-serif;
+
+  position: relative;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 82% -10%, rgba(103, 31, 211, 0.22), transparent 38%),
+    radial-gradient(circle at -5% 105%, rgba(76, 22, 145, 0.2), transparent 40%),
+    var(--adm-bg);
+  color: var(--adm-text);
+  font-family: var(--adm-font);
+  font-size: 14px;
+  line-height: 1.5;
+  color-scheme: dark;
+}
+
+.adm-root *,
+.adm-root *::before,
+.adm-root *::after {
+  box-sizing: border-box;
+}
+
+.adm-root button,
+.adm-root input,
+.adm-root select,
+.adm-root textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* -------------------------------------------------------------------------
+ * Buttons
+ * ---------------------------------------------------------------------- */
+
+.adm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: var(--adm-radius-sm);
+  border: 1px solid var(--adm-border);
+  background: var(--adm-surface);
+  color: var(--adm-text-soft);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.adm-btn:hover:not(:disabled) {
+  background: var(--adm-surface-hover);
+  border-color: var(--adm-border-strong);
+  color: var(--adm-text);
+}
+
+.adm-btn:focus-visible {
+  outline: 2px solid rgba(185, 92, 255, 0.8);
+  outline-offset: 2px;
+}
+
+.adm-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.adm-btn--primary {
+  background: var(--adm-accent-gradient);
+  border: none;
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(121, 45, 255, 0.3);
+}
+
+.adm-btn--primary:hover:not(:disabled) {
+  background: var(--adm-accent-gradient);
+  filter: brightness(1.08);
+  color: #fff;
+}
+
+.adm-btn--danger {
+  background: var(--adm-danger-soft);
+  border-color: rgba(255, 107, 139, 0.4);
+  color: var(--adm-danger);
+}
+
+.adm-btn--danger:hover:not(:disabled) {
+  background: rgba(255, 107, 139, 0.22);
+  border-color: var(--adm-danger);
+  color: var(--adm-danger);
+}
+
+.adm-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.adm-btn--sm {
+  min-height: 30px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+/* -------------------------------------------------------------------------
+ * Form controls
+ * ---------------------------------------------------------------------- */
+
+.adm-input,
+.adm-select,
+.adm-textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: var(--adm-radius-sm);
+  border: 1px solid rgba(205, 88, 255, 0.35);
+  background: rgba(24, 12, 44, 0.75);
+  color: var(--adm-text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.adm-textarea {
+  padding: 10px 14px;
+  min-height: 110px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.adm-input::placeholder,
+.adm-textarea::placeholder {
+  color: var(--adm-text-muted);
+}
+
+.adm-input:focus,
+.adm-select:focus,
+.adm-textarea:focus {
+  outline: none;
+  border-color: rgba(205, 88, 255, 0.8);
+  box-shadow: 0 0 0 3px rgba(166, 64, 255, 0.18);
+}
+
+.adm-select {
+  appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238f80ad' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
+}
+
+.adm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.adm-field label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--adm-text-muted);
+}
+
+/* -------------------------------------------------------------------------
+ * Cards & panels
+ * ---------------------------------------------------------------------- */
+
+.adm-card {
+  background: linear-gradient(160deg, rgba(40, 20, 74, 0.5), rgba(16, 8, 32, 0.72));
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-radius);
+  padding: 20px;
+}
+
+.adm-card__title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--adm-text);
+}
+
+.adm-card__subtitle {
+  margin: 0 0 16px;
+  font-size: 12.5px;
+  color: var(--adm-text-muted);
+}
+
+/* -------------------------------------------------------------------------
+ * Tables
+ * ---------------------------------------------------------------------- */
+
+.adm-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-radius);
+  background: linear-gradient(160deg, rgba(36, 18, 66, 0.44), rgba(14, 7, 28, 0.6));
+}
+
+.adm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.adm-table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--adm-text-muted);
+  border-bottom: 1px solid var(--adm-border);
+  white-space: nowrap;
+}
+
+.adm-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--adm-text-soft);
+  vertical-align: middle;
+}
+
+.adm-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.adm-table tbody tr.adm-table__row--interactive {
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.adm-table tbody tr.adm-table__row--interactive:hover,
+.adm-table tbody tr.adm-table__row--interactive:focus-visible {
+  background: rgba(166, 64, 255, 0.08);
+  outline: none;
+}
+
+.adm-table__cell-strong {
+  color: var(--adm-text);
+  font-weight: 600;
+}
+
+/* ---- Compact-tables preference (session-only, see hooks/panelPreferences) --
+ * When the admin toggles "Compact tables" in Settings, AdminLayout adds
+ * .adm-shell--compact; every .adm-table inside tightens its padding. This is
+ * a pure display preference — it never fetches or changes any data.
+ */
+.adm-shell--compact .adm-table th,
+.adm-shell--compact .adm-table td {
+  padding: 6px 10px;
+}
+
+.adm-shell--compact .adm-table {
+  font-size: 12px;
+}
+
+.adm-shell--compact .adm-table th {
+  font-size: 10px;
+}
+
+.adm-mono {
+  font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Menlo, monospace;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--adm-text-soft);
+}
+
+/* -------------------------------------------------------------------------
+ * Badges / status pills
+ * ---------------------------------------------------------------------- */
+
+.adm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.adm-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.adm-badge--success { background: var(--adm-success-soft); color: var(--adm-success); }
+.adm-badge--warning { background: var(--adm-warning-soft); color: var(--adm-warning); }
+.adm-badge--danger { background: var(--adm-danger-soft); color: var(--adm-danger); }
+.adm-badge--info { background: var(--adm-info-soft); color: var(--adm-info); }
+.adm-badge--neutral { background: rgba(255, 255, 255, 0.07); color: var(--adm-text-muted); }
+
+/* Tier badge (player rank) */
+.adm-tier {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.adm-tier--bronze { background: rgba(236, 154, 95, 0.16); color: #ec9a5f; }
+.adm-tier--silver { background: rgba(223, 231, 245, 0.14); color: #dfe7f5; }
+.adm-tier--gold { background: rgba(255, 212, 92, 0.15); color: #ffd45c; }
+.adm-tier--diamond { background: rgba(122, 214, 255, 0.15); color: #7ad6ff; }
+.adm-tier--crown { background: rgba(224, 105, 255, 0.16); color: #e069ff; }
+
+/* -------------------------------------------------------------------------
+ * Avatars
+ * ---------------------------------------------------------------------- */
+
+.adm-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(166, 64, 255, 0.16);
+  border: 1px solid rgba(200, 117, 255, 0.35);
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.adm-avatar--initials {
+  font-family: var(--adm-font-display);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--adm-text);
+}
+
+.adm-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.adm-identity__names {
+  min-width: 0;
+}
+
+.adm-identity__name {
+  display: block;
+  font-weight: 600;
+  color: var(--adm-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adm-identity__sub {
+  display: block;
+  font-size: 12px;
+  color: var(--adm-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* -------------------------------------------------------------------------
+ * Preview-data notice
+ * ---------------------------------------------------------------------- */
+
+.adm-preview-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 9px 14px;
+  border-radius: var(--adm-radius-sm);
+  border: 1px dashed rgba(255, 201, 102, 0.4);
+  background: rgba(255, 201, 102, 0.07);
+  color: var(--adm-warning);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* -------------------------------------------------------------------------
+ * Modal (portal target .adm-modal-layer)
+ * ---------------------------------------------------------------------- */
+
+.adm-modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(4, 2, 10, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.adm-modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: min(84vh, 720px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  border: 1px solid rgba(224, 105, 255, 0.4);
+  background: linear-gradient(155deg, rgba(46, 22, 82, 0.97), rgba(14, 7, 28, 0.99) 78%);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.adm-modal--wide {
+  max-width: 720px;
+}
+
+.adm-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px 14px;
+  border-bottom: 1px solid var(--adm-border);
+}
+
+.adm-modal__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--adm-text);
+}
+
+.adm-modal__subtitle {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--adm-text-muted);
+}
+
+.adm-modal__close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid rgba(224, 105, 255, 0.3);
+  background: rgba(224, 105, 255, 0.12);
+  color: var(--adm-text-soft);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.adm-modal__close:hover {
+  background: rgba(224, 105, 255, 0.2);
+  color: var(--adm-text);
+}
+
+.adm-modal__close:focus-visible {
+  outline: 2px solid rgba(185, 92, 255, 0.8);
+  outline-offset: 2px;
+}
+
+.adm-modal__body {
+  padding: 18px 22px;
+  overflow-y: auto;
+}
+
+.adm-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--adm-border);
+}
+
+/* Key/value grid used in detail modals */
+.adm-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.adm-kv {
+  min-width: 0;
+}
+
+.adm-kv__label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--adm-text-muted);
+  margin-bottom: 3px;
+}
+
+.adm-kv__value {
+  display: block;
+  font-size: 13.5px;
+  color: var(--adm-text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.adm-modal__section-title {
+  margin: 20px 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--adm-text-muted);
+}
+
+/* -------------------------------------------------------------------------
+ * Misc utilities
+ * ---------------------------------------------------------------------- */
+
+.adm-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--adm-text-muted);
+  font-size: 13px;
+}
+
+.adm-progress {
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.adm-progress__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--adm-accent-gradient);
+  transition: width 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-root *,
+  .adm-root *::before,
+  .adm-root *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
