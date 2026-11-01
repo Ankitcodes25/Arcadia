@@ -429,7 +429,7 @@ const PROFILE_VISIBILITY_OPTIONS: ReadonlyArray<{
     value: "FRIENDS",
     label: "Friends",
     description:
-      "Only accounts you are friends with. Arcadia has no friends feature yet, so this currently means nobody else can view your profile.",
+      "Only accounts you are friends with can view your profile. Friend requests must be accepted before either player can see a Friends-only profile.",
   },
   {
     value: "NO_ONE",

@@ -22,8 +22,16 @@ import type { AuthFormValues } from "../auth/authTypes";
 import LoginSignupModal from "./LoginSignupModal";
 import MyProfileContainer from "../pages/Myprofile/MyProfileContainer";
 import ProfilePopupModal from "./ProfilePopupmodal";
+import FriendsModal from "../friends/FriendsModal";
+import { FRIENDS_CHANGED_EVENT, friendsApi, hasAuthToken } from "../friends/friendsApi";
+import { CHAT_CHANGED_EVENT } from "../chat/chatApi";
+import {
+  connectChatSocket,
+  disconnectChatSocket,
+  onChatEvent,
+} from "../chat/chatSocket";
 
-type NavItem = "home" | "games" | "popular" | "about";
+type NavItem = "home" | "games" | "popular" | "about" | "friends";
 
 /* -------------------------------------------------------
    Initial active navigation item
@@ -65,6 +73,9 @@ type NavbarProps = {
 function Navbar({ isVisible = true }: NavbarProps = {}) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMyProfileOpen, setIsMyProfileOpen] = useState(false);
+  const [isFriendsOpen, setIsFriendsOpen] = useState(false);
+  const [incomingFriendRequests, setIncomingFriendRequests] = useState(0);
+  const [unreadChatMessages, setUnreadChatMessages] = useState(0);
   const {
     user,
     isAuthenticated,
@@ -96,12 +107,86 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
   const [activeNavItem, setActiveNavItem] =
     useState<NavItem>(getInitialNavItem);
 
+  // The Friends modal is a layer, not a route. While it is open the Friends
+  // item borrows the active underline; closing it restores the page section
+  // that was active underneath without changing the URL.
+  const displayedNavItem: NavItem = isFriendsOpen ? "friends" : activeNavItem;
+
   /*
    * The whole identity block reads the progression the backend already returned
    * with the authenticated user. The badge tier title stays in My Profile; the
    * navbar shows the level and the XP toward the next one instead.
    */
   const identity = getUserProgressionView(user);
+
+  /*
+   * Presence and the pending-request badge share one authenticated effect.
+   * The heartbeat updates the existing refresh-session timestamp; the summary
+   * is the server's count, never a locally invented number. A token guard keeps
+   * the effect quiet in auth-only component tests and during logout.
+   */
+  const currentUserId = user?.id ?? null;
+  useEffect(() => {
+    if (!isAuthenticated || !currentUserId || !hasAuthToken()) {
+      setIncomingFriendRequests(0);
+      setUnreadChatMessages(0);
+      disconnectChatSocket();
+      return undefined;
+    }
+
+    connectChatSocket(currentUserId);
+
+    let cancelled = false;
+    let summarySequence = 0;
+    const refreshSummary = async () => {
+      const sequence = ++summarySequence;
+      try {
+        const response = await friendsApi.getSummary();
+        // A slower, older summary must never overwrite a newer count (for
+        // example the zero from an accept that happened while it was in flight).
+        if (!cancelled && sequence === summarySequence) {
+          setIncomingFriendRequests(response.incomingCount);
+          setUnreadChatMessages(response.unreadMessageCount ?? 0);
+        }
+      } catch {
+        // A transient summary failure must not disturb navigation or the modal.
+      }
+    };
+    const sendHeartbeat = async () => {
+      try {
+        await friendsApi.heartbeat();
+      } catch {
+        // Presence is best-effort; the next interval retries.
+      }
+    };
+    const refreshOnChange = () => {
+      void refreshSummary();
+      void sendHeartbeat();
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") refreshOnChange();
+    };
+
+    void refreshSummary();
+    void sendHeartbeat();
+    const summaryTimer = window.setInterval(refreshSummary, 30_000);
+    const heartbeatTimer = window.setInterval(sendHeartbeat, 45_000);
+    const unsubscribeRealtime = onChatEvent("chat:changed", refreshOnChange);
+    window.addEventListener(FRIENDS_CHANGED_EVENT, refreshOnChange);
+    window.addEventListener(CHAT_CHANGED_EVENT, refreshOnChange);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(summaryTimer);
+      window.clearInterval(heartbeatTimer);
+      unsubscribeRealtime();
+      window.removeEventListener(FRIENDS_CHANGED_EVENT, refreshOnChange);
+      window.removeEventListener(CHAT_CHANGED_EVENT, refreshOnChange);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      disconnectChatSocket();
+    };
+  }, [currentUserId, isAuthenticated]);
 
   const navbarNavRef = useRef<HTMLElement>(null);
 
@@ -262,7 +347,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
     if (!nav) return;
 
     const activeLink = nav.querySelector<HTMLElement>(
-      `[data-nav-item="${activeNavItem}"]`
+      `[data-nav-item="${displayedNavItem}"]`
     );
 
     const indicator =
@@ -273,7 +358,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
     indicator.style.width = `${activeLink.offsetWidth}px`;
     indicator.style.transform = `translateX(${activeLink.offsetLeft}px)`;
     indicator.style.opacity = "1";
-  }, [activeNavItem]);
+  }, [displayedNavItem]);
 
   /* -------------------------------------------------------
      AUTH
@@ -331,6 +416,10 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
     const result = await logout();
     if (result.success) {
       setIsProfileOpen(false);
+      setIsFriendsOpen(false);
+      setIncomingFriendRequests(0);
+      setUnreadChatMessages(0);
+      disconnectChatSocket();
       navigateTo("/");
     }
   };
@@ -446,7 +535,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
 
           <a
             className={
-              activeNavItem === "home"
+              displayedNavItem === "home"
                 ? "active"
                 : ""
             }
@@ -461,7 +550,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
 
           <a
             className={
-              activeNavItem === "games"
+              displayedNavItem === "games"
                 ? "active"
                 : ""
             }
@@ -478,7 +567,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
 
           <a
             className={
-              activeNavItem === "popular"
+              displayedNavItem === "popular"
                 ? "active"
                 : ""
             }
@@ -495,7 +584,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
 
           <a
             className={
-              activeNavItem === "about"
+              displayedNavItem === "about"
                 ? "active"
                 : ""
             }
@@ -507,6 +596,41 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
           >
             About
           </a>
+
+          {/* FRIENDS */}
+
+          {isAuthenticated && user && (
+            <button
+              type="button"
+              className={
+                displayedNavItem === "friends"
+                  ? "navbar-friends-nav active"
+                  : "navbar-friends-nav"
+              }
+              data-nav-item="friends"
+              aria-label={[
+                "Open friends",
+                incomingFriendRequests > 0
+                  ? `${incomingFriendRequests} pending friend request${incomingFriendRequests === 1 ? "" : "s"}`
+                  : null,
+                unreadChatMessages > 0
+                  ? `${unreadChatMessages} unread message${unreadChatMessages === 1 ? "" : "s"}`
+                  : null,
+              ].filter(Boolean).join(", ")}
+              aria-haspopup="dialog"
+              aria-expanded={isFriendsOpen}
+              title="Friends"
+              onClick={() => {
+                setIsProfileOpen(false);
+                setIsFriendsOpen(true);
+              }}
+            >
+              <span>Friends</span>
+              {(incomingFriendRequests > 0 || unreadChatMessages > 0) && (
+                <span className="navbar-friends-dot" aria-hidden="true" />
+              )}
+            </button>
+          )}
 
           {/* ACTIVE UNDERLINE */}
 
@@ -652,6 +776,14 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
           mounted above stays open. */}
       {isMyProfileOpen && user && (
         <MyProfileContainer onClose={() => setIsMyProfileOpen(false)} />
+      )}
+
+      {isFriendsOpen && user && (
+        <FriendsModal
+          currentUserId={user.id}
+          onIncomingCountChange={setIncomingFriendRequests}
+          onClose={() => setIsFriendsOpen(false)}
+        />
       )}
 
       {/* ---------------------------------------------------

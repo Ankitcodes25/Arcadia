@@ -17,6 +17,7 @@ import {
   DUMMY_GAMES,
   DUMMY_PLAYERS,
   DUMMY_PLAYERS_ENABLED,
+  DUMMY_PLAYER_DATA_NOTICE,
   type DummyPlayer,
 } from "../../data/development/dummyPlayers";
 import { navigateTo } from "../../lib/navigation";
@@ -745,6 +746,12 @@ function Leaderboard({ returnPath, entries, games }: LeaderboardProps) {
     <main className="leaderboard-page">
       <div className="leaderboard-inner">
       <LeaderboardHero onBack={handleReturn} />
+
+      {showingDummyPlayers && (
+        <p className="leaderboard-demo-note" role="note">
+          {DUMMY_PLAYER_DATA_NOTICE}
+        </p>
+      )}
 
       {/* ---------- Patla filter box ---------- */}
       <div className="leaderboard-filters" role="search">

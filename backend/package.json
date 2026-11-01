@@ -14,7 +14,7 @@
     "backfill:player-ids": "node scripts/backfill-player-ids.js",
     "migrate:drop-email-verification": "node scripts/drop-email-verification.js",
     "seed:dev-players": "node scripts/seed-dev-test-players.js",
-    "test": "node --test test/userModel.integration.test.js test/adminPanelAuth.test.js",
+    "test": "node --test test/userModel.integration.test.js test/friends.integration.test.js test/chat.integration.test.js test/adminPanelAuth.test.js",
     "check": "node scripts/check-syntax.js"
   },
   "dependencies": {
@@ -25,10 +25,12 @@
     "google-auth-library": "^10.9.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.10.2",
-    "nodemailer": "^10.0.10"
+    "nodemailer": "^10.0.10",
+    "socket.io": "^4.8.4"
   },
   "devDependencies": {
     "mongodb-memory-server": "^11.3.0",
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "socket.io-client": "^4.8.4"
   }
 }

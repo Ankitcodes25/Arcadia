@@ -287,6 +287,55 @@
   position: relative;
 }
 
+.navbar-friends-nav {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  padding: 12px 4px;
+  border: 0;
+  background: transparent;
+  color: rgba(226, 211, 255, 0.78);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: normal;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.25s ease, text-shadow 0.25s ease;
+}
+
+.navbar-friends-nav:hover,
+.navbar-friends-nav.active {
+  color: #fff;
+  text-shadow:
+    0 0 8px rgba(192, 103, 255, 0.85),
+    0 0 22px rgba(157, 60, 255, 0.65);
+}
+
+.navbar-friends-nav:focus-visible {
+  outline: 2px solid #e0a1ff;
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.navbar-friends-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: #f06bff;
+  box-shadow: 0 0 8px rgba(240, 107, 255, 0.95);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navbar-friends-nav {
+    transition: none;
+  }
+}
+
 .navbar-profile-identity {
   display: flex;
   align-items: center;
@@ -499,10 +548,11 @@
 
     transform: none;
 
-    gap: 18px;
+    gap: 14px;
   }
 
-  .navbar-nav a {
+  .navbar-nav a,
+  .navbar-friends-nav {
     font-size: 14px;
     padding: 8px 2px;
   }
@@ -530,10 +580,15 @@
   }
 
   .navbar-nav {
-    gap: 10px;
+    gap: 8px;
   }
 
   .navbar-nav a {
+    font-size: 13px;
+  }
+
+  .navbar-friends-nav {
+    gap: 5px;
     font-size: 13px;
   }
 
@@ -577,11 +632,20 @@
   }
 
   .navbar-nav {
-    gap: 12px;
+    gap: 6px;
   }
 
   .navbar-nav a {
-    font-size: 12px;
+    font-size: 11.5px;
+  }
+
+  .navbar-friends-nav {
+    gap: 4px;
+    font-size: 11.5px;
+  }
+
+  .navbar-actions {
+    gap: 6px;
   }
 
   .auth-button {
@@ -593,12 +657,12 @@
   }
 
   .navbar-username {
-    max-width: 64px;
+    max-width: 54px;
     font-size: 13px;
   }
 
   .navbar-identity-button {
-    max-width: 96px;
+    max-width: 84px;
     gap: 2px;
   }
 
