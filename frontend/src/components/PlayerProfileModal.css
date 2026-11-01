@@ -351,6 +351,24 @@
 
 .player-profile-friend-action { margin-top: 10px; }
 
+.player-profile-friend-action--stack {
+	flex-direction: column;
+	align-items: center;
+	width: 100%;
+}
+
+.player-profile-friend-button-row {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	width: 100%;
+}
+
+.player-profile-friend-button-row .player-profile-friend-button {
+	width: 100%;
+	justify-content: center;
+}
+
 .player-profile-friend-button {
 	display: inline-flex;
 	align-items: center;
@@ -362,8 +380,82 @@
 	color: #f6eaff;
 	font-size: 11px;
 	font-weight: 700;
-	cursor: not-allowed;
-	opacity: 0.72;
+	cursor: pointer;
+	transition: background 0.16s ease, border-color 0.16s ease, opacity 0.16s ease;
+}
+
+.player-profile-friend-button:hover:not(:disabled) {
+	border-color: rgba(236, 170, 255, 0.78);
+	background: linear-gradient(135deg, rgba(166, 80, 247, 0.64), rgba(104, 48, 178, 0.68));
+}
+
+.player-profile-friend-button:disabled {
+	cursor: default;
+	opacity: 0.76;
+}
+
+.player-profile-friend-button--muted {
+	border-color: rgba(190, 160, 220, 0.3);
+	background: rgba(58, 35, 85, 0.42);
+	color: rgba(232, 219, 246, 0.78);
+}
+
+.player-profile-friend-button--friends {
+	border-color: rgba(72, 225, 139, 0.42);
+	background: rgba(33, 137, 84, 0.22);
+	color: #b9ffd5;
+}
+
+.player-profile-friend-button--blocked {
+	border-color: rgba(255, 114, 144, 0.34);
+	background: rgba(120, 30, 55, 0.2);
+	color: #ffc0ce;
+}
+
+.player-profile-friend-button--accept {
+	border-color: rgba(72, 225, 139, 0.5);
+	background: rgba(33, 137, 84, 0.28);
+	color: #b9ffd5;
+}
+
+.player-profile-friend-button--accept:hover:not(:disabled) {
+	border-color: rgba(72, 225, 139, 0.8);
+	background: rgba(33, 137, 84, 0.44);
+}
+
+.player-profile-friend-button--decline {
+	border-color: rgba(255, 114, 144, 0.32);
+	background: transparent;
+	color: #ffc0ce;
+}
+
+.player-profile-friend-button--decline:hover:not(:disabled) {
+	border-color: rgba(255, 114, 144, 0.65);
+	background: rgba(120, 30, 55, 0.3);
+}
+
+.player-profile-friend-button--retry {
+	border-color: rgba(218, 120, 255, 0.4);
+	background: rgba(122, 55, 190, 0.24);
+}
+
+.player-profile-friend-error {
+	max-width: 116px;
+	color: #ffc0ce;
+	font-size: 9px;
+	line-height: 1.35;
+	text-align: center;
+	overflow-wrap: anywhere;
+}
+
+.player-profile-friend-spinner {
+	width: 12px;
+	height: 12px;
+	flex: none;
+	border: 2px solid rgba(226, 179, 255, 0.3);
+	border-top-color: #f0c2ff;
+	border-radius: 50%;
+	animation: player-profile-spin 0.8s linear infinite;
 }
 
 .player-profile-friend-button svg { width: 14px; height: 14px; }
@@ -509,5 +601,6 @@
 @media (prefers-reduced-motion: reduce) {
 	.player-profile-backdrop,
 	.player-profile-modal,
-	.player-profile-spinner { animation-duration: 0.01ms; }
+	.player-profile-spinner,
+	.player-profile-friend-spinner { animation-duration: 0.01ms; }
 }

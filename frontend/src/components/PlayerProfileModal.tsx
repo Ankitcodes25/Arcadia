@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  Ban,
   ChartNoAxesColumn,
   CalendarDays,
+  Check,
   CircleAlert,
+  Clock3,
   Gamepad2,
   Percent,
+  RefreshCw,
   Star,
   Trophy,
+  UserCheck,
   UserPlus,
   Zap,
   X,
@@ -27,6 +32,8 @@ import {
   getDummyPlayerForPublicProfile,
   toDummyPublicProfile,
 } from "../data/development/dummyPlayers";
+import { friendsApi, notifyFriendsChanged } from "../friends/friendsApi";
+import type { FriendRelationship } from "../friends/friendsTypes";
 import "../pages/Myprofile/MyProfileModal.css";
 import "./PlayerProfileModal.css";
 import ReportPlayerModal from "./ReportPlayerModal";
@@ -38,6 +45,7 @@ type PlayerProfileProps = {
   demoFallback?: boolean;
   globalRank?: number | null;
   onClose: () => void;
+  onRelationshipChange?: (playerId: string, relationship: FriendRelationship) => void;
 };
 
 const SUPPORTED_GAMES = [
@@ -76,6 +84,7 @@ function PlayerProfile({
   demoFallback = false,
   globalRank = null,
   onClose,
+  onRelationshipChange,
 }: PlayerProfileProps) {
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [profile, setProfile] = useState<PublicPlayerProfile | null>(null);
@@ -83,16 +92,26 @@ function PlayerProfile({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isPrivate, setIsPrivate] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [relationship, setRelationship] = useState<FriendRelationship | null>(null);
+  const [relationshipLoading, setRelationshipLoading] = useState(false);
+  const [relationshipError, setRelationshipError] = useState<string | null>(null);
+  const [friendAction, setFriendAction] = useState<"send" | "accept" | "decline" | null>(null);
   const requestGeneration = useRef(0);
+  const relationshipGeneration = useRef(0);
   const lookupPlayerId = playerId?.trim() || null;
   const lookupUsername = username?.trim() || null;
 
   const loadProfile = useCallback(async () => {
     const generation = requestGeneration.current + 1;
     requestGeneration.current = generation;
+    relationshipGeneration.current += 1;
     setIsLoading(true);
     setLoadError(null);
     setIsPrivate(false);
+    setRelationship(null);
+    setRelationshipError(null);
+    setRelationshipLoading(false);
+    setFriendAction(null);
 
     try {
       const response = lookupPlayerId
@@ -134,6 +153,93 @@ function PlayerProfile({
     }
   }, [currentUserId, demoFallback, lookupPlayerId, lookupUsername]);
 
+  const loadRelationship = useCallback(async () => {
+    const target = profile;
+    if (
+      !target
+      || !currentUserId
+      || target.id === currentUserId
+      || getDummyPlayerForPublicProfile(target)
+    ) {
+      relationshipGeneration.current += 1;
+      setRelationship(null);
+      setRelationshipError(null);
+      setRelationshipLoading(false);
+      return;
+    }
+
+    const generation = relationshipGeneration.current + 1;
+    relationshipGeneration.current = generation;
+    setRelationshipLoading(true);
+    setRelationshipError(null);
+    try {
+      const response = await friendsApi.getRelationship(target.id);
+      if (generation !== relationshipGeneration.current) return;
+      setRelationship(response.relationship);
+    } catch (error) {
+      if (generation !== relationshipGeneration.current) return;
+      setRelationship(null);
+      setRelationshipError(getAuthErrorMessage(error, "Friend status is unavailable."));
+    } finally {
+      if (generation === relationshipGeneration.current) setRelationshipLoading(false);
+    }
+  }, [currentUserId, profile]);
+
+  useEffect(() => {
+    if (
+      !profile
+      || !currentUserId
+      || profile.id === currentUserId
+      || getDummyPlayerForPublicProfile(profile)
+    ) {
+      relationshipGeneration.current += 1;
+      setRelationship(null);
+      setRelationshipError(null);
+      setRelationshipLoading(false);
+      return undefined;
+    }
+
+    void loadRelationship();
+    return () => {
+      relationshipGeneration.current += 1;
+    };
+  }, [currentUserId, loadRelationship, profile]);
+
+  const handleFriendAction = useCallback(async (action: "send" | "accept" | "decline") => {
+    const target = profile;
+    if (!target || friendAction !== null) return;
+
+    setFriendAction(action);
+    setRelationshipError(null);
+    try {
+      let response: { relationship: FriendRelationship };
+      if (action === "send") {
+        response = await friendsApi.sendRequest(target.id);
+      } else {
+        const requestId = relationship?.requestId;
+        if (!requestId) throw new Error("Friend request is unavailable.");
+        response = action === "accept"
+          ? await friendsApi.acceptRequest(requestId)
+          : await friendsApi.rejectRequest(requestId);
+      }
+
+      setRelationship(response.relationship);
+      notifyFriendsChanged("profile");
+      onRelationshipChange?.(target.id, response.relationship);
+    } catch (error) {
+      setRelationshipError(getAuthErrorMessage(
+        error,
+        action === "send"
+          ? "Unable to send the friend request."
+          : action === "accept"
+            ? "Unable to accept the friend request."
+            : "Unable to decline the friend request.",
+      ));
+    } finally {
+      setFriendAction(null);
+    }
+  }, [friendAction, onRelationshipChange, profile, relationship]);
+
   useEffect(() => {
     setAvatarFailed(false);
     void loadProfile();
@@ -167,6 +273,142 @@ function PlayerProfile({
     ? getLocalAvatarOption(profile.avatar.value)
     : null;
   const avatarUrl = googleAvatarUrl && !avatarFailed ? googleAvatarUrl : null;
+
+  const friendControls = (() => {
+    if (!profile || !currentUserId || profile.id === currentUserId) return null;
+    if (isPreviewProfile) {
+      return (
+        <button
+          type="button"
+          className="player-profile-friend-button player-profile-friend-button--muted"
+          disabled
+          title="Development demo profiles cannot send or receive friend requests"
+        >
+          <UserPlus aria-hidden="true" />
+          Demo profile
+        </button>
+      );
+    }
+
+    if (relationshipLoading) {
+      return (
+        <button
+          type="button"
+          className="player-profile-friend-button player-profile-friend-button--muted"
+          disabled
+        >
+          <span className="player-profile-friend-spinner" aria-hidden="true" />
+          Checking…
+        </button>
+      );
+    }
+
+    if (relationshipError) {
+      return (
+        <div className="player-profile-friend-action player-profile-friend-action--stack">
+          <button
+            type="button"
+            className="player-profile-friend-button player-profile-friend-button--retry"
+            onClick={() => void loadRelationship()}
+            title={relationshipError}
+          >
+            <RefreshCw aria-hidden="true" />
+            Retry
+          </button>
+          <span className="player-profile-friend-error" role="alert">{relationshipError}</span>
+        </div>
+      );
+    }
+
+    const status = relationship?.status ?? "NONE";
+
+    if (status === "INCOMING_PENDING") {
+      return (
+        <div className="player-profile-friend-action player-profile-friend-action--stack">
+          <div className="player-profile-friend-button-row">
+            <button
+              type="button"
+              className="player-profile-friend-button player-profile-friend-button--accept"
+              disabled={friendAction !== null}
+              onClick={() => void handleFriendAction("accept")}
+            >
+              {friendAction === "accept"
+                ? <span className="player-profile-friend-spinner" aria-hidden="true" />
+                : <UserCheck aria-hidden="true" />}
+              {friendAction === "accept" ? "Accepting…" : "Accept"}
+            </button>
+            <button
+              type="button"
+              className="player-profile-friend-button player-profile-friend-button--decline"
+              disabled={friendAction !== null}
+              onClick={() => void handleFriendAction("decline")}
+            >
+              {friendAction === "decline"
+                ? <span className="player-profile-friend-spinner" aria-hidden="true" />
+                : <X aria-hidden="true" />}
+              {friendAction === "decline" ? "Declining…" : "Decline"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (status === "OUTGOING_PENDING") {
+      return (
+        <button
+          type="button"
+          className="player-profile-friend-button player-profile-friend-button--muted"
+          disabled
+          title="Friend request sent"
+        >
+          <Clock3 aria-hidden="true" />
+          Friend Request Sent
+        </button>
+      );
+    }
+
+    if (status === "FRIENDS") {
+      return (
+        <button
+          type="button"
+          className="player-profile-friend-button player-profile-friend-button--friends"
+          disabled
+          title="Already friends"
+        >
+          <Check aria-hidden="true" />
+          Friends ✓
+        </button>
+      );
+    }
+
+    if (status === "BLOCKED") {
+      return (
+        <button
+          type="button"
+          className="player-profile-friend-button player-profile-friend-button--blocked"
+          disabled
+          title={relationship?.blockedByMe ? "You blocked this player" : "Friend request unavailable"}
+        >
+          <Ban aria-hidden="true" />
+          Blocked
+        </button>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        className="player-profile-friend-button"
+        disabled={friendAction !== null}
+        onClick={() => void handleFriendAction("send")}
+      >
+        {friendAction === "send"
+          ? <span className="player-profile-friend-spinner" aria-hidden="true" />
+          : <UserPlus aria-hidden="true" />}
+        {friendAction === "send" ? "Sending…" : "Add Friend"}
+      </button>
+    );
+  })();
 
   return createPortal(
     <div
@@ -242,17 +484,9 @@ function PlayerProfile({
                   </span>
                 )}
               </div>
-              {profile && profile.id !== currentUserId && (
+              {friendControls && (
                 <div className="player-profile-header-friend">
-                  <button
-                    type="button"
-                    className="player-profile-friend-button"
-                    disabled
-                    title="Friend requests are not available yet"
-                  >
-                    <UserPlus aria-hidden="true" />
-                    Add Friend
-                  </button>
+                  {friendControls}
                 </div>
               )}
             </div>

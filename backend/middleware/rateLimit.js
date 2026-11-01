@@ -223,6 +223,22 @@ const policies = Object.freeze({
     { scope: 'players:profile:ip', limit: 120, windowMs: 15 * MINUTE_MS, identifier: getIpIdentifier },
     { scope: 'players:profile:user', limit: 120, windowMs: 15 * MINUTE_MS, identifier: getUserIdentifier },
   ],
+  friendRead: [
+    { scope: 'friends:read:ip', limit: 240, windowMs: 15 * MINUTE_MS, identifier: getIpIdentifier },
+    { scope: 'friends:read:user', limit: 240, windowMs: 15 * MINUTE_MS, identifier: getUserIdentifier },
+  ],
+  friendSearch: [
+    { scope: 'friends:search:ip', limit: 120, windowMs: 15 * MINUTE_MS, identifier: getIpIdentifier },
+    { scope: 'friends:search:user', limit: 60, windowMs: 15 * MINUTE_MS, identifier: getUserIdentifier },
+  ],
+  friendMutation: [
+    { scope: 'friends:mutation:ip', limit: 120, windowMs: 15 * MINUTE_MS, identifier: getIpIdentifier },
+    { scope: 'friends:mutation:user', limit: 60, windowMs: 15 * MINUTE_MS, identifier: getUserIdentifier },
+  ],
+  friendPresence: [
+    { scope: 'friends:presence:ip', limit: 240, windowMs: 15 * MINUTE_MS, identifier: getIpIdentifier },
+    { scope: 'friends:presence:user', limit: 240, windowMs: 15 * MINUTE_MS, identifier: getUserIdentifier },
+  ],
   accountDeletion: [
     { scope: 'account:delete:ip', limit: 10, windowMs: HOUR_MS, identifier: getIpIdentifier },
     { scope: 'account:delete:user', limit: 5, windowMs: HOUR_MS, identifier: getUserIdentifier },

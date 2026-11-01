@@ -68,6 +68,9 @@ type RequestInput = Omit<RequestInit, "body"> & {
   body?: BodyInit | Record<string, unknown>;
 };
 
+export type ApiRequestInput = RequestInput;
+export type ApiRequestOptions = RequestOptions;
+
 export class AuthApiError extends Error {
   status: number;
 
@@ -279,6 +282,19 @@ async function request<T>(
   }
 
   return payload as T;
+}
+
+/**
+ * The shared authenticated request pipeline used by feature APIs. It keeps the
+ * access token, refresh-on-401, timeout, CSRF header and error shape in one
+ * place instead of each feature reimplementing them.
+ */
+export function apiRequest<T>(
+  path: string,
+  input: ApiRequestInput = {},
+  options: ApiRequestOptions = {},
+): Promise<T> {
+  return request<T>(path, input, options);
 }
 
 export const authApi = {

@@ -78,7 +78,7 @@ export const FAQ_ITEMS: FaqItem[] = [
       {
         type: "unordered-list",
         items: [
-          "Profile Visibility: Public profiles can be viewed by others. Friends visibility currently fails closed for other viewers because Arcadia has no friendship graph; No One limits profile viewing to the account owner.",
+          "Profile Visibility: Public profiles can be viewed by others. Friends limits viewing to accepted friends; No One limits profile viewing to the account owner.",
           "Leaderboard Visibility: Show includes your profile in public leaderboard results; Hide excludes it. This does not remove your XP or level.",
         ],
       },

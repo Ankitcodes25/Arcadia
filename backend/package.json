@@ -14,7 +14,7 @@
     "backfill:player-ids": "node scripts/backfill-player-ids.js",
     "migrate:drop-email-verification": "node scripts/drop-email-verification.js",
     "seed:dev-players": "node scripts/seed-dev-test-players.js",
-    "test": "node --test test/userModel.integration.test.js test/adminPanelAuth.test.js",
+    "test": "node --test test/userModel.integration.test.js test/friends.integration.test.js test/adminPanelAuth.test.js",
     "check": "node scripts/check-syntax.js"
   },
   "dependencies": {

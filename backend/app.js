@@ -5,6 +5,7 @@ const { trustProxy } = require('./config/env');
 const authRoutes = require('./routes/authRoutes');
 const accountRoutes = require('./routes/accountRoutes');
 const publicPlayerRoutes = require('./routes/publicPlayerRoutes');
+const friendsRoutes = require('./routes/friendsRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const adminAuthRoutes = require('./routes/adminAuthRoutes');
 const supportRoutes = require('./routes/supportRoutes');
@@ -42,6 +43,7 @@ function createApp() {
   app.use('/auth', authRoutes);
   app.use('/api/v1/account', accountRoutes);
   app.use('/api/v1/players', publicPlayerRoutes);
+  app.use('/api/v1/friends', friendsRoutes);
   // Backward-compatible account alias.
   app.use('/account', accountRoutes);
   app.use('/api/v1/support', supportRoutes);

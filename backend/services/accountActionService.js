@@ -4,6 +4,9 @@ const { Session } = require('../models/Session');
 const { OAuthHandoff } = require('../models/OAuthHandoff');
 const { Match } = require('../models/Match');
 const { SupportReport } = require('../models/SupportReport');
+const { FriendRequest } = require('../models/FriendRequest');
+const { Friendship } = require('../models/Friendship');
+const { Block } = require('../models/Block');
 const normalizeEmail = require('../utils/normalizeEmail');
 const {
   generatePasswordResetToken,
@@ -268,6 +271,18 @@ async function deleteAccount({ userId, body }) {
   await OAuthHandoff.deleteMany({ userId: user._id });
   await Match.deleteMany({ userId: user._id });
   await SupportReport.deleteMany({ userId: user._id });
+  // Friend rows are shared with another account, so delete both directions:
+  // a pending request, friendship or block involving this account cannot
+  // outlive it and leave the other player with a phantom badge or entry.
+  await FriendRequest.deleteMany({
+    $or: [{ from: user._id }, { to: user._id }],
+  });
+  await Friendship.deleteMany({
+    $or: [{ userA: user._id }, { userB: user._id }],
+  });
+  await Block.deleteMany({
+    $or: [{ blocker: user._id }, { blocked: user._id }],
+  });
 
   // 3. Delete the account itself, guarded so a concurrent status change (an
   //    admin suspension racing this write) cannot be overwritten.

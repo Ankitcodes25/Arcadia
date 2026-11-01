@@ -15,10 +15,10 @@
  *
  * Privacy is enforced by these helpers rather than by each caller, because the
  * same question ("may this viewer see this profile?") must never be answered
- * twice with different results. Arcadia has no friendship graph yet, so
- * `FRIENDS` fails closed: with no way to prove a friendship, no other viewer
- * is allowed in. When a friendship model exists it is consulted here, in one
- * place, and every caller inherits the answer.
+ * twice with different results. `FRIENDS` is satisfied only by a caller that
+ * has already established the two accounts are friends through the friendship
+ * model. Callers that cannot prove it fail closed, so the default remains
+ * "nobody else" rather than "everybody".
  */
 
 const PROFILE_VISIBILITY = Object.freeze({
@@ -139,11 +139,11 @@ function resolvePreferenceUpdates(body) {
  * May `viewerId` (a signed-in account id, or null for an anonymous caller) see
  * the profile owned by `user`?
  *
- * Arcadia has no friendship model, so `FRIENDS` cannot be satisfied by anyone
- * but the owner: with no relationship data to check, the answer fails closed
- * rather than open. `PUBLIC` is the only state another account can satisfy.
+ * The caller supplies `isFriend` only after checking the friendship model. If
+ * it is omitted, `FRIENDS` fails closed rather than open. The owner always may
+ * view their own profile, whatever the setting.
  */
-function canViewProfile(user, viewerId) {
+function canViewProfile(user, viewerId, { isFriend = false } = {}) {
   const preferences = getPreferences(user);
   const ownerId = user && (user._id || user.id) ? String(user._id || user.id) : null;
 
@@ -151,7 +151,11 @@ function canViewProfile(user, viewerId) {
     return true;
   }
 
-  return preferences.profileVisibility === PROFILE_VISIBILITY.PUBLIC;
+  if (preferences.profileVisibility === PROFILE_VISIBILITY.PUBLIC) {
+    return true;
+  }
+
+  return preferences.profileVisibility === PROFILE_VISIBILITY.FRIENDS && isFriend === true;
 }
 
 /*
