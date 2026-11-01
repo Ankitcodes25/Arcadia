@@ -7,6 +7,8 @@ const { SupportReport } = require('../models/SupportReport');
 const { FriendRequest } = require('../models/FriendRequest');
 const { Friendship } = require('../models/Friendship');
 const { Block } = require('../models/Block');
+const { Conversation } = require('../models/Conversation');
+const { Message } = require('../models/Message');
 const normalizeEmail = require('../utils/normalizeEmail');
 const {
   generatePasswordResetToken,
@@ -283,6 +285,12 @@ async function deleteAccount({ userId, body }) {
   await Block.deleteMany({
     $or: [{ blocker: user._id }, { blocked: user._id }],
   });
+  // Chat rows are also shared with another account. Remove the account's
+  // messages and conversations so no private history outlives the account.
+  await Message.deleteMany({
+    $or: [{ senderId: user._id }, { receiverId: user._id }],
+  });
+  await Conversation.deleteMany({ participants: user._id });
 
   // 3. Delete the account itself, guarded so a concurrent status change (an
   //    admin suspension racing this write) cannot be overwritten.

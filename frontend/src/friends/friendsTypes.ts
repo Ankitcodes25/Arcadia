@@ -52,6 +52,12 @@ export type FriendRequestsResponse = {
 
 export type FriendSummaryResponse = {
   incomingCount: number;
+  /**
+   * Persisted unread chat messages from accepted, unblocked friends. It shares
+   * the existing Friends navbar dot with incoming requests rather than adding
+   * a second notification surface.
+   */
+  unreadMessageCount?: number;
 };
 
 export type FriendSearchResult = FriendPlayer & {

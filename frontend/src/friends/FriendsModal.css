@@ -262,20 +262,79 @@
   background: rgba(51, 24, 83, 0.58);
 }
 
-.friends-card-main {
+.friends-card {
   display: flex;
   align-items: center;
+  gap: 8px;
+  padding-right: 10px;
+}
+
+.friends-card-main {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
   gap: 12px;
-  width: 100%;
+  width: auto;
   min-width: 0;
   padding: 10px 12px;
   border: 0;
-  border-radius: inherit;
+  border-radius: 13px 0 0 13px;
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.friends-chat-button {
+  position: relative;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(218, 120, 255, 0.42);
+  border-radius: 10px;
+  background: rgba(122, 55, 190, 0.24);
+  color: #e6ccff;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.friends-chat-button:hover {
+  border-color: rgba(236, 170, 255, 0.78);
+  background: rgba(150, 70, 220, 0.42);
+  box-shadow: 0 0 14px rgba(190, 74, 255, 0.34);
+}
+
+.friends-chat-button:focus-visible {
+  outline: 2px solid #e0a1ff;
+  outline-offset: 2px;
+}
+
+.friends-chat-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.friends-chat-unread {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: inline-grid;
+  min-width: 17px;
+  height: 17px;
+  place-items: center;
+  padding: 0 4px;
+  border: 1px solid rgba(30, 8, 48, 0.9);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f06bff, #9b45ff);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 0 9px rgba(216, 96, 255, 0.7);
 }
 
 .friends-card-main:focus-visible {

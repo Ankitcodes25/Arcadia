@@ -1,4 +1,5 @@
 const friendshipService = require('../services/friendshipService');
+const chatService = require('../services/chatService');
 const presenceService = require('../services/presenceService');
 
 function preventResponseCaching(res) {
@@ -28,8 +29,18 @@ async function listRequests(req, res, next) {
 async function getSummary(req, res, next) {
   preventResponseCaching(res);
   try {
-    const result = await friendshipService.getRequestSummary(req.user.id);
-    return res.json(result);
+    // The navbar has one notification surface, so the existing Friends summary
+    // carries both actionable friend requests and persisted unread messages.
+    const [result, chatSummary] = await Promise.all([
+      friendshipService.getRequestSummary(req.user.id),
+      // Chat is additive to the existing Friends surface. A transient chat
+      // read failure must not hide an actionable friend-request badge.
+      chatService.getUnreadSummary(req.user.id).catch(() => ({ unreadMessageCount: 0 })),
+    ]);
+    return res.json({
+      ...result,
+      unreadMessageCount: chatSummary.unreadMessageCount,
+    });
   } catch (error) {
     return next(error);
   }

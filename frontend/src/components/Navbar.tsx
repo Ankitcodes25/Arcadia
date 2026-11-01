@@ -24,6 +24,12 @@ import MyProfileContainer from "../pages/Myprofile/MyProfileContainer";
 import ProfilePopupModal from "./ProfilePopupmodal";
 import FriendsModal from "../friends/FriendsModal";
 import { FRIENDS_CHANGED_EVENT, friendsApi, hasAuthToken } from "../friends/friendsApi";
+import { CHAT_CHANGED_EVENT } from "../chat/chatApi";
+import {
+  connectChatSocket,
+  disconnectChatSocket,
+  onChatEvent,
+} from "../chat/chatSocket";
 
 type NavItem = "home" | "games" | "popular" | "about" | "friends";
 
@@ -69,6 +75,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
   const [isMyProfileOpen, setIsMyProfileOpen] = useState(false);
   const [isFriendsOpen, setIsFriendsOpen] = useState(false);
   const [incomingFriendRequests, setIncomingFriendRequests] = useState(0);
+  const [unreadChatMessages, setUnreadChatMessages] = useState(0);
   const {
     user,
     isAuthenticated,
@@ -122,8 +129,12 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
   useEffect(() => {
     if (!isAuthenticated || !currentUserId || !hasAuthToken()) {
       setIncomingFriendRequests(0);
+      setUnreadChatMessages(0);
+      disconnectChatSocket();
       return undefined;
     }
+
+    connectChatSocket(currentUserId);
 
     let cancelled = false;
     let summarySequence = 0;
@@ -135,6 +146,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
         // example the zero from an accept that happened while it was in flight).
         if (!cancelled && sequence === summarySequence) {
           setIncomingFriendRequests(response.incomingCount);
+          setUnreadChatMessages(response.unreadMessageCount ?? 0);
         }
       } catch {
         // A transient summary failure must not disturb navigation or the modal.
@@ -159,15 +171,20 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
     void sendHeartbeat();
     const summaryTimer = window.setInterval(refreshSummary, 30_000);
     const heartbeatTimer = window.setInterval(sendHeartbeat, 45_000);
+    const unsubscribeRealtime = onChatEvent("chat:changed", refreshOnChange);
     window.addEventListener(FRIENDS_CHANGED_EVENT, refreshOnChange);
+    window.addEventListener(CHAT_CHANGED_EVENT, refreshOnChange);
     document.addEventListener("visibilitychange", refreshWhenVisible);
 
     return () => {
       cancelled = true;
       window.clearInterval(summaryTimer);
       window.clearInterval(heartbeatTimer);
+      unsubscribeRealtime();
       window.removeEventListener(FRIENDS_CHANGED_EVENT, refreshOnChange);
+      window.removeEventListener(CHAT_CHANGED_EVENT, refreshOnChange);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
+      disconnectChatSocket();
     };
   }, [currentUserId, isAuthenticated]);
 
@@ -401,6 +418,8 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
       setIsProfileOpen(false);
       setIsFriendsOpen(false);
       setIncomingFriendRequests(0);
+      setUnreadChatMessages(0);
+      disconnectChatSocket();
       navigateTo("/");
     }
   };
@@ -589,11 +608,15 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
                   : "navbar-friends-nav"
               }
               data-nav-item="friends"
-              aria-label={
+              aria-label={[
+                "Open friends",
                 incomingFriendRequests > 0
-                  ? `Open friends, ${incomingFriendRequests} pending friend request${incomingFriendRequests === 1 ? "" : "s"}`
-                  : "Open friends"
-              }
+                  ? `${incomingFriendRequests} pending friend request${incomingFriendRequests === 1 ? "" : "s"}`
+                  : null,
+                unreadChatMessages > 0
+                  ? `${unreadChatMessages} unread message${unreadChatMessages === 1 ? "" : "s"}`
+                  : null,
+              ].filter(Boolean).join(", ")}
               aria-haspopup="dialog"
               aria-expanded={isFriendsOpen}
               title="Friends"
@@ -603,7 +626,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
               }}
             >
               <span>Friends</span>
-              {incomingFriendRequests > 0 && (
+              {(incomingFriendRequests > 0 || unreadChatMessages > 0) && (
                 <span className="navbar-friends-dot" aria-hidden="true" />
               )}
             </button>

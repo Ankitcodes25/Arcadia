@@ -239,6 +239,18 @@ const policies = Object.freeze({
     { scope: 'friends:presence:ip', limit: 240, windowMs: 15 * MINUTE_MS, identifier: getIpIdentifier },
     { scope: 'friends:presence:user', limit: 240, windowMs: 15 * MINUTE_MS, identifier: getUserIdentifier },
   ],
+  chatRead: [
+    { scope: 'chat:read:ip', limit: 360, windowMs: 15 * MINUTE_MS, identifier: getIpIdentifier },
+    { scope: 'chat:read:user', limit: 360, windowMs: 15 * MINUTE_MS, identifier: getUserIdentifier },
+  ],
+  chatSend: [
+    { scope: 'chat:send:ip', limit: 600, windowMs: 15 * MINUTE_MS, identifier: getIpIdentifier },
+    { scope: 'chat:send:user', limit: 300, windowMs: 15 * MINUTE_MS, identifier: getUserIdentifier },
+  ],
+  chatMutation: [
+    { scope: 'chat:mutation:ip', limit: 600, windowMs: 15 * MINUTE_MS, identifier: getIpIdentifier },
+    { scope: 'chat:mutation:user', limit: 600, windowMs: 15 * MINUTE_MS, identifier: getUserIdentifier },
+  ],
   accountDeletion: [
     { scope: 'account:delete:ip', limit: 10, windowMs: HOUR_MS, identifier: getIpIdentifier },
     { scope: 'account:delete:user', limit: 5, windowMs: HOUR_MS, identifier: getUserIdentifier },

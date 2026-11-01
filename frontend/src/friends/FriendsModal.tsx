@@ -12,6 +12,10 @@ import { Inbox, Search, Users, X } from "lucide-react";
 import { getAuthErrorMessage } from "../auth/authUtils";
 import { acquireModalScrollLock } from "../auth/modalScrollLock";
 import PlayerProfileModal from "../components/PlayerProfileModal";
+import ChatModal from "../chat/ChatModal";
+import { chatApi, CHAT_CHANGED_EVENT } from "../chat/chatApi";
+import { onChatEvent } from "../chat/chatSocket";
+import type { ChatConversation } from "../chat/chatTypes";
 import type {
   Friend,
   FriendRelationship,
@@ -53,6 +57,8 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
   const [friends, setFriends] = useState<Friend[]>([]);
   const [friendsLoading, setFriendsLoading] = useState(true);
   const [friendsError, setFriendsError] = useState<string | null>(null);
+  const [conversationsByFriendId, setConversationsByFriendId] = useState<Map<string, ChatConversation>>(new Map());
+  const [activeChat, setActiveChat] = useState<Friend | null>(null);
 
   const [incoming, setIncoming] = useState<FriendRequestItem[]>([]);
   const [outgoing, setOutgoing] = useState<FriendRequestItem[]>([]);
@@ -71,6 +77,7 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
 
   const friendsSeq = useRef(0);
   const requestsSeq = useRef(0);
+  const conversationsSeq = useRef(0);
   const searchSeq = useRef(0);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressClickRef = useRef(false);
@@ -128,6 +135,21 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
     }
   }, [onIncomingCountChange]);
 
+  const loadConversations = useCallback(async (silent = false) => {
+    const sequence = ++conversationsSeq.current;
+    if (!silent) setConversationsByFriendId(new Map());
+    try {
+      const response = await chatApi.listConversations();
+      if (sequence !== conversationsSeq.current) return;
+      setConversationsByFriendId(new Map(
+        response.conversations.map((conversation) => [conversation.friend.id, conversation]),
+      ));
+    } catch {
+      // Chat history is an enhancement on top of the Friends list. A transient
+      // chat read failure must not hide friends or requests.
+    }
+  }, []);
+
   const runSearch = useCallback(async (value: string) => {
     const query = value.trim();
     const sequence = ++searchSeq.current;
@@ -150,26 +172,38 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
   useEffect(() => {
     void loadFriends();
     void loadRequests();
+    void loadConversations();
     return () => {
       friendsSeq.current += 1;
       requestsSeq.current += 1;
+      conversationsSeq.current += 1;
       searchSeq.current += 1;
       if (feedbackTimer.current !== null) clearTimeout(feedbackTimer.current);
     };
-  }, [loadFriends, loadRequests]);
+  }, [loadFriends, loadRequests, loadConversations]);
+
+  useEffect(() => {
+    const refreshConversations = () => { void loadConversations(true); };
+    const unsubscribeRealtime = onChatEvent("chat:changed", refreshConversations);
+    window.addEventListener(CHAT_CHANGED_EVENT, refreshConversations);
+    return () => {
+      unsubscribeRealtime();
+      window.removeEventListener(CHAT_CHANGED_EVENT, refreshConversations);
+    };
+  }, [loadConversations]);
 
   useEffect(() => acquireModalScrollLock(), []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      // A profile opened above this modal owns Escape while it is visible.
-      if (selectedPlayer) return;
+      // A profile or chat opened above this modal owns Escape while visible.
+      if (selectedPlayer || activeChat) return;
       onClose();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose, selectedPlayer]);
+  }, [activeChat, onClose, selectedPlayer]);
 
   useEffect(() => {
     const query = searchQuery.trim();
@@ -200,7 +234,8 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
   const refreshAfterChange = useCallback(() => {
     void loadFriends(true);
     void loadRequests(true);
-  }, [loadFriends, loadRequests]);
+    void loadConversations(true);
+  }, [loadConversations, loadFriends, loadRequests]);
 
   const handleProfileRelationshipChange = useCallback((playerId: string, relationship: FriendRelationship) => {
     updateSearchRelationship(playerId, relationship);
@@ -299,6 +334,12 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
       onIncomingCountChange(nextIncoming.length);
       setOutgoing((current) => current.filter((item) => item.user.id !== request.user.id));
       setFriends((current) => current.filter((friend) => friend.id !== request.user.id));
+      setConversationsByFriendId((current) => {
+        const next = new Map(current);
+        next.delete(request.user.id);
+        return next;
+      });
+      setActiveChat((current) => (current?.id === request.user.id ? null : current));
       showFeedback("success", `${request.user.username} has been blocked.`);
       refreshAfterChange();
       notifyFriendsChanged("friends-modal");
@@ -501,7 +542,13 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
               ) : (
                 <div className="friends-card-list">
                   {sortedFriends.map((friend) => (
-                    <FriendCard key={friend.id} friend={friend} onOpen={openProfile} />
+                    <FriendCard
+                      key={friend.id}
+                      friend={friend}
+                      unreadCount={conversationsByFriendId.get(friend.id)?.unreadCount ?? 0}
+                      onOpen={openProfile}
+                      onChat={setActiveChat}
+                    />
                   ))}
                 </div>
               )}
@@ -686,6 +733,17 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
           currentUserId={currentUserId}
           onClose={() => setSelectedPlayer(null)}
           onRelationshipChange={handleProfileRelationshipChange}
+        />
+      )}
+
+      {activeChat && (
+        <ChatModal
+          friend={activeChat}
+          currentUserId={currentUserId}
+          onClose={() => {
+            setActiveChat(null);
+            void loadConversations(true);
+          }}
         />
       )}
     </div>,
