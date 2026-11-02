@@ -24,9 +24,8 @@ import PlayerProfile from "../../components/PlayerProfileModal";
 import "./Leaderboard.css";
 
 /* Hero images: Arcadion + peeche #1 / #2 / #3 cards.
-   Arcadion wahi artwork hai jo Match History hero use karta hai, taaki dono
-   pages par decorative Arcadion ek jaisa soft dikhe. */
-import arcadion from "../../assets/ArcadionHistory.png";
+   Agar tumhare assets ka path alag hai to sirf yeh imports badal do. */
+import arcadion from "./assets/leadArc.png";
 import rankCard1 from "./Assets/lead1.png";
 import rankCard2 from "./Assets/lead2.png";
 import rankCard3 from "./Assets/lead3.png";
