@@ -76,7 +76,7 @@ def build():
     # Welcome hero: the hooded character reaching out, holding the cube.
     hero = flatten(load("ArcadionEmailHero.png"))
     hero = fade_bottom(resize_to_width(hero, 1200), 0.22)
-    written.append(save_jpeg(hero, "hero-welcome.jpg"))
+    written.append(save_jpeg(hero, "hero-welcome-cube.jpg"))
 
     # Welcome-back hero: the same character at rest, from the landing CTA.
     rest = flatten(load("ArcadionCTA.png"))

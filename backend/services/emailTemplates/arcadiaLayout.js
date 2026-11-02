@@ -24,7 +24,7 @@ const ASSET_DIRECTORY = path.join(__dirname, '..', '..', 'assets', 'email');
 // that blocks images still reserves the right space.
 const EMAIL_IMAGES = Object.freeze({
   logo: { filename: 'logo.png' },
-  heroWelcome: { filename: 'hero-welcome.jpg', heroHeight: 400 },
+  heroWelcome: { filename: 'hero-welcome-cube.jpg', heroHeight: 400 },
   heroWelcomeBack: { filename: 'hero-welcome-back.jpg', heroHeight: 338 },
   crest: { filename: 'crest.png' },
 });
