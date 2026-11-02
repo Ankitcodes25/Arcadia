@@ -7,15 +7,16 @@ import {
   type KeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { Check, CheckCheck, MessageSquare, Send, X } from "lucide-react";
+import { Eraser, MessageSquare, MoreVertical, Send, X } from "lucide-react";
 import { getAuthErrorMessage } from "../auth/authUtils";
 import { acquireModalScrollLock } from "../auth/modalScrollLock";
+import ConfirmDialog from "../components/ConfirmDialog";
 import FriendAvatar from "../friends/FriendAvatar";
 import OnlineStatusIndicator from "../friends/OnlineStatusIndicator";
 import type { Friend } from "../friends/friendsTypes";
 import { chatApi, notifyChatChanged } from "./chatApi";
 import { acknowledgeChatDelivered, onChatEvent, sendChatTyping } from "./chatSocket";
-import type { ChatMessage, ChatMessageStatus } from "./chatTypes";
+import type { ChatClearRequest, ChatMessage, ChatMessageStatus } from "./chatTypes";
 import "./ChatModal.css";
 
 type ChatModalProps = {
@@ -101,6 +102,30 @@ function createClientMessageId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
+/*
+ * Delivery ticks drawn on a 1-unit-per-pixel grid. Lucide's CheckCheck tucks
+ * the second tick's short stroke behind the first; at timestamp size that
+ * stroke is under a pixel, so the pair read as one tick plus a clipped line.
+ * Here both ticks are complete and parallel with a clear gap, and SENT uses
+ * the same box so the timestamp never shifts when the status advances.
+ */
+function MessageTicks({ double }: { double: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 18 11"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M1.2 5.8 4.4 9l6.2-6.6" />
+      {double && <path d="M8.4 7.6 9.8 9l7-6.6" />}
+    </svg>
+  );
+}
+
 function MessageStatus({ status }: { status: ChatMessageStatus }) {
   const label = status === "READ" ? "Read" : status === "DELIVERED" ? "Delivered" : "Sent";
   return (
@@ -110,9 +135,124 @@ function MessageStatus({ status }: { status: ChatMessageStatus }) {
       title={label}
       aria-label={label}
     >
-      {status === "SENT" ? <Check aria-hidden="true" /> : <CheckCheck aria-hidden="true" />}
+      <MessageTicks double={status !== "SENT"} />
     </span>
   );
+}
+
+type ClearAction = "accept" | "decline" | "cancel" | "dismiss";
+
+/*
+ * The clear-chat request card shown at the top of the message area. It only
+ * renders states the server reported: an incoming request to answer, the
+ * viewer's own pending request, or the answer to the viewer's request.
+ */
+function ClearRequestBanner({
+  request,
+  outcome,
+  currentUserId,
+  action,
+  error,
+  onAccept,
+  onDecline,
+  onCancel,
+  onDismiss,
+}: {
+  request: ChatClearRequest | null;
+  outcome: ChatClearRequest | null;
+  currentUserId: string;
+  action: ClearAction | null;
+  error: string | null;
+  onAccept: () => void;
+  onDecline: () => void;
+  onCancel: () => void;
+  onDismiss: () => void;
+}) {
+  const busy = action !== null;
+  const spinner = <span className="chat-spinner" aria-hidden="true" />;
+
+  if (request && request.recipientId === currentUserId) {
+    return (
+      <section className="chat-clear-banner" role="region" aria-labelledby="chat-clear-banner-title">
+        <h3 id="chat-clear-banner-title">Clear Chat Request</h3>
+        <p>
+          <strong>{request.requesterUsername}</strong> wants to permanently clear this conversation
+          for both of you. Do you agree?
+        </p>
+        {error && <p className="chat-clear-banner-error" role="alert">{error}</p>}
+        <div className="chat-clear-banner-actions">
+          <button
+            type="button"
+            className="chat-clear-banner-button chat-clear-banner-button--primary"
+            disabled={busy}
+            onClick={onAccept}
+          >
+            {action === "accept" && spinner}
+            {action === "accept" ? "Clearing…" : "Accept"}
+          </button>
+          <button
+            type="button"
+            className="chat-clear-banner-button"
+            disabled={busy}
+            onClick={onDecline}
+          >
+            {action === "decline" && spinner}
+            {action === "decline" ? "Declining…" : "Decline"}
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (request && request.requesterId === currentUserId) {
+    return (
+      <section className="chat-clear-banner chat-clear-banner--pending" role="status">
+        <div className="chat-clear-banner-row">
+          <div>
+            <h3>Clear Chat Request sent</h3>
+            <p>Waiting for the other person to respond</p>
+          </div>
+          <button
+            type="button"
+            className="chat-clear-banner-button"
+            disabled={busy}
+            onClick={onCancel}
+          >
+            {action === "cancel" && spinner}
+            {action === "cancel" ? "Cancelling…" : "Cancel request"}
+          </button>
+        </div>
+        {error && <p className="chat-clear-banner-error" role="alert">{error}</p>}
+      </section>
+    );
+  }
+
+  if (outcome) {
+    const declined = outcome.status === "declined";
+    return (
+      <section
+        className={`chat-clear-banner chat-clear-banner--${declined ? "declined" : "accepted"}`}
+        role="status"
+      >
+        <div className="chat-clear-banner-row">
+          <p className="chat-clear-banner-outcome">
+            {declined ? "Your Clear Chat Request was declined" : "Chat cleared for both users"}
+          </p>
+          <button
+            type="button"
+            className="chat-clear-banner-button"
+            disabled={busy}
+            onClick={onDismiss}
+          >
+            {action === "dismiss" ? "Dismissing…" : "Dismiss"}
+          </button>
+        </div>
+        {error && <p className="chat-clear-banner-error" role="alert">{error}</p>}
+      </section>
+    );
+  }
+
+  return null;
 }
 
 function ChatModal({ friend, currentUserId, onClose }: ChatModalProps) {
@@ -128,6 +268,26 @@ function ChatModal({ friend, currentUserId, onClose }: ChatModalProps) {
   const [sendError, setSendError] = useState<string | null>(null);
   const [friendTyping, setFriendTyping] = useState(false);
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [clearBoth, setClearBoth] = useState(false);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [clearRequest, setClearRequest] = useState<ChatClearRequest | null>(null);
+  const [clearOutcome, setClearOutcome] = useState<ChatClearRequest | null>(null);
+  const [clearStateError, setClearStateError] = useState<string | null>(null);
+  const [clearAction, setClearAction] = useState<ClearAction | null>(null);
+  const [clearActionError, setClearActionError] = useState<string | null>(null);
+  const [clearNotice, setClearNotice] = useState<{ tone: "success" | "info"; message: string } | null>(null);
+
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuOpenRef = useRef(false);
+  const clearActionRef = useRef(false);
+  const clearSequence = useRef(0);
+  const clearNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The viewer's own "clear my side" cutoff. Late socket or replayed rows at
+  // or before it are dropped so cleared history cannot reappear.
+  const clearedAtRef = useRef<number | null>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const loadSequence = useRef(0);
@@ -170,6 +330,53 @@ function ChatModal({ friend, currentUserId, onClose }: ChatModalProps) {
     }, delay);
   }, [markReadNow]);
 
+  const isVisible = useCallback((message: ChatMessage) => {
+    const cutoff = clearedAtRef.current;
+    return cutoff === null || (Date.parse(message.createdAt) || 0) > cutoff;
+  }, []);
+
+  const showClearNotice = useCallback((tone: "success" | "info", message: string) => {
+    setClearNotice({ tone, message });
+    if (clearNoticeTimer.current !== null) clearTimeout(clearNoticeTimer.current);
+    clearNoticeTimer.current = setTimeout(() => {
+      clearNoticeTimer.current = null;
+      setClearNotice(null);
+    }, 6000);
+  }, []);
+
+  /**
+   * Drops every loaded row and any in-flight page. Bumping the load sequence
+   * means a history response that left the server before the clear can never
+   * be merged back in, and the old pagination cursor is forgotten.
+   */
+  const resetHistory = useCallback(() => {
+    loadSequence.current += 1;
+    loadingOlderRef.current = false;
+    loadedOlderRef.current = false;
+    stickToBottomRef.current = true;
+    setMessages([]);
+    setHasMore(false);
+    setNextCursor(null);
+    setLoading(false);
+    setLoadError(null);
+    setLoadingOlder(false);
+    setOlderError(null);
+  }, []);
+
+  const loadClearState = useCallback(async () => {
+    const sequence = ++clearSequence.current;
+    try {
+      const response = await chatApi.getClearState(friend.id);
+      if (sequence !== clearSequence.current) return;
+      setClearRequest(response.request);
+      setClearOutcome(response.outcome);
+      setClearStateError(null);
+    } catch (error) {
+      if (sequence !== clearSequence.current) return;
+      setClearStateError(getAuthErrorMessage(error, "Clear Chat status is unavailable."));
+    }
+  }, [friend.id]);
+
   const acknowledgeIncoming = useCallback((incoming: ChatMessage[]) => {
     const messageIds = incoming
       .filter((message) => (
@@ -184,7 +391,8 @@ function ChatModal({ friend, currentUserId, onClose }: ChatModalProps) {
     try {
       const response = await chatApi.listMessages(friend.id, { limit: PAGE_SIZE });
       if (sequence !== loadSequence.current) return;
-      setMessages((current) => mergeMessages(current, response.messages));
+      clearedAtRef.current = response.clearedAt ? Date.parse(response.clearedAt) : null;
+      setMessages((current) => mergeMessages(current.filter(isVisible), response.messages));
       if (!loadedOlderRef.current) {
         setHasMore(response.hasMore);
         setNextCursor(response.nextCursor);
@@ -198,7 +406,7 @@ function ChatModal({ friend, currentUserId, onClose }: ChatModalProps) {
     } catch {
       // Reconnect catch-up is best-effort; the next open or message retries it.
     }
-  }, [acknowledgeIncoming, friend.id, scheduleMarkRead, scrollToBottom]);
+  }, [acknowledgeIncoming, friend.id, isVisible, scheduleMarkRead, scrollToBottom]);
 
   const stopTyping = useCallback(() => {
     if (typingStopTimer.current !== null) {
@@ -214,12 +422,38 @@ function ChatModal({ friend, currentUserId, onClose }: ChatModalProps) {
   useEffect(() => acquireModalScrollLock(), []);
 
   useEffect(() => {
+    menuOpenRef.current = menuOpen;
+  }, [menuOpen]);
+
+  useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      // An open header menu owns the first Escape.
+      if (menuOpenRef.current) {
+        setMenuOpen(false);
+        return;
+      }
+      onClose();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onPointerDown = (event: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [menuOpen]);
+
+  useEffect(() => () => {
+    clearSequence.current += 1;
+    if (clearNoticeTimer.current !== null) clearTimeout(clearNoticeTimer.current);
+  }, []);
 
   useEffect(() => {
     const onVisible = () => {
@@ -243,11 +477,20 @@ function ChatModal({ friend, currentUserId, onClose }: ChatModalProps) {
     setSendError(null);
     setFriendTyping(false);
     stickToBottomRef.current = true;
+    clearedAtRef.current = null;
+    setClearRequest(null);
+    setClearOutcome(null);
+    setClearStateError(null);
+    setClearActionError(null);
+    setClearNotice(null);
+    setMenuOpen(false);
+    void loadClearState();
 
     chatApi.listMessages(friend.id, { limit: PAGE_SIZE })
       .then((response) => {
         if (sequence !== loadSequence.current) return;
-        setMessages((current) => mergeMessages(current, response.messages));
+        clearedAtRef.current = response.clearedAt ? Date.parse(response.clearedAt) : null;
+        setMessages((current) => mergeMessages(current.filter(isVisible), response.messages));
         setHasMore(response.hasMore);
         setNextCursor(response.nextCursor);
         setLoading(false);
@@ -280,7 +523,7 @@ function ChatModal({ friend, currentUserId, onClose }: ChatModalProps) {
         typingSentRef.current = false;
       }
     };
-  }, [acknowledgeIncoming, friend.id, scheduleMarkRead, scrollToBottom]);
+  }, [acknowledgeIncoming, friend.id, isVisible, loadClearState, scheduleMarkRead, scrollToBottom]);
 
   useEffect(() => {
     const belongsToConversation = (message: ChatMessage) => (
@@ -289,7 +532,7 @@ function ChatModal({ friend, currentUserId, onClose }: ChatModalProps) {
     );
 
     const unsubscribeMessage = onChatEvent("chat:message", ({ message }) => {
-      if (!belongsToConversation(message)) return;
+      if (!belongsToConversation(message) || !isVisible(message)) return;
       setMessages((current) => mergeMessages(current, [message]));
 
       if (message.senderId === friend.id && message.receiverId === currentUserId) {
@@ -342,7 +585,41 @@ function ChatModal({ friend, currentUserId, onClose }: ChatModalProps) {
     // the newest page so persisted delivery/read states catch up without a
     // page refresh; mergeMessages keeps existing rows and newer local states.
     const unsubscribeRefresh = onChatEvent("chat:changed", ({ reason }) => {
-      if (reason === "refresh") void refreshMessages();
+      if (reason !== "refresh") return;
+      void refreshMessages();
+      void loadClearState();
+    });
+
+    const belongsToPair = (request: ChatClearRequest) => (
+      (request.requesterId === currentUserId && request.recipientId === friend.id)
+      || (request.requesterId === friend.id && request.recipientId === currentUserId)
+    );
+
+    const unsubscribeClearRequest = onChatEvent("chat:clear-request", ({ request }) => {
+      if (!belongsToPair(request)) return;
+      setClearActionError(null);
+      if (request.status === "pending") {
+        setClearRequest(request);
+        if (request.requesterId === currentUserId) setClearOutcome(null);
+        return;
+      }
+
+      setClearRequest((current) => (current?.id === request.id ? null : current));
+      if (request.requesterId === currentUserId && request.status !== "cancelled") {
+        setClearOutcome(request);
+      } else if (request.recipientId === currentUserId && request.status === "cancelled") {
+        showClearNotice("info", `${request.requesterUsername} cancelled their Clear Chat Request.`);
+      }
+    });
+
+    const unsubscribeCleared = onChatEvent("chat:cleared", ({ scope, conversationWith, clearedAt }) => {
+      if (conversationWith !== friend.id) return;
+      if (scope === "me") {
+        clearedAtRef.current = clearedAt ? Date.parse(clearedAt) : Date.now();
+      } else {
+        clearedAtRef.current = null;
+      }
+      resetHistory();
     });
 
     return () => {
@@ -351,8 +628,20 @@ function ChatModal({ friend, currentUserId, onClose }: ChatModalProps) {
       unsubscribeRead();
       unsubscribeTyping();
       unsubscribeRefresh();
+      unsubscribeClearRequest();
+      unsubscribeCleared();
     };
-  }, [currentUserId, friend.id, refreshMessages, scheduleMarkRead, scrollToBottom]);
+  }, [
+    currentUserId,
+    friend.id,
+    isVisible,
+    loadClearState,
+    refreshMessages,
+    resetHistory,
+    scheduleMarkRead,
+    scrollToBottom,
+    showClearNotice,
+  ]);
 
   useEffect(() => {
     const input = inputRef.current;
@@ -460,6 +749,103 @@ function ChatModal({ friend, currentUserId, onClose }: ChatModalProps) {
     void handleSend();
   };
 
+  const openClearConfirm = () => {
+    setMenuOpen(false);
+    setClearBoth(false);
+    setConfirmError(null);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmClear = async () => {
+    if (confirmBusy) return;
+    setConfirmBusy(true);
+    setConfirmError(null);
+    try {
+      if (clearBoth) {
+        // Nothing is deleted yet: the friend has to accept first.
+        const response = await chatApi.requestClearForBoth(friend.id);
+        setClearRequest(response.request);
+        setClearOutcome(null);
+        setClearActionError(null);
+      } else {
+        const response = await chatApi.clearForMe(friend.id);
+        clearedAtRef.current = Date.parse(response.clearedAt) || Date.now();
+        resetHistory();
+        showClearNotice("success", `Chat cleared for you. ${friend.username} still has the full history.`);
+      }
+      notifyChatChanged("chat-modal");
+      setConfirmOpen(false);
+    } catch (error) {
+      setConfirmError(getAuthErrorMessage(error, "The chat could not be cleared. Please try again."));
+      // A 409 means a request appeared meanwhile; show the real state.
+      void loadClearState();
+    } finally {
+      setConfirmBusy(false);
+    }
+  };
+
+  const runClearAction = async (action: ClearAction, run: () => Promise<void>, fallback: string) => {
+    if (clearActionRef.current) return;
+    clearActionRef.current = true;
+    setClearAction(action);
+    setClearActionError(null);
+    try {
+      await run();
+      notifyChatChanged("chat-modal");
+    } catch (error) {
+      setClearActionError(getAuthErrorMessage(error, fallback));
+      // Restore whatever the server now holds (for example, the requester
+      // cancelled while this answer was in flight).
+      void loadClearState();
+    } finally {
+      clearActionRef.current = false;
+      setClearAction(null);
+    }
+  };
+
+  const handleAcceptClear = () => {
+    const request = clearRequest;
+    if (!request) return;
+    void runClearAction("accept", async () => {
+      await chatApi.acceptClearRequest(request.id);
+      clearedAtRef.current = null;
+      resetHistory();
+      setClearRequest(null);
+      showClearNotice("success", "Chat cleared for both users");
+    }, "The chat could not be cleared. Please try again.");
+  };
+
+  const handleDeclineClear = () => {
+    const request = clearRequest;
+    if (!request) return;
+    void runClearAction("decline", async () => {
+      await chatApi.declineClearRequest(request.id);
+      setClearRequest(null);
+      showClearNotice("info", "You declined the Clear Chat Request. Your messages are unchanged.");
+    }, "Your answer could not be sent. Please try again.");
+  };
+
+  const handleCancelClear = () => {
+    const request = clearRequest;
+    if (!request) return;
+    void runClearAction("cancel", async () => {
+      await chatApi.cancelClearRequest(request.id);
+      setClearRequest(null);
+      showClearNotice("info", "Clear Chat Request cancelled.");
+    }, "The request could not be cancelled. Please try again.");
+  };
+
+  const handleDismissOutcome = () => {
+    const outcome = clearOutcome;
+    if (!outcome) return;
+    void runClearAction("dismiss", async () => {
+      await chatApi.acknowledgeClearRequest(outcome.id);
+      setClearOutcome(null);
+    }, "This message could not be dismissed. Please try again.");
+  };
+
+  const pendingRequestExists = clearRequest !== null;
+
   const messageNodes = messages.map((message, index) => {
     const mine = message.senderId === currentUserId;
     const previous = messages[index - 1];
@@ -511,16 +897,69 @@ function ChatModal({ friend, currentUserId, onClose }: ChatModalProps) {
               </span>
             </div>
           </div>
-          <button
-            type="button"
-            className="chat-close arcadia-modal-close"
-            aria-label="Close chat"
-            title="Close chat"
-            onClick={onClose}
-          >
-            <X aria-hidden="true" />
-          </button>
+          <div className="chat-header-actions">
+            <div className="chat-menu" ref={menuRef}>
+              <button
+                type="button"
+                className="chat-menu-trigger arcadia-modal-close"
+                aria-label="Chat options"
+                title="Chat options"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                aria-controls="chat-options-menu"
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                <MoreVertical aria-hidden="true" />
+              </button>
+              {menuOpen && (
+                <div className="chat-menu-list" id="chat-options-menu" role="menu" aria-label="Chat options">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="chat-menu-item"
+                    onClick={openClearConfirm}
+                    autoFocus
+                  >
+                    <Eraser aria-hidden="true" />
+                    Clear Chat
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              className="chat-close arcadia-modal-close"
+              aria-label="Close chat"
+              title="Close chat"
+              onClick={onClose}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </div>
         </header>
+
+        <ClearRequestBanner
+          request={clearRequest}
+          outcome={clearOutcome}
+          currentUserId={currentUserId}
+          action={clearAction}
+          error={clearActionError}
+          onAccept={handleAcceptClear}
+          onDecline={handleDeclineClear}
+          onCancel={handleCancelClear}
+          onDismiss={handleDismissOutcome}
+        />
+        {clearStateError && !clearRequest && !clearOutcome && (
+          <p className="chat-clear-state-error" role="alert">
+            {clearStateError}
+            <button type="button" onClick={() => void loadClearState()}>Retry</button>
+          </p>
+        )}
+        {clearNotice && (
+          <p className={`chat-clear-notice chat-clear-notice--${clearNotice.tone}`} role="status">
+            {clearNotice.message}
+          </p>
+        )}
 
         <div
           className="chat-messages"
@@ -546,7 +985,8 @@ function ChatModal({ friend, currentUserId, onClose }: ChatModalProps) {
                 chatApi.listMessages(friend.id, { limit: PAGE_SIZE })
                   .then((response) => {
                     if (sequence !== loadSequence.current) return;
-                    setMessages((current) => mergeMessages(current, response.messages));
+                    clearedAtRef.current = response.clearedAt ? Date.parse(response.clearedAt) : null;
+                    setMessages((current) => mergeMessages(current.filter(isVisible), response.messages));
                     setHasMore(response.hasMore);
                     setNextCursor(response.nextCursor);
                     setLoading(false);
@@ -622,6 +1062,37 @@ function ChatModal({ friend, currentUserId, onClose }: ChatModalProps) {
           </div>
         </form>
       </section>
+
+      {confirmOpen && (
+        <ConfirmDialog
+          title="Clear Chat"
+          message="Are you sure you want to clear this conversation?"
+          confirmLabel="Clear Chat"
+          busyLabel={clearBoth ? "Sending…" : "Clearing…"}
+          tone="danger"
+          busy={confirmBusy}
+          error={confirmError}
+          onCancel={() => setConfirmOpen(false)}
+          onConfirm={() => void handleConfirmClear()}
+        >
+          <label className="confirm-dialog-option">
+            <input
+              type="checkbox"
+              checked={clearBoth}
+              disabled={confirmBusy || pendingRequestExists}
+              onChange={(event) => setClearBoth(event.target.checked)}
+            />
+            <span>
+              Also delete chat from both ends
+              <span className="confirm-dialog-option-hint">
+                {pendingRequestExists
+                  ? "A Clear Chat Request for this chat is already pending."
+                  : `${friend.username} must accept before anything is deleted.`}
+              </span>
+            </span>
+          </label>
+        </ConfirmDialog>
+      )}
     </div>,
     document.body,
   );

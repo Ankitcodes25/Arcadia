@@ -12,4 +12,13 @@ router.get('/conversations/:friendId/messages', ...rateLimits.chatRead, controll
 router.post('/conversations/:friendId/messages', ...rateLimits.chatSend, controller.sendMessage);
 router.post('/conversations/:friendId/read', ...rateLimits.chatMutation, controller.markRead);
 
+// Clear chat. `scope: "me"` hides history from the caller only; `scope: "both"`
+// creates a request that deletes nothing until the other participant accepts.
+router.get('/conversations/:friendId/clear', ...rateLimits.chatRead, controller.getClearState);
+router.post('/conversations/:friendId/clear', ...rateLimits.chatMutation, controller.clearChat);
+router.post('/clear-requests/:requestId/accept', ...rateLimits.chatMutation, controller.acceptClearRequest);
+router.post('/clear-requests/:requestId/decline', ...rateLimits.chatMutation, controller.declineClearRequest);
+router.post('/clear-requests/:requestId/acknowledge', ...rateLimits.chatMutation, controller.acknowledgeClearRequest);
+router.delete('/clear-requests/:requestId', ...rateLimits.chatMutation, controller.cancelClearRequest);
+
 module.exports = router;

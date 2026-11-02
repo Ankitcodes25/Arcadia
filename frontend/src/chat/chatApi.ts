@@ -1,7 +1,11 @@
 import { apiRequest } from "../auth/authApi";
 import type {
+  AcceptChatClearResponse,
+  ChatClearRequestResponse,
+  ChatClearStateResponse,
   ChatConversationsResponse,
   ChatMessagesResponse,
+  ClearChatForMeResponse,
   MarkChatReadResponse,
   SendChatMessageResponse,
 } from "./chatTypes";
@@ -50,6 +54,56 @@ export const chatApi = {
   markRead(friendId: string) {
     return request<MarkChatReadResponse>(
       `/api/v1/chat/conversations/${encodeURIComponent(friendId)}/read`,
+      { method: "POST" },
+    );
+  },
+
+  getClearState(friendId: string) {
+    return request<ChatClearStateResponse>(
+      `/api/v1/chat/conversations/${encodeURIComponent(friendId)}/clear`,
+    );
+  },
+
+  /** Hides this conversation's history from the current user only. */
+  clearForMe(friendId: string) {
+    return request<ClearChatForMeResponse>(
+      `/api/v1/chat/conversations/${encodeURIComponent(friendId)}/clear`,
+      { method: "POST", body: { scope: "me" } },
+    );
+  },
+
+  /** Asks the friend to permanently clear the chat for both. Deletes nothing yet. */
+  requestClearForBoth(friendId: string) {
+    return request<ChatClearRequestResponse>(
+      `/api/v1/chat/conversations/${encodeURIComponent(friendId)}/clear`,
+      { method: "POST", body: { scope: "both" } },
+    );
+  },
+
+  acceptClearRequest(requestId: string) {
+    return request<AcceptChatClearResponse>(
+      `/api/v1/chat/clear-requests/${encodeURIComponent(requestId)}/accept`,
+      { method: "POST" },
+    );
+  },
+
+  declineClearRequest(requestId: string) {
+    return request<ChatClearRequestResponse>(
+      `/api/v1/chat/clear-requests/${encodeURIComponent(requestId)}/decline`,
+      { method: "POST" },
+    );
+  },
+
+  cancelClearRequest(requestId: string) {
+    return request<ChatClearRequestResponse>(
+      `/api/v1/chat/clear-requests/${encodeURIComponent(requestId)}`,
+      { method: "DELETE" },
+    );
+  },
+
+  acknowledgeClearRequest(requestId: string) {
+    return request<{ acknowledged: boolean }>(
+      `/api/v1/chat/clear-requests/${encodeURIComponent(requestId)}/acknowledge`,
       { method: "POST" },
     );
   },

@@ -39,6 +39,11 @@ let chatMessages;
 let chatReadCalls;
 let chatSendCalls;
 let chatSendError;
+let clearState;
+let clearCalls;
+let friendActionCalls;
+let friendActionError;
+let removedFriendIds;
 
 function installDom() {
   dom = new JSDOM("<!doctype html><html><body></body></html>", {
@@ -85,6 +90,20 @@ function player(id, username, online, extra = {}) {
     avatarUrl: null,
     online,
     ...extra,
+  };
+}
+
+function clearRequestFixture(overrides = {}) {
+  return {
+    id: "clear-1",
+    conversationId: "conversation-online",
+    requesterId: "player-online",
+    recipientId: "player-self",
+    requesterUsername: "ZedOnline",
+    status: "pending",
+    createdAt: new Date().toISOString(),
+    respondedAt: null,
+    ...overrides,
   };
 }
 
@@ -169,6 +188,60 @@ beforeEach(() => {
   chatReadCalls = [];
   chatSendCalls = [];
   chatSendError = null;
+  clearState = { request: null, outcome: null };
+  clearCalls = [];
+  friendActionCalls = [];
+  friendActionError = null;
+  removedFriendIds = new Set();
+
+  chatApi.getClearState = async () => clearState;
+  chatApi.clearForMe = async (friendId) => {
+    clearCalls.push({ action: "me", friendId });
+    chatMessages = [];
+    return { scope: "me", conversationId: "conversation-online", clearedAt: new Date().toISOString() };
+  };
+  chatApi.requestClearForBoth = async (friendId) => {
+    clearCalls.push({ action: "both", friendId });
+    const request = clearRequestFixture({ requesterId: "player-self", recipientId: friendId, requesterUsername: "Me" });
+    clearState = { request, outcome: null };
+    return { request };
+  };
+  chatApi.acceptClearRequest = async (requestId) => {
+    clearCalls.push({ action: "accept", requestId });
+    chatMessages = [];
+    const request = { ...clearState.request, status: "accepted" };
+    clearState = { request: null, outcome: null };
+    return { request, conversationId: "conversation-online", deletedCount: 2 };
+  };
+  chatApi.declineClearRequest = async (requestId) => {
+    clearCalls.push({ action: "decline", requestId });
+    const request = { ...clearState.request, status: "declined" };
+    clearState = { request: null, outcome: null };
+    return { request };
+  };
+  chatApi.cancelClearRequest = async (requestId) => {
+    clearCalls.push({ action: "cancel", requestId });
+    const request = { ...clearState.request, status: "cancelled" };
+    clearState = { request: null, outcome: null };
+    return { request };
+  };
+  chatApi.acknowledgeClearRequest = async (requestId) => {
+    clearCalls.push({ action: "acknowledge", requestId });
+    clearState = { ...clearState, outcome: null };
+    return { acknowledged: true };
+  };
+  friendsApi.removeFriend = async (userId) => {
+    friendActionCalls.push({ action: "remove", userId });
+    if (friendActionError) throw friendActionError;
+    removedFriendIds.add(userId);
+    return { relationship: { status: "NONE", requestId: null, blockedByMe: false, blockedMe: false, friendSince: null } };
+  };
+  friendsApi.blockUser = async (userId) => {
+    friendActionCalls.push({ action: "block", userId });
+    if (friendActionError) throw friendActionError;
+    removedFriendIds.add(userId);
+    return { relationship: { status: "BLOCKED", requestId: null, blockedByMe: true, blockedMe: false, friendSince: null } };
+  };
 
   friendsApi.listFriends = async () => {
     listFriendsCalls += 1;
@@ -176,7 +249,7 @@ beforeEach(() => {
       friends: [
         player("player-online", "ZedOnline", true, { friendsSince: "2026-01-01T00:00:00.000Z" }),
         player("player-offline", "AmyOffline", false, { friendsSince: "2026-02-01T00:00:00.000Z" }),
-      ],
+      ].filter((friend) => !removedFriendIds.has(friend.id)),
     };
   };
   friendsApi.listRequests = async () => requestsState;
@@ -771,4 +844,388 @@ test("the player profile sends a friend request and locks into the confirmed sta
   assert.equal(q(".player-profile-friend-button").disabled, true);
 
   await unmount();
+});
+
+/* ---------------- Friends badge, ticks, remove/block and clear chat ---------------- */
+
+const FRIENDS_RELATIONSHIP = {
+  status: "FRIENDS",
+  requestId: null,
+  blockedByMe: false,
+  blockedMe: false,
+  friendSince: "2026-01-01T00:00:00.000Z",
+};
+
+function pressKey(key) {
+  return act(async () => {
+    window.dispatchEvent(new window.KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+  });
+}
+
+async function openChatWithZed() {
+  await click(qa("#friends-panel-friends .friends-chat-button")[0]);
+  await flush(20);
+}
+
+function ownMessage(id, text, minutesAgo) {
+  const at = new Date(Date.now() - minutesAgo * 60_000).toISOString();
+  return {
+    id,
+    conversationId: "conversation-online",
+    senderId: "player-self",
+    receiverId: "player-online",
+    text,
+    status: "DELIVERED",
+    sentAt: at,
+    deliveredAt: at,
+    readAt: null,
+    createdAt: at,
+  };
+}
+
+// The Requests tab stays mounted (hidden), so its Accept/Cancel buttons exist
+// too; these helpers only ever press the confirmation dialog or the chat card.
+function dialogButton(label) {
+  return [...document.querySelectorAll(".confirm-dialog-actions button")]
+    .find((node) => node.textContent.trim() === label);
+}
+
+function bannerButton(label) {
+  return [...document.querySelectorAll(".chat-clear-banner button")]
+    .find((node) => node.textContent.trim() === label);
+}
+
+function withClearRequestOnZed(request) {
+  const original = chatApi.listConversations;
+  chatApi.listConversations = async () => {
+    const response = await original();
+    return {
+      conversations: response.conversations.map((row) => ({ ...row, clearRequest: request })),
+    };
+  };
+}
+
+test("the profile Friends badge shows a single tick on the left", async () => {
+  authApi.getPublicPlayerProfile = async () => ({ profile: publicProfile() });
+  relationshipState = FRIENDS_RELATIONSHIP;
+
+  const unmount = await renderProfile();
+  const badge = q(".player-profile-friend-button--friends");
+  assert.ok(badge, "an accepted friendship shows the Friends badge");
+  assert.equal(badge.textContent.trim(), "Friends", "the label has no trailing tick character");
+  assert.equal(badge.textContent.includes("✓"), false);
+  assert.equal(badge.querySelectorAll("svg").length, 1, "exactly one tick icon");
+  assert.equal(badge.firstElementChild.tagName.toLowerCase(), "svg", "and it sits left of the label");
+
+  await unmount();
+});
+
+test("double ticks draw two complete, separate check marks and single ticks one", async () => {
+  chatMessages = [
+    { ...ownMessage("tick-a", "Sent one", 2), status: "SENT", deliveredAt: null },
+    ownMessage("tick-b", "Delivered one", 1),
+  ];
+  const unmount = await renderModal();
+  await flush();
+  await openChatWithZed();
+
+  const sent = q(".chat-message-status--sent svg");
+  const delivered = q(".chat-message-status--delivered svg");
+  assert.equal(sent.querySelectorAll("path").length, 1, "SENT is one tick");
+  assert.equal(delivered.querySelectorAll("path").length, 2, "DELIVERED is two ticks");
+  assert.equal(
+    sent.getAttribute("viewBox"),
+    delivered.getAttribute("viewBox"),
+    "both states share one box, so the timestamp never shifts",
+  );
+
+  await unmount();
+});
+
+test("every friend card offers Chat, Remove Friend and Block, each labelled", async () => {
+  const unmount = await renderModal();
+  await flush();
+
+  const cards = qa("#friends-panel-friends .friends-card");
+  assert.equal(cards.length, 2);
+  for (const card of cards) {
+    const name = card.querySelector(".friends-card-name").textContent;
+    const actions = [...card.querySelectorAll(".friends-card-actions button")];
+    assert.equal(actions.length, 3, "Chat, Remove Friend and Block");
+    assert.match(actions[0].getAttribute("aria-label"), new RegExp(`^Chat with ${name}`));
+    assert.equal(actions[1].getAttribute("aria-label"), `Remove ${name} from friends`);
+    assert.equal(actions[1].getAttribute("title"), "Remove Friend");
+    assert.equal(actions[2].getAttribute("aria-label"), `Block ${name}`);
+    assert.equal(actions[2].getAttribute("title"), "Block");
+  }
+
+  await unmount();
+});
+
+test("Remove Friend asks first; Cancel changes nothing and Proceed removes after the server confirms", async () => {
+  const unmount = await renderModal();
+  await flush();
+
+  await click(q('[aria-label="Remove AmyOffline from friends"]'));
+  const dialog = q(".confirm-dialog");
+  assert.ok(dialog, "a confirmation opens instead of removing at once");
+  assert.equal(dialog.querySelector(".confirm-dialog-title").textContent, "Remove Friend?");
+  assert.equal(
+    dialog.querySelector(".confirm-dialog-message").textContent.replace(/\s+/g, " ").trim(),
+    "Are you sure you want to remove AmyOffline from your friends?",
+  );
+  assert.deepEqual(
+    [...dialog.querySelectorAll(".confirm-dialog-actions button")].map((node) => node.textContent.trim()),
+    ["Cancel", "Proceed"],
+  );
+
+  await click(dialogButton("Cancel"));
+  assert.equal(q(".confirm-dialog"), null);
+  assert.deepEqual(friendActionCalls, [], "Cancel never calls the server");
+  assert.equal(qa("#friends-panel-friends .friends-card").length, 2);
+
+  // Escape closes the dialog only, never the Friends modal underneath.
+  await click(q('[aria-label="Remove AmyOffline from friends"]'));
+  await pressKey("Escape");
+  assert.equal(q(".confirm-dialog"), null);
+  assert.equal(closedCount, 0, "the Friends modal stays open");
+
+  await click(q('[aria-label="Remove AmyOffline from friends"]'));
+  await click(dialogButton("Proceed"));
+  await flush();
+  assert.deepEqual(friendActionCalls, [{ action: "remove", userId: "player-offline" }]);
+  assert.equal(q(".confirm-dialog"), null, "the dialog closes after success");
+  assert.deepEqual(
+    qa("#friends-panel-friends .friends-card-name").map((node) => node.textContent),
+    ["ZedOnline"],
+    "the removed friend leaves the list without a refresh",
+  );
+  assert.match(q(".friends-feedback--success").textContent, /AmyOffline was removed/);
+  assert.ok(q(".friends-modal"), "the Friends modal stays open");
+
+  await unmount();
+});
+
+test("a failed removal keeps the friend and shows the error in the dialog", async () => {
+  friendActionError = new Error("Server unavailable");
+  const unmount = await renderModal();
+  await flush();
+
+  await click(q('[aria-label="Remove ZedOnline from friends"]'));
+  await click(dialogButton("Proceed"));
+  await flush();
+  assert.ok(q(".confirm-dialog"), "the dialog stays open");
+  assert.ok(q(".confirm-dialog-error"), "and explains the failure");
+  assert.equal(qa("#friends-panel-friends .friends-card").length, 2, "nobody is removed locally");
+
+  await unmount();
+});
+
+test("Block asks first and removes the friend only after the server confirms", async () => {
+  const unmount = await renderModal();
+  await flush();
+
+  await click(q('[aria-label="Block ZedOnline"]'));
+  assert.equal(q(".confirm-dialog-title").textContent, "Block Player?");
+  assert.equal(
+    q(".confirm-dialog-message").textContent.replace(/\s+/g, " ").trim(),
+    "Are you sure you want to block ZedOnline? They will no longer be able to send you friend requests or messages.",
+  );
+  await click(dialogButton("Cancel"));
+  assert.deepEqual(friendActionCalls, []);
+
+  await click(q('[aria-label="Block ZedOnline"]'));
+  await click(dialogButton("Proceed"));
+  await flush();
+  assert.deepEqual(friendActionCalls, [{ action: "block", userId: "player-online" }]);
+  assert.deepEqual(
+    qa("#friends-panel-friends .friends-card-name").map((node) => node.textContent),
+    ["AmyOffline"],
+  );
+  assert.match(q(".friends-feedback--success").textContent, /ZedOnline has been blocked/);
+
+  await unmount();
+});
+
+test("an incoming Clear Chat Request dots only that friend's Chat button, separately from unread", async () => {
+  withClearRequestOnZed(clearRequestFixture());
+  const unmount = await renderModal();
+  await flush();
+
+  const [zedChat, amyChat] = qa("#friends-panel-friends .friends-chat-button");
+  assert.ok(zedChat.querySelector(".friends-chat-request-dot"), "the requester's Chat button has the dot");
+  assert.ok(zedChat.querySelector(".friends-chat-unread"), "the unread count still shows independently");
+  assert.equal(amyChat.querySelector(".friends-chat-request-dot"), null, "other friends have no dot");
+  assert.match(zedChat.getAttribute("aria-label"), /Clear Chat Request/);
+
+  await unmount();
+});
+
+test("the requester's own pending request shows no dot", async () => {
+  withClearRequestOnZed(clearRequestFixture({ requesterId: "player-self", recipientId: "player-online" }));
+  const unmount = await renderModal();
+  await flush();
+  assert.equal(q(".friends-chat-request-dot"), null);
+  await unmount();
+});
+
+test("Clear Chat from the header menu clears only my side when the box is unchecked", async () => {
+  chatMessages = [ownMessage("m1", "First", 3), ownMessage("m2", "Second", 2)];
+  const unmount = await renderModal();
+  await flush();
+  await openChatWithZed();
+  assert.equal(qa(".chat-message-row").length, 2);
+
+  await click(q(".chat-menu-trigger"));
+  const items = qa('[role="menuitem"]');
+  assert.deepEqual(items.map((node) => node.textContent.trim()), ["Clear Chat"], "the menu has only Clear Chat");
+
+  await click(items[0]);
+  const dialog = q(".confirm-dialog");
+  assert.equal(dialog.querySelector(".confirm-dialog-title").textContent, "Clear Chat");
+  assert.equal(
+    dialog.querySelector(".confirm-dialog-message").textContent,
+    "Are you sure you want to clear this conversation?",
+  );
+  const checkbox = dialog.querySelector('input[type="checkbox"]');
+  assert.equal(checkbox.checked, false, "the both-ends option starts unchecked");
+  assert.match(dialog.textContent, /Also delete chat from both ends/);
+  assert.deepEqual(
+    [...dialog.querySelectorAll(".confirm-dialog-actions button")].map((node) => node.textContent.trim()),
+    ["Cancel", "Clear Chat"],
+  );
+
+  // Escape dismisses the dialog but leaves the chat open.
+  await pressKey("Escape");
+  assert.equal(q(".confirm-dialog"), null);
+  assert.ok(q(".chat-modal"));
+  assert.deepEqual(clearCalls, []);
+
+  await click(q(".chat-menu-trigger"));
+  await click(q('[role="menuitem"]'));
+  await click(q(".confirm-dialog-button--confirm"));
+  await flush();
+  assert.deepEqual(clearCalls, [{ action: "me", friendId: "player-online" }]);
+  assert.equal(qa(".chat-message-row").length, 0, "my side is empty at once");
+  assert.match(q(".chat-clear-notice").textContent, /Chat cleared for you/);
+  assert.equal(q(".chat-clear-banner"), null, "no request was created");
+
+  await unmount();
+});
+
+test("checking both ends sends a request, shows the pending state, and can be cancelled", async () => {
+  chatMessages = [ownMessage("m1", "Keep while pending", 2)];
+  const unmount = await renderModal();
+  await flush();
+  await openChatWithZed();
+
+  await click(q(".chat-menu-trigger"));
+  await click(q('[role="menuitem"]'));
+  await act(async () => { q('.confirm-dialog input[type="checkbox"]').click(); });
+  await click(q(".confirm-dialog-button--confirm"));
+  await flush();
+
+  assert.deepEqual(clearCalls, [{ action: "both", friendId: "player-online" }]);
+  assert.equal(qa(".chat-message-row").length, 1, "messages stay while the request is pending");
+  assert.match(q(".chat-clear-banner--pending").textContent, /Waiting for the other person to respond/);
+
+  await click(bannerButton("Cancel request"));
+  await flush();
+  assert.equal(clearCalls.at(-1).action, "cancel");
+  assert.equal(q(".chat-clear-banner"), null);
+  assert.equal(qa(".chat-message-row").length, 1);
+
+  await unmount();
+});
+
+test("the recipient sees the request card in the chat and Accept clears both sides", async () => {
+  chatMessages = [ownMessage("m1", "Old", 3)];
+  clearState = { request: clearRequestFixture(), outcome: null };
+  const unmount = await renderModal();
+  await flush();
+  await openChatWithZed();
+
+  const card = q(".chat-clear-banner");
+  assert.ok(card, "the request is shown inside the existing chat modal");
+  assert.equal(card.querySelector("h3").textContent, "Clear Chat Request");
+  assert.equal(
+    card.querySelector("p").textContent.replace(/\s+/g, " ").trim(),
+    "ZedOnline wants to permanently clear this conversation for both of you. Do you agree?",
+  );
+
+  await click(bannerButton("Accept"));
+  await flush();
+  assert.deepEqual(clearCalls, [{ action: "accept", requestId: "clear-1" }]);
+  assert.equal(q(".chat-clear-banner"), null);
+  assert.equal(qa(".chat-message-row").length, 0);
+  assert.equal(q(".chat-clear-notice").textContent, "Chat cleared for both users");
+
+  await unmount();
+});
+
+test("Decline keeps history and a failed answer restores the card with an error", async () => {
+  chatMessages = [ownMessage("m1", "Stay", 3)];
+  clearState = { request: clearRequestFixture(), outcome: null };
+  const unmount = await renderModal();
+  await flush();
+  await openChatWithZed();
+
+  const realDecline = chatApi.declineClearRequest;
+  chatApi.declineClearRequest = async () => { throw new Error("Network unavailable"); };
+  await click(bannerButton("Decline"));
+  await flush();
+  assert.ok(q(".chat-clear-banner"), "the card is still there");
+  assert.ok(q(".chat-clear-banner-error"), "with an error");
+  assert.equal(bannerButton("Accept").disabled, false, "and the buttons are usable again");
+
+  chatApi.declineClearRequest = realDecline;
+  await click(bannerButton("Decline"));
+  await flush();
+  assert.equal(q(".chat-clear-banner"), null);
+  assert.equal(qa(".chat-message-row").length, 1, "history is untouched");
+
+  await unmount();
+});
+
+test("the requester sees a declined outcome until dismissing it", async () => {
+  clearState = {
+    request: null,
+    outcome: clearRequestFixture({
+      requesterId: "player-self",
+      recipientId: "player-online",
+      status: "declined",
+    }),
+  };
+  const unmount = await renderModal();
+  await flush();
+  await openChatWithZed();
+
+  assert.equal(
+    q(".chat-clear-banner--declined .chat-clear-banner-outcome").textContent,
+    "Your Clear Chat Request was declined",
+  );
+  await click(bannerButton("Dismiss"));
+  await flush();
+  assert.deepEqual(clearCalls, [{ action: "acknowledge", requestId: "clear-1" }]);
+  assert.equal(q(".chat-clear-banner"), null);
+
+  await unmount();
+});
+
+test("the Friends navbar dot includes an incoming Clear Chat Request", async () => {
+  setAccessToken("test-access-token");
+  requestsState = { incoming: [], outgoing: [], incomingCount: 0 };
+  friendsApi.getSummary = async () => ({
+    incomingCount: 0,
+    unreadMessageCount: 0,
+    incomingClearRequestCount: 1,
+  });
+
+  const unmount = await renderNavbar();
+  await flush();
+  assert.ok(q(".navbar-friends-dot"));
+  assert.match(q(".navbar-friends-nav").getAttribute("aria-label"), /1 Clear Chat Request/);
+
+  await unmount();
+  setAccessToken(null);
 });

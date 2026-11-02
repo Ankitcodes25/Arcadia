@@ -10,6 +10,7 @@ const { RateLimitBucket } = require('./models/RateLimitBucket');
 const { AdminMutationLock } = require('./models/AdminMutationLock');
 const { Conversation } = require('./models/Conversation');
 const { Message } = require('./models/Message');
+const { ClearChatRequest } = require('./models/ClearChatRequest');
 const { attachChatSocket, closeChatSocket } = require('./realtime/chatSocket');
 const { isEmailConfigured, getEmailConfig } = require('./config/email');
 const { getGoogleOAuthConfig, isGoogleOAuthConfigured } = require('./config/googleOAuth');
@@ -54,6 +55,7 @@ async function startServer({ port = env.port, mongoUri = env.mongoUri } = {}) {
   await AdminMutationLock.init();
   await Conversation.init();
   await Message.init();
+  await ClearChatRequest.init();
 
   if (!isEmailConfigured()) {
     console.warn('Transactional email delivery is disabled; configure SMTP before sending password-reset links.');

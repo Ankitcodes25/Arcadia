@@ -318,6 +318,70 @@
   height: 15px;
 }
 
+.friends-card-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Remove / Block: the Chat button's shape, quieter until hovered. */
+.friends-card-icon-button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(190, 132, 255, 0.24);
+  border-radius: 10px;
+  background: rgba(60, 28, 98, 0.3);
+  color: rgba(226, 207, 242, 0.7);
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.friends-card-icon-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.friends-card-icon-button:hover:not(:disabled) {
+  border-color: rgba(255, 130, 160, 0.6);
+  background: rgba(150, 36, 76, 0.32);
+  color: #ffd0db;
+  box-shadow: 0 0 12px rgba(255, 84, 130, 0.22);
+}
+
+.friends-card-icon-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.friends-card-icon-button:focus-visible {
+  outline: 2px solid #e0a1ff;
+  outline-offset: 2px;
+}
+
+.friends-card-icon-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* Clear Chat Request waiting for an answer. Same dot as the navbar's Friends
+   notification; top-left so it never collides with the unread count. */
+.friends-chat-request-dot {
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid rgba(30, 8, 48, 0.95);
+  border-radius: 50%;
+  background: #f06bff;
+  box-shadow: 0 0 8px rgba(240, 107, 255, 0.95);
+  pointer-events: none;
+}
+
 .friends-chat-unread {
   position: absolute;
   top: -6px;
@@ -858,6 +922,18 @@
   }
 }
 
+/* With Chat, Remove and Block on the card, a 20-character username cannot fit
+   on one line at phone widths. It wraps instead of being cut off; names that
+   fit stay on a single line. */
+@media (max-width: 440px) {
+  .friends-card .friends-card-name {
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    white-space: normal;
+  }
+}
+
 @media (max-width: 390px) {
   .friends-tab span:not(.friends-tab-count) {
     font-size: 10px;
@@ -875,6 +951,21 @@
 
   .friends-card-name {
     font-size: 12.5px;
+  }
+
+  /* Keep all three card actions on the card without horizontal overflow. */
+  .friends-card {
+    gap: 6px;
+    padding-right: 8px;
+  }
+
+  .friends-card > .friends-card-main {
+    gap: 9px;
+    padding: 10px 8px 10px 10px;
+  }
+
+  .friends-card-actions {
+    gap: 5px;
   }
 
   .friends-action-button,
@@ -896,7 +987,12 @@
   .friends-tab,
   .friends-card,
   .friends-request-card,
-  .friends-search-result {
+  .friends-search-result,
+  .friends-card-icon-button {
     transition: none;
+  }
+
+  .friends-card-icon-button:active:not(:disabled) {
+    transform: none;
   }
 }

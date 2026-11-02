@@ -2,10 +2,13 @@ import { io, type Socket } from "socket.io-client";
 import { getAccessToken, getApiBaseUrl } from "../auth/authApi";
 import type {
   ChatChangedEvent,
+  ChatClearedEvent,
+  ChatClearRequestEvent,
   ChatErrorEvent,
   ChatMessageEvent,
   ChatMessageStatusEvent,
   ChatTypingEvent,
+  FriendsChangedEvent,
 } from "./chatTypes";
 
 type ChatEventMap = {
@@ -15,6 +18,9 @@ type ChatEventMap = {
   "chat:typing": ChatTypingEvent;
   "chat:changed": ChatChangedEvent;
   "chat:error": ChatErrorEvent;
+  "chat:clear-request": ChatClearRequestEvent;
+  "chat:cleared": ChatClearedEvent;
+  "friends:changed": FriendsChangedEvent;
 };
 
 type ChatEventName = keyof ChatEventMap;
@@ -27,6 +33,9 @@ const SOCKET_EVENTS: ChatEventName[] = [
   "chat:typing",
   "chat:changed",
   "chat:error",
+  "chat:clear-request",
+  "chat:cleared",
+  "friends:changed",
 ];
 
 const ACK_BATCH_MS = 30;

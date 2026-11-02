@@ -466,6 +466,28 @@ async function cancelRequest(viewerId, requestId) {
   return { relationship: relationship(RELATIONSHIP_STATUSES.NONE) };
 }
 
+async function removeFriend(viewerId, targetUserId) {
+  const viewer = toObjectId(viewerId);
+  const targetId = toObjectId(targetUserId);
+  if (!viewer) throw createError('Authentication required', 401);
+  if (!targetId) throw createError('Invalid player', 400);
+  if (String(viewer) === String(targetId)) {
+    throw createError('You cannot remove yourself', 400);
+  }
+
+  // The delete is the existence check: of two concurrent removals exactly one
+  // deletes the row and the other is told the friendship no longer exists.
+  // Conversation and message documents are deliberately left in place.
+  const pairKey = getPairKey(viewer, targetId);
+  const result = await Friendship.deleteOne({ pairKey });
+  if (!result.deletedCount) {
+    throw createError('You are not friends with this player', 404);
+  }
+  await FriendRequest.deleteMany({ pairKey });
+
+  return { relationship: relationship(RELATIONSHIP_STATUSES.NONE) };
+}
+
 async function blockUser(viewerId, targetUserId) {
   const viewer = toObjectId(viewerId);
   const targetId = toObjectId(targetUserId);
@@ -518,7 +540,8 @@ async function blockRequestSender(viewerId, requestId) {
     throw createError('Not allowed to block this friend request', 403);
   }
 
-  return blockUser(viewer, request.from);
+  const result = await blockUser(viewer, request.from);
+  return { ...result, userId: String(request.from) };
 }
 
 async function unblockUser(viewerId, targetUserId) {
@@ -609,6 +632,7 @@ module.exports = {
   acceptRequest,
   rejectRequest,
   cancelRequest,
+  removeFriend,
   blockUser,
   blockRequestSender,
   unblockUser,

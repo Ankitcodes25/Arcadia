@@ -15,6 +15,23 @@ export type ChatMessage = {
   createdAt: string;
 };
 
+export type ChatClearRequestStatus = "pending" | "accepted" | "declined" | "cancelled";
+
+/**
+ * A persisted request to permanently clear a conversation for both
+ * participants. Direction is derived on the client from requesterId.
+ */
+export type ChatClearRequest = {
+  id: string;
+  conversationId: string;
+  requesterId: string;
+  recipientId: string;
+  requesterUsername: string;
+  status: ChatClearRequestStatus;
+  createdAt: string | null;
+  respondedAt: string | null;
+};
+
 export type ChatConversation = {
   id: string;
   friend: Friend;
@@ -22,6 +39,8 @@ export type ChatConversation = {
   lastMessageAt: string | null;
   lastMessageFromMe: boolean;
   unreadCount: number;
+  /** The conversation's pending clear request, if any. */
+  clearRequest?: ChatClearRequest | null;
 };
 
 export type ChatConversationsResponse = {
@@ -32,6 +51,48 @@ export type ChatMessagesResponse = {
   messages: ChatMessage[];
   hasMore: boolean;
   nextCursor: string | null;
+  /** The viewer's own "clear my side" cutoff, if they set one. */
+  clearedAt?: string | null;
+};
+
+export type ChatClearScope = "me" | "both";
+
+export type ChatClearStateResponse = {
+  /** The pending request for this conversation, from either participant. */
+  request: ChatClearRequest | null;
+  /** The viewer's latest answered request they have not dismissed yet. */
+  outcome: ChatClearRequest | null;
+};
+
+export type ClearChatForMeResponse = {
+  scope: "me";
+  conversationId: string | null;
+  clearedAt: string;
+};
+
+export type ChatClearRequestResponse = {
+  request: ChatClearRequest;
+};
+
+export type AcceptChatClearResponse = ChatClearRequestResponse & {
+  conversationId: string;
+  deletedCount: number;
+};
+
+export type ChatClearRequestEvent = {
+  request: ChatClearRequest;
+};
+
+export type ChatClearedEvent = {
+  scope: ChatClearScope;
+  conversationWith: string;
+  clearedAt: string | null;
+};
+
+export type FriendsChangedEvent = {
+  reason: "removed" | "blocked";
+  /** The other player whose relationship with the viewer changed. */
+  userId: string;
 };
 
 export type SendChatMessageResponse = {
@@ -62,7 +123,7 @@ export type ChatTypingEvent = {
 };
 
 export type ChatChangedEvent = {
-  reason: "message" | "read" | "sent" | "refresh";
+  reason: "message" | "read" | "sent" | "refresh" | "clear-request" | "cleared" | "friendship";
 };
 
 export type ChatErrorEvent = {

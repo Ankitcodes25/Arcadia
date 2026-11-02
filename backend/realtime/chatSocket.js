@@ -250,6 +250,47 @@ function emitReadReceipt(receipt) {
   emitToUser(receipt.readerId, 'chat:changed', { reason: 'read' });
 }
 
+/**
+ * A clear-chat request changed state (created, accepted, declined or
+ * cancelled). Both participants' sessions receive the persisted row; the
+ * `chat:changed` nudge makes Friends-list and navbar dots re-read the
+ * database instead of trusting the event.
+ */
+function emitClearRequestUpdate(request) {
+  if (!request || !request.id) return;
+  for (const userId of [request.requesterId, request.recipientId]) {
+    emitToUser(userId, 'chat:clear-request', { request });
+    emitToUser(userId, 'chat:changed', { reason: 'clear-request' });
+  }
+}
+
+/**
+ * History was cleared. `me` reaches only the clearing user's other tabs;
+ * `both` reaches both participants, each told which friend the cleared
+ * conversation is with.
+ */
+function emitChatCleared({ scope, userId, friendId, clearedAt = null }) {
+  if (!userId || !friendId) return;
+  emitToUser(userId, 'chat:cleared', { scope, conversationWith: String(friendId), clearedAt });
+  emitToUser(userId, 'chat:changed', { reason: 'cleared' });
+  if (scope === 'both') {
+    emitToUser(friendId, 'chat:cleared', { scope, conversationWith: String(userId), clearedAt });
+    emitToUser(friendId, 'chat:changed', { reason: 'cleared' });
+  }
+}
+
+/**
+ * A friendship ended (removed or blocked). Each side learns which player the
+ * change concerns so an open chat or profile with them can update at once.
+ */
+function emitFriendshipChanged({ reason, userId, otherUserId }) {
+  if (!userId || !otherUserId) return;
+  emitToUser(userId, 'friends:changed', { reason, userId: String(otherUserId) });
+  emitToUser(otherUserId, 'friends:changed', { reason, userId: String(userId) });
+  emitToUser(userId, 'chat:changed', { reason: 'friendship' });
+  emitToUser(otherUserId, 'chat:changed', { reason: 'friendship' });
+}
+
 function attachChatSocket(httpServer) {
   closeChatSocket();
 
@@ -289,4 +330,7 @@ module.exports = {
   closeChatSocket,
   deliverMessage,
   emitReadReceipt,
+  emitClearRequestUpdate,
+  emitChatCleared,
+  emitFriendshipChanged,
 };
