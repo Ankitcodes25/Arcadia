@@ -1,5 +1,5 @@
 import { io, type Socket } from "socket.io-client";
-import { getAccessToken, getApiBaseUrl } from "../auth/authApi";
+import { getAccessToken, getApiBaseUrl, refreshAccessToken } from "../auth/authApi";
 import type {
   ChatChangedEvent,
   ChatClearedEvent,
@@ -40,11 +40,15 @@ const SOCKET_EVENTS: ChatEventName[] = [
 
 const ACK_BATCH_MS = 30;
 const ACK_BATCH_MAX = 200;
+const RESUME_MIN_MS = 1000;
+const RESUME_MAX_MS = 30_000;
 
 const handlers = new Map<ChatEventName, Set<ChatHandler<unknown>>>();
 let socket: Socket | null = null;
 let activeUserId: string | null = null;
 let ackTimer: ReturnType<typeof setTimeout> | null = null;
+let resumeTimer: ReturnType<typeof setTimeout> | null = null;
+let resumeDelay = RESUME_MIN_MS;
 const pendingAckIds = new Set<string>();
 
 function dispatch<T extends ChatEventName>(event: T, payload: ChatEventMap[T]) {
@@ -171,17 +175,50 @@ export function connectChatSocket(userId: string) {
   // the next 30-second poll, and allow pending messages to be acknowledged
   // again if a previous acknowledgement was lost with the old connection.
   socket.on("connect", () => {
+    resumeDelay = RESUME_MIN_MS;
     dispatch("chat:changed", { reason: "refresh" });
   });
 
-  socket.on("disconnect", () => {
+  // The server re-checks live sessions and ends a connection whose token
+  // expired or was revoked. socket.io does not retry a server-side disconnect
+  // or a handshake rejection on its own, so refresh the token through the
+  // normal auth path and reconnect. A revoked session fails that refresh and
+  // is signed out like any other API call.
+  socket.on("disconnect", (reason) => {
     clearAckQueue();
+    if (reason === "io server disconnect") scheduleResume();
+  });
+
+  socket.on("connect_error", () => {
+    if (socket && !socket.active) scheduleResume();
   });
 
   return socket;
 }
 
+function clearResumeTimer() {
+  if (resumeTimer !== null) {
+    clearTimeout(resumeTimer);
+    resumeTimer = null;
+  }
+}
+
+function scheduleResume() {
+  const current = socket;
+  if (!current || resumeTimer !== null) return;
+  resumeTimer = setTimeout(async () => {
+    resumeTimer = null;
+    if (socket !== current || current.connected) return;
+    const refreshed = await refreshAccessToken();
+    if (socket !== current || current.connected) return;
+    if (refreshed && getAccessToken()) current.connect();
+  }, resumeDelay);
+  resumeDelay = Math.min(resumeDelay * 2, RESUME_MAX_MS);
+}
+
 export function disconnectChatSocket() {
+  clearResumeTimer();
+  resumeDelay = RESUME_MIN_MS;
   if (socket) {
     socket.removeAllListeners();
     socket.disconnect();

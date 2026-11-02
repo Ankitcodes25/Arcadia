@@ -105,6 +105,16 @@ async function refreshOnce() {
   return refreshPromise;
 }
 
+/**
+ * Refreshes the access token through the same single-flight path the REST
+ * layer uses on a 401. Used by the realtime socket when the server ends a
+ * connection whose token expired; a revoked session fails here exactly as it
+ * would for any API call.
+ */
+export function refreshAccessToken() {
+  return refreshOnce();
+}
+
 async function parseResponse<T>(response: Response): Promise<T> {
   const text = await response.text();
   if (!text) return undefined as T;

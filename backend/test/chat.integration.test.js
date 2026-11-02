@@ -26,6 +26,7 @@ let signAccessToken;
 let normalizeUsername;
 let attachChatSocket;
 let closeChatSocket;
+let revalidateConnectedSockets;
 let server;
 let baseUrl;
 let sockets;
@@ -58,7 +59,11 @@ before(async () => {
   ({ signAccessToken } = require('../utils/jwt'));
   ({ normalizeUsername } = require('../utils/username'));
   ({ connectDatabase, disconnectDatabase } = require('../config/database'));
-  ({ attachChatSocket, closeChatSocket } = require('../realtime/chatSocket'));
+  ({
+    attachChatSocket,
+    closeChatSocket,
+    revalidateConnectedSockets,
+  } = require('../realtime/chatSocket'));
   createApp = require('../app');
 
   await connectDatabase();
@@ -1039,6 +1044,56 @@ test('removing a friend keeps history but stops chat; blocking stops requests an
   await delay(50);
   assert.equal(rookSawTyping, false);
   assert.equal(await Message.countDocuments({}), 2);
+});
+
+test('live sockets are cut when their session is revoked, suspended or expired', async () => {
+  const rook = await createPlayer('ArcadeDevRook');
+  const knight = await createPlayer('ArcadeDevKnight');
+  const oracle = await createPlayer('ArcadeDevOracle');
+  await makeFriends(rook, knight);
+
+  const rookSocket = await connectSocketFor(rook);
+  const knightSocket = await connectSocketFor(knight);
+  const oracleSocket = await connectSocketFor(oracle);
+
+  // A valid session survives the sweep. (Sockets left over from earlier tests
+  // belong to deleted accounts, so the sweep rightly cuts those.)
+  await revalidateConnectedSockets();
+  await delay(80);
+  for (const socket of [rookSocket, knightSocket, oracleSocket]) {
+    assert.equal(socket.connected, true, 'a valid session stays connected');
+  }
+
+  // Password change / logout-all bump tokenVersion: the open tab is cut and
+  // stops receiving private chat.
+  const knightCut = waitForEvent(knightSocket, 'disconnect');
+  let knightGotMessage = false;
+  knightSocket.on('chat:message', () => { knightGotMessage = true; });
+  await User.updateOne({ _id: knight._id }, { $inc: { tokenVersion: 1 } });
+  assert.equal(await revalidateConnectedSockets(), 1, 'only the revoked tab is cut');
+  assert.equal(await knightCut, 'io server disconnect');
+  assert.equal(rookSocket.connected, true, 'other accounts are untouched');
+
+  const freshKnight = await User.findById(knight._id);
+  assert.equal((await sendMessage(rook, freshKnight, 'after revocation')).status, 201);
+  await delay(80);
+  assert.equal(knightGotMessage, false, 'the revoked tab received nothing');
+
+  // The revoked token cannot reconnect either.
+  await assert.rejects(connectSocketFor(knight), 'the old token is refused at the handshake');
+  const reconnected = await connectSocketFor(freshKnight);
+  assert.equal(reconnected.connected, true, 'the current token reconnects normally');
+
+  // Suspension cuts every tab of that account.
+  const rookCut = waitForEvent(rookSocket, 'disconnect');
+  await User.updateOne({ _id: rook._id }, { $set: { status: ACCOUNT_STATUSES.SUSPENDED } });
+  await revalidateConnectedSockets();
+  assert.equal(await rookCut, 'io server disconnect');
+
+  // A connection does not outlive its 15-minute access token.
+  const oracleCut = waitForEvent(oracleSocket, 'disconnect');
+  await revalidateConnectedSockets(Date.now() + 16 * 60 * 1000);
+  assert.equal(await oracleCut, 'io server disconnect');
 });
 
 test('blocking removes a pending friend request between the pair', async () => {
