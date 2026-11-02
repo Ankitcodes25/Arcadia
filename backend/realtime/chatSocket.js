@@ -11,8 +11,10 @@ const DELIVERY_BUDGET_WINDOW_MS = 10 * 1000;
 const DELIVERY_BUDGET_MAX = 300;
 const MAX_DELIVERY_ACK_IDS = 200;
 const PENDING_BATCH_SIZE = 200;
+const SESSION_RECHECK_MS = 15 * 1000;
 
 let io = null;
+let sessionRecheckTimer = null;
 
 function userRoom(userId) {
   return `user:${String(userId)}`;
@@ -65,6 +67,10 @@ async function authenticateSocket(socket, next) {
     }
 
     socket.data.userId = String(user._id);
+    // Kept so a live connection can be re-checked: the handshake is not a
+    // licence to stay connected after the session behind it ends.
+    socket.data.tokenVersion = user.tokenVersion;
+    socket.data.tokenExpiresAt = payload.exp * 1000;
     return next();
   } catch {
     return next(new Error('Invalid authentication token'));
@@ -250,6 +256,86 @@ function emitReadReceipt(receipt) {
   emitToUser(receipt.readerId, 'chat:changed', { reason: 'read' });
 }
 
+/**
+ * A clear-chat request changed state (created, accepted, declined or
+ * cancelled). Both participants' sessions receive the persisted row; the
+ * `chat:changed` nudge makes Friends-list and navbar dots re-read the
+ * database instead of trusting the event.
+ */
+function emitClearRequestUpdate(request) {
+  if (!request || !request.id) return;
+  for (const userId of [request.requesterId, request.recipientId]) {
+    emitToUser(userId, 'chat:clear-request', { request });
+    emitToUser(userId, 'chat:changed', { reason: 'clear-request' });
+  }
+}
+
+/**
+ * History was cleared. `me` reaches only the clearing user's other tabs;
+ * `both` reaches both participants, each told which friend the cleared
+ * conversation is with.
+ */
+function emitChatCleared({ scope, userId, friendId, clearedAt = null }) {
+  if (!userId || !friendId) return;
+  emitToUser(userId, 'chat:cleared', { scope, conversationWith: String(friendId), clearedAt });
+  emitToUser(userId, 'chat:changed', { reason: 'cleared' });
+  if (scope === 'both') {
+    emitToUser(friendId, 'chat:cleared', { scope, conversationWith: String(userId), clearedAt });
+    emitToUser(friendId, 'chat:changed', { reason: 'cleared' });
+  }
+}
+
+/**
+ * A friendship ended (removed or blocked). Each side learns which player the
+ * change concerns so an open chat or profile with them can update at once.
+ */
+function emitFriendshipChanged({ reason, userId, otherUserId }) {
+  if (!userId || !otherUserId) return;
+  emitToUser(userId, 'friends:changed', { reason, userId: String(otherUserId) });
+  emitToUser(otherUserId, 'friends:changed', { reason, userId: String(userId) });
+  emitToUser(userId, 'chat:changed', { reason: 'friendship' });
+  emitToUser(otherUserId, 'chat:changed', { reason: 'friendship' });
+}
+
+/**
+ * Re-checks every live connection against the database and its own token.
+ *
+ * A socket is only authenticated at handshake, so without this a tab that was
+ * connected before a password change, logout-all, suspension, role change or
+ * deletion (all of which bump tokenVersion or status) would keep receiving
+ * private chat events, and a connection would outlive its 15-minute token.
+ * One batched query covers every connected account. The client reconnects
+ * with its current token, so a still-valid session recovers on its own and a
+ * revoked one is refused at the handshake.
+ */
+async function revalidateConnectedSockets(now = Date.now()) {
+  if (!io) return 0;
+  const sockets = [...io.of('/').sockets.values()];
+  if (!sockets.length) return 0;
+
+  const userIds = [...new Set(sockets.map((socket) => socket.data.userId).filter(Boolean))];
+  const users = await User.find({ _id: { $in: userIds } })
+    .select('_id role status tokenVersion')
+    .lean();
+  const usersById = new Map(users.map((user) => [String(user._id), user]));
+
+  let disconnected = 0;
+  for (const socket of sockets) {
+    const user = usersById.get(socket.data.userId);
+    const valid = Boolean(user)
+      && user.role === USER_ROLES.USER
+      && user.status === ACCOUNT_STATUSES.ACTIVE
+      && user.tokenVersion === socket.data.tokenVersion
+      && Number.isFinite(socket.data.tokenExpiresAt)
+      && socket.data.tokenExpiresAt > now;
+    if (!valid) {
+      socket.disconnect(true);
+      disconnected += 1;
+    }
+  }
+  return disconnected;
+}
+
 function attachChatSocket(httpServer) {
   closeChatSocket();
 
@@ -269,10 +355,21 @@ function attachChatSocket(httpServer) {
 
   io.use(authenticateSocket);
   io.on('connection', registerConnection);
+
+  sessionRecheckTimer = setInterval(() => {
+    revalidateConnectedSockets().catch(() => {
+      // A transient database error skips one sweep; the next one retries.
+    });
+  }, SESSION_RECHECK_MS);
+  sessionRecheckTimer.unref();
   return io;
 }
 
 function closeChatSocket() {
+  if (sessionRecheckTimer) {
+    clearInterval(sessionRecheckTimer);
+    sessionRecheckTimer = null;
+  }
   const current = io;
   io = null;
   if (!current) return;
@@ -285,8 +382,13 @@ function closeChatSocket() {
 }
 
 module.exports = {
+  SESSION_RECHECK_MS,
   attachChatSocket,
   closeChatSocket,
+  revalidateConnectedSockets,
   deliverMessage,
   emitReadReceipt,
+  emitClearRequestUpdate,
+  emitChatCleared,
+  emitFriendshipChanged,
 };

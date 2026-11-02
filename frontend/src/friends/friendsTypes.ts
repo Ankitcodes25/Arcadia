@@ -58,6 +58,8 @@ export type FriendSummaryResponse = {
    * a second notification surface.
    */
   unreadMessageCount?: number;
+  /** Pending requests from friends to clear a chat for both participants. */
+  incomingClearRequestCount?: number;
 };
 
 export type FriendSearchResult = FriendPlayer & {

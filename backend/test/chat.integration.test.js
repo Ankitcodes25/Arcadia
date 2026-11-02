@@ -18,6 +18,7 @@ let Block;
 let RateLimitBucket;
 let Conversation;
 let Message;
+let ClearChatRequest;
 let createApp;
 let connectDatabase;
 let disconnectDatabase;
@@ -25,6 +26,7 @@ let signAccessToken;
 let normalizeUsername;
 let attachChatSocket;
 let closeChatSocket;
+let revalidateConnectedSockets;
 let server;
 let baseUrl;
 let sockets;
@@ -53,10 +55,15 @@ before(async () => {
   ({ RateLimitBucket } = require('../models/RateLimitBucket'));
   ({ Conversation } = require('../models/Conversation'));
   ({ Message } = require('../models/Message'));
+  ({ ClearChatRequest } = require('../models/ClearChatRequest'));
   ({ signAccessToken } = require('../utils/jwt'));
   ({ normalizeUsername } = require('../utils/username'));
   ({ connectDatabase, disconnectDatabase } = require('../config/database'));
-  ({ attachChatSocket, closeChatSocket } = require('../realtime/chatSocket'));
+  ({
+    attachChatSocket,
+    closeChatSocket,
+    revalidateConnectedSockets,
+  } = require('../realtime/chatSocket'));
   createApp = require('../app');
 
   await connectDatabase();
@@ -69,6 +76,7 @@ before(async () => {
     RateLimitBucket.syncIndexes(),
     Conversation.syncIndexes(),
     Message.syncIndexes(),
+    ClearChatRequest.syncIndexes(),
   ]);
 
   server = createApp().listen(0);
@@ -102,6 +110,7 @@ beforeEach(async () => {
     Block.deleteMany({}),
     Conversation.deleteMany({}),
     Message.deleteMany({}),
+    ClearChatRequest.deleteMany({}),
     User.deleteMany({}),
   ]);
 });
@@ -642,4 +651,471 @@ test('history pagination is chronological and unread counts are independent per 
     token: tokenFor(rook),
   });
   assert.equal(summaryAfterOne.body.unreadMessageCount, 1);
+});
+
+async function clearChat(user, friend, scope) {
+  return requestJson(`/api/v1/chat/conversations/${friend._id}/clear`, {
+    token: tokenFor(user),
+    method: 'POST',
+    body: { scope },
+  });
+}
+
+async function listMessagesFor(user, friend, query = '') {
+  return requestJson(`/api/v1/chat/conversations/${friend._id}/messages${query}`, {
+    token: tokenFor(user),
+  });
+}
+
+async function getClearState(user, friend) {
+  return requestJson(`/api/v1/chat/conversations/${friend._id}/clear`, {
+    token: tokenFor(user),
+  });
+}
+
+async function actOnClearRequest(user, requestId, action) {
+  return requestJson(
+    action === 'cancel'
+      ? `/api/v1/chat/clear-requests/${requestId}`
+      : `/api/v1/chat/clear-requests/${requestId}/${action}`,
+    { token: tokenFor(user), method: action === 'cancel' ? 'DELETE' : 'POST' },
+  );
+}
+
+async function conversationWith(user, friend) {
+  const response = await requestJson('/api/v1/chat/conversations', { token: tokenFor(user) });
+  assert.equal(response.status, 200);
+  return response.body.conversations.find((row) => row.friend.id === String(friend._id)) || null;
+}
+
+async function friendsSummary(user) {
+  const response = await requestJson('/api/v1/friends/summary', { token: tokenFor(user) });
+  assert.equal(response.status, 200);
+  return response.body;
+}
+
+test('clear for me hides history only for the clearing user and keeps every message stored', async () => {
+  const rook = await createPlayer('ArcadeDevRook');
+  const knight = await createPlayer('ArcadeDevKnight');
+  const oracle = await createPlayer('ArcadeDevOracle');
+  await makeFriends(rook, knight);
+
+  const first = await sendMessage(rook, knight, 'First');
+  await sendMessage(knight, rook, 'Unread for rook');
+  await sendMessage(rook, knight, 'Third');
+  assert.equal(first.status, 201);
+
+  const rookOtherTab = await connectSocketFor(rook);
+  const knightSocket = await connectSocketFor(knight);
+  let knightSawClear = false;
+  knightSocket.on('chat:cleared', () => { knightSawClear = true; });
+  const clearedEvent = waitForEvent(rookOtherTab, 'chat:cleared');
+
+  assert.equal((await clearChat(oracle, knight, 'me')).status, 403);
+  assert.equal((await clearChat(rook, knight, 'everything')).status, 400);
+  const unauthenticated = await requestJson(`/api/v1/chat/conversations/${knight._id}/clear`, {
+    method: 'POST',
+    body: { scope: 'me' },
+  });
+  assert.equal(unauthenticated.status, 401);
+
+  const cleared = await clearChat(rook, knight, 'me');
+  assert.equal(cleared.status, 200);
+  assert.equal(cleared.body.scope, 'me');
+  assert.ok(cleared.body.clearedAt);
+
+  const event = await clearedEvent;
+  assert.equal(event.scope, 'me');
+  assert.equal(event.conversationWith, String(knight._id));
+
+  // Rook's side is empty; Knight's history and the stored rows are untouched.
+  const rookView = await listMessagesFor(rook, knight);
+  assert.equal(rookView.status, 200);
+  assert.deepEqual(rookView.body.messages, []);
+  assert.equal(rookView.body.clearedAt, cleared.body.clearedAt);
+  const knightView = await listMessagesFor(knight, rook);
+  assert.deepEqual(
+    knightView.body.messages.map((row) => row.text),
+    ['First', 'Unread for rook', 'Third'],
+  );
+  assert.equal(await Message.countDocuments({}), 3);
+
+  // A cleared message can no longer anchor pagination for the clearing user.
+  const staleCursor = await listMessagesFor(rook, knight, `?before=${first.body.message.id}`);
+  assert.equal(staleCursor.status, 400);
+
+  const rookConversation = await conversationWith(rook, knight);
+  assert.equal(rookConversation.lastMessage, null);
+  assert.equal(rookConversation.unreadCount, 0);
+  const knightConversation = await conversationWith(knight, rook);
+  assert.equal(knightConversation.lastMessage, 'Third');
+  assert.equal((await friendsSummary(rook)).unreadMessageCount, 0);
+
+  // Messages after the cutoff appear normally for both participants.
+  await delay(5);
+  await sendMessage(knight, rook, 'After the clear');
+  const afterView = await listMessagesFor(rook, knight);
+  assert.deepEqual(afterView.body.messages.map((row) => row.text), ['After the clear']);
+  assert.equal((await conversationWith(rook, knight)).unreadCount, 1);
+  assert.equal((await listMessagesFor(knight, rook)).body.messages.length, 4);
+
+  // Reading after a clear only acknowledges what the reader can see: the
+  // pre-clear message is not reported to Knight as read.
+  const read = await requestJson(`/api/v1/chat/conversations/${knight._id}/read`, {
+    token: tokenFor(rook),
+    method: 'POST',
+  });
+  assert.equal(read.body.messageIds.length, 1);
+  const hiddenUnread = await Message.findOne({ text: 'Unread for rook' }).lean();
+  assert.equal(hiddenUnread.readAt, null);
+
+  await delay(50);
+  assert.equal(knightSawClear, false, 'clearing my side must not notify the friend');
+});
+
+test('a both-sides clear needs the recipient to accept and then deletes permanently', async () => {
+  const rook = await createPlayer('ArcadeDevRook');
+  const knight = await createPlayer('ArcadeDevKnight');
+  const oracle = await createPlayer('ArcadeDevOracle');
+  await makeFriends(rook, knight);
+  await makeFriends(rook, oracle);
+
+  await sendMessage(rook, knight, 'One');
+  await sendMessage(knight, rook, 'Two');
+  await sendMessage(rook, knight, 'Three');
+  await sendMessage(rook, oracle, 'Unrelated conversation');
+  // A one-sided cutoff is reset by a later mutual clear.
+  await clearChat(knight, rook, 'me');
+
+  const rookSocket = await connectSocketFor(rook);
+  const knightSocket = await connectSocketFor(knight);
+  const incoming = waitForEvent(knightSocket, 'chat:clear-request');
+
+  const created = await clearChat(rook, knight, 'both');
+  assert.equal(created.status, 201);
+  assert.equal(created.body.request.status, 'pending');
+  assert.equal(created.body.request.requesterId, String(rook._id));
+  assert.equal(created.body.request.recipientId, String(knight._id));
+  assert.equal(created.body.request.requesterUsername, 'ArcadeDevRook');
+  const requestId = created.body.request.id;
+  assert.equal((await incoming).request.id, requestId);
+
+  // Nothing is deleted or hidden while the request is pending.
+  assert.equal(await Message.countDocuments({}), 4);
+  assert.equal((await listMessagesFor(rook, knight)).body.messages.length, 3);
+
+  assert.equal((await clearChat(rook, knight, 'both')).status, 409);
+  const reverse = await clearChat(knight, rook, 'both');
+  assert.equal(reverse.status, 409);
+  assert.match(reverse.body.error, /already asked/i);
+  assert.equal(await ClearChatRequest.countDocuments({ status: 'pending' }), 1);
+
+  // The recipient's dot is persisted and tied to the requester; every fresh
+  // read (refresh, reconnect, next login) finds it again.
+  assert.equal((await conversationWith(knight, rook)).clearRequest.id, requestId);
+  assert.equal((await friendsSummary(knight)).incomingClearRequestCount, 1);
+  assert.equal((await friendsSummary(rook)).incomingClearRequestCount, 0);
+  assert.equal((await getClearState(knight, rook)).body.request.id, requestId);
+
+  // Only the recipient may answer; an outsider cannot even see the request.
+  assert.equal((await actOnClearRequest(rook, requestId, 'accept')).status, 403);
+  for (const action of ['accept', 'decline', 'acknowledge', 'cancel']) {
+    const outsider = await actOnClearRequest(oracle, requestId, action);
+    assert.equal(outsider.status, 404, `outsider ${action}`);
+  }
+  assert.equal((await getClearState(oracle, knight)).status, 403);
+  assert.equal((await actOnClearRequest(knight, 'not-an-id', 'accept')).status, 404);
+  assert.equal(await Message.countDocuments({}), 4);
+
+  const rookCleared = waitForEvent(rookSocket, 'chat:cleared', (event) => event.scope === 'both');
+  const knightCleared = waitForEvent(knightSocket, 'chat:cleared', (event) => event.scope === 'both');
+  const rookAccepted = waitForEvent(
+    rookSocket,
+    'chat:clear-request',
+    (event) => event.request.status === 'accepted',
+  );
+
+  const accepted = await actOnClearRequest(knight, requestId, 'accept');
+  assert.equal(accepted.status, 200);
+  assert.equal(accepted.body.request.status, 'accepted');
+  assert.equal(accepted.body.deletedCount, 3);
+  assert.equal((await rookCleared).conversationWith, String(knight._id));
+  assert.equal((await knightCleared).conversationWith, String(rook._id));
+  await rookAccepted;
+
+  // Permanently gone from MongoDB; the unrelated conversation is untouched.
+  const conversation = await Conversation.findOne({ _id: accepted.body.conversationId }).lean();
+  assert.equal(await Message.countDocuments({ conversationId: conversation._id }), 0);
+  assert.equal(await Message.countDocuments({}), 1);
+  assert.equal(conversation.lastMessage, '');
+  assert.equal(conversation.lastMessageAt, null);
+  assert.deepEqual(conversation.clearedAt, {});
+  assert.equal(conversation.clearLockUntil, null);
+  assert.equal(await Friendship.countDocuments({}), 2);
+
+  assert.deepEqual((await listMessagesFor(rook, knight)).body.messages, []);
+  assert.deepEqual((await listMessagesFor(knight, rook)).body.messages, []);
+  assert.equal((await conversationWith(knight, rook)).clearRequest, null);
+  assert.equal((await friendsSummary(knight)).incomingClearRequestCount, 0);
+  assert.equal((await friendsSummary(knight)).unreadMessageCount, 0);
+  assert.equal((await actOnClearRequest(knight, requestId, 'accept')).status, 409);
+
+  // The requester sees the outcome until dismissing it.
+  assert.equal((await getClearState(rook, knight)).body.outcome.status, 'accepted');
+  assert.equal((await actOnClearRequest(rook, requestId, 'acknowledge')).status, 200);
+  assert.equal((await getClearState(rook, knight)).body.outcome, null);
+
+  // The conversation continues as a fresh one.
+  assert.equal((await sendMessage(knight, rook, 'Fresh start')).status, 201);
+  assert.deepEqual(
+    (await listMessagesFor(rook, knight)).body.messages.map((row) => row.text),
+    ['Fresh start'],
+  );
+  assert.equal((await conversationWith(rook, knight)).lastMessage, 'Fresh start');
+});
+
+test('declining keeps history, an offline request persists, and the requester can cancel', async () => {
+  const rook = await createPlayer('ArcadeDevRook');
+  const knight = await createPlayer('ArcadeDevKnight');
+  await makeFriends(rook, knight);
+  await sendMessage(rook, knight, 'Keep me');
+  await sendMessage(knight, rook, 'Keep me too');
+
+  // Knight has no socket (offline). The request stays pending and is found on
+  // the next authenticated read; nothing is deleted while waiting.
+  const created = await clearChat(rook, knight, 'both');
+  assert.equal(created.status, 201);
+  await delay(30);
+  assert.equal((await getClearState(knight, rook)).body.request.status, 'pending');
+  assert.equal(await Message.countDocuments({}), 2);
+
+  const rookSocket = await connectSocketFor(rook);
+  const declinedEvent = waitForEvent(
+    rookSocket,
+    'chat:clear-request',
+    (event) => event.request.status === 'declined',
+  );
+  const declined = await actOnClearRequest(knight, created.body.request.id, 'decline');
+  assert.equal(declined.status, 200);
+  assert.equal(declined.body.request.status, 'declined');
+  assert.ok(declined.body.request.respondedAt);
+  await declinedEvent;
+
+  assert.equal(await Message.countDocuments({}), 2);
+  assert.equal((await listMessagesFor(rook, knight)).body.messages.length, 2);
+  assert.equal((await listMessagesFor(knight, rook)).body.messages.length, 2);
+  assert.equal((await friendsSummary(knight)).incomingClearRequestCount, 0);
+  const rookOutcome = await getClearState(rook, knight);
+  assert.equal(rookOutcome.body.outcome.status, 'declined');
+  assert.equal(rookOutcome.body.request, null);
+  assert.equal((await actOnClearRequest(knight, created.body.request.id, 'decline')).status, 409);
+  assert.equal((await sendMessage(knight, rook, 'Still chatting')).status, 201);
+
+  // A new request supersedes the old outcome; the requester then cancels it.
+  const second = await clearChat(rook, knight, 'both');
+  assert.equal(second.status, 201);
+  assert.equal((await getClearState(rook, knight)).body.outcome, null);
+  assert.equal((await friendsSummary(knight)).incomingClearRequestCount, 1);
+
+  assert.equal((await actOnClearRequest(knight, second.body.request.id, 'cancel')).status, 403);
+  const cancelled = await actOnClearRequest(rook, second.body.request.id, 'cancel');
+  assert.equal(cancelled.status, 200);
+  assert.equal(cancelled.body.request.status, 'cancelled');
+  assert.equal((await friendsSummary(knight)).incomingClearRequestCount, 0);
+  assert.equal((await conversationWith(knight, rook)).clearRequest, null);
+  assert.equal((await actOnClearRequest(knight, second.body.request.id, 'accept')).status, 409);
+  assert.equal(await Message.countDocuments({}), 3);
+});
+
+test('a both-sides request needs a conversation, and sends wait for a clear in progress', async () => {
+  const rook = await createPlayer('ArcadeDevRook');
+  const knight = await createPlayer('ArcadeDevKnight');
+  await makeFriends(rook, knight);
+
+  assert.equal((await clearChat(rook, knight, 'both')).status, 400);
+
+  await sendMessage(rook, knight, 'Hello');
+  const conversation = await Conversation.findOne({}).lean();
+  await Conversation.updateOne(
+    { _id: conversation._id },
+    { $set: { clearLockUntil: new Date(Date.now() + 10_000) } },
+  );
+  assert.equal((await sendMessage(knight, rook, 'During the clear')).status, 409);
+  assert.equal(await Message.countDocuments({}), 1);
+
+  // An expired lease (a crashed clear) never blocks sending.
+  await Conversation.updateOne(
+    { _id: conversation._id },
+    { $set: { clearLockUntil: new Date(Date.now() - 1000) } },
+  );
+  assert.equal((await sendMessage(knight, rook, 'After the lease')).status, 201);
+});
+
+test('removing a friend keeps history but stops chat; blocking stops requests and chat both ways', async () => {
+  const rook = await createPlayer('ArcadeDevRook');
+  const knight = await createPlayer('ArcadeDevKnight');
+  const oracle = await createPlayer('ArcadeDevOracle');
+  await makeFriends(rook, knight);
+  await sendMessage(rook, knight, 'Before removal');
+  await sendMessage(knight, rook, 'Reply before removal');
+  assert.equal((await clearChat(knight, rook, 'both')).status, 201);
+
+  const knightSocket = await connectSocketFor(knight);
+  const ended = waitForEvent(knightSocket, 'friends:changed');
+  const cancelledClear = waitForEvent(
+    knightSocket,
+    'chat:clear-request',
+    (event) => event.request.status === 'cancelled',
+  );
+
+  const removeFriend = (viewer, target) => requestJson(`/api/v1/friends/${target._id}`, {
+    token: viewer ? tokenFor(viewer) : undefined,
+    method: 'DELETE',
+  });
+  assert.equal((await removeFriend(null, knight)).status, 401);
+  assert.equal((await removeFriend(rook, rook)).status, 400);
+  assert.equal((await removeFriend(rook, oracle)).status, 404);
+
+  const removed = await removeFriend(rook, knight);
+  assert.equal(removed.status, 200);
+  assert.equal(removed.body.relationship.status, 'NONE');
+  assert.deepEqual(await ended, { reason: 'removed', userId: String(rook._id) });
+  await cancelledClear;
+  assert.equal((await removeFriend(rook, knight)).status, 404);
+
+  // Both sides see the friendship gone; the history stays stored.
+  assert.equal(await Friendship.countDocuments({}), 0);
+  for (const [viewer, other] of [[rook, knight], [knight, rook]]) {
+    const friends = await requestJson('/api/v1/friends', { token: tokenFor(viewer) });
+    assert.deepEqual(friends.body.friends, []);
+    const status = await requestJson(`/api/v1/friends/status/${other._id}`, { token: tokenFor(viewer) });
+    assert.equal(status.body.relationship.status, 'NONE');
+    assert.equal((await sendMessage(viewer, other, 'No longer allowed')).status, 403);
+    assert.equal((await listMessagesFor(viewer, other)).status, 403);
+  }
+  assert.equal(await Message.countDocuments({}), 2);
+  assert.equal(await ClearChatRequest.countDocuments({ status: 'pending' }), 0);
+
+  // Re-friending shows the retained history again.
+  await makeFriends(knight, rook);
+  assert.equal((await listMessagesFor(rook, knight)).body.messages.length, 2);
+
+  // Blocking a friend ends the friendship and closes every channel both ways.
+  const rookSocket = await connectSocketFor(rook);
+  const blockedEvent = waitForEvent(
+    knightSocket,
+    'friends:changed',
+    (event) => event.reason === 'blocked',
+  );
+  const block = (viewer, target) => requestJson('/api/v1/friends/blocks', {
+    token: tokenFor(viewer),
+    method: 'POST',
+    body: { userId: String(target._id) },
+  });
+  const blocked = await block(rook, knight);
+  assert.equal(blocked.status, 200);
+  assert.equal(blocked.body.relationship.status, 'BLOCKED');
+  assert.equal(blocked.body.relationship.blockedByMe, true);
+  await blockedEvent;
+  assert.equal(await Friendship.countDocuments({}), 0);
+  assert.equal((await block(rook, rook)).status, 400);
+  assert.equal((await block(rook, knight)).status, 200);
+  assert.equal(await Block.countDocuments({}), 1);
+
+  for (const [from, to] of [[rook, knight], [knight, rook]]) {
+    const friendRequest = await requestJson('/api/v1/friends/requests', {
+      token: tokenFor(from),
+      method: 'POST',
+      body: { userId: String(to._id) },
+    });
+    assert.equal(friendRequest.status, 403, 'friend requests are refused both ways');
+    assert.equal((await sendMessage(from, to, 'Blocked message')).status, 403);
+  }
+  const knightStatus = await requestJson(`/api/v1/friends/status/${rook._id}`, { token: tokenFor(knight) });
+  assert.equal(knightStatus.body.relationship.status, 'BLOCKED');
+  assert.equal(knightStatus.body.relationship.blockedMe, true);
+
+  // The realtime channel is closed too.
+  const typingError = waitForEvent(knightSocket, 'chat:error', (event) => event.event === 'chat:typing');
+  let rookSawTyping = false;
+  rookSocket.on('chat:typing', () => { rookSawTyping = true; });
+  knightSocket.emit('chat:typing', { friendId: String(rook._id), typing: true });
+  await typingError;
+  await delay(50);
+  assert.equal(rookSawTyping, false);
+  assert.equal(await Message.countDocuments({}), 2);
+});
+
+test('live sockets are cut when their session is revoked, suspended or expired', async () => {
+  const rook = await createPlayer('ArcadeDevRook');
+  const knight = await createPlayer('ArcadeDevKnight');
+  const oracle = await createPlayer('ArcadeDevOracle');
+  await makeFriends(rook, knight);
+
+  const rookSocket = await connectSocketFor(rook);
+  const knightSocket = await connectSocketFor(knight);
+  const oracleSocket = await connectSocketFor(oracle);
+
+  // A valid session survives the sweep. (Sockets left over from earlier tests
+  // belong to deleted accounts, so the sweep rightly cuts those.)
+  await revalidateConnectedSockets();
+  await delay(80);
+  for (const socket of [rookSocket, knightSocket, oracleSocket]) {
+    assert.equal(socket.connected, true, 'a valid session stays connected');
+  }
+
+  // Password change / logout-all bump tokenVersion: the open tab is cut and
+  // stops receiving private chat.
+  const knightCut = waitForEvent(knightSocket, 'disconnect');
+  let knightGotMessage = false;
+  knightSocket.on('chat:message', () => { knightGotMessage = true; });
+  await User.updateOne({ _id: knight._id }, { $inc: { tokenVersion: 1 } });
+  assert.equal(await revalidateConnectedSockets(), 1, 'only the revoked tab is cut');
+  assert.equal(await knightCut, 'io server disconnect');
+  assert.equal(rookSocket.connected, true, 'other accounts are untouched');
+
+  const freshKnight = await User.findById(knight._id);
+  assert.equal((await sendMessage(rook, freshKnight, 'after revocation')).status, 201);
+  await delay(80);
+  assert.equal(knightGotMessage, false, 'the revoked tab received nothing');
+
+  // The revoked token cannot reconnect either.
+  await assert.rejects(connectSocketFor(knight), 'the old token is refused at the handshake');
+  const reconnected = await connectSocketFor(freshKnight);
+  assert.equal(reconnected.connected, true, 'the current token reconnects normally');
+
+  // Suspension cuts every tab of that account.
+  const rookCut = waitForEvent(rookSocket, 'disconnect');
+  await User.updateOne({ _id: rook._id }, { $set: { status: ACCOUNT_STATUSES.SUSPENDED } });
+  await revalidateConnectedSockets();
+  assert.equal(await rookCut, 'io server disconnect');
+
+  // A connection does not outlive its 15-minute access token.
+  const oracleCut = waitForEvent(oracleSocket, 'disconnect');
+  await revalidateConnectedSockets(Date.now() + 16 * 60 * 1000);
+  assert.equal(await oracleCut, 'io server disconnect');
+});
+
+test('blocking removes a pending friend request between the pair', async () => {
+  const rook = await createPlayer('ArcadeDevRook');
+  const knight = await createPlayer('ArcadeDevKnight');
+  const sent = await requestJson('/api/v1/friends/requests', {
+    token: tokenFor(knight),
+    method: 'POST',
+    body: { userId: String(rook._id) },
+  });
+  assert.equal(sent.status, 201);
+
+  const blocked = await requestJson('/api/v1/friends/blocks', {
+    token: tokenFor(rook),
+    method: 'POST',
+    body: { userId: String(knight._id) },
+  });
+  assert.equal(blocked.status, 200);
+  assert.equal(await FriendRequest.countDocuments({}), 0);
+  const accept = await requestJson(
+    `/api/v1/friends/requests/${sent.body.relationship.requestId}/accept`,
+    { token: tokenFor(rook), method: 'POST' },
+  );
+  assert.equal(accept.status, 404);
 });

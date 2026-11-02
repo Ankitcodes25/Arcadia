@@ -27,6 +27,7 @@ async function listMessages(req, res, next) {
       messages: result.messages,
       hasMore: result.hasMore,
       nextCursor: result.nextCursor,
+      clearedAt: result.clearedAt,
     });
   } catch (error) {
     return next(error);
@@ -83,9 +84,111 @@ async function markRead(req, res, next) {
   }
 }
 
+// Realtime fan-out never fails a write that is already persisted: the
+// database is the source of truth and every client re-reads it on reconnect.
+function emitSafely(emit) {
+  try {
+    emit();
+  } catch {
+    // Best-effort delivery only.
+  }
+}
+
+async function getClearState(req, res, next) {
+  preventResponseCaching(res);
+  try {
+    const result = await chatService.getClearState(req.user.id, req.params.friendId);
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function clearChat(req, res, next) {
+  preventResponseCaching(res);
+  try {
+    const scope = req.body && req.body.scope;
+    if (scope === chatService.CLEAR_SCOPES.ME) {
+      const result = await chatService.clearForMe(req.user.id, req.params.friendId);
+      emitSafely(() => chatRealtime.emitChatCleared({
+        scope: result.scope,
+        userId: req.user.id,
+        friendId: req.params.friendId,
+        clearedAt: result.clearedAt,
+      }));
+      return res.json(result);
+    }
+
+    if (scope === chatService.CLEAR_SCOPES.BOTH) {
+      // Nothing is deleted here. The recipient must accept first.
+      const result = await chatService.createClearRequest(req.user.id, req.params.friendId);
+      emitSafely(() => chatRealtime.emitClearRequestUpdate(result.request));
+      return res.status(201).json(result);
+    }
+
+    return res.status(400).json({ error: 'Clear scope must be "me" or "both"' });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function acceptClearRequest(req, res, next) {
+  preventResponseCaching(res);
+  try {
+    const result = await chatService.acceptClearRequest(req.user.id, req.params.requestId);
+    emitSafely(() => chatRealtime.emitClearRequestUpdate(result.request));
+    emitSafely(() => chatRealtime.emitChatCleared({
+      scope: chatService.CLEAR_SCOPES.BOTH,
+      userId: result.request.recipientId,
+      friendId: result.request.requesterId,
+    }));
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function declineClearRequest(req, res, next) {
+  preventResponseCaching(res);
+  try {
+    const result = await chatService.declineClearRequest(req.user.id, req.params.requestId);
+    emitSafely(() => chatRealtime.emitClearRequestUpdate(result.request));
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function cancelClearRequest(req, res, next) {
+  preventResponseCaching(res);
+  try {
+    const result = await chatService.cancelClearRequest(req.user.id, req.params.requestId);
+    emitSafely(() => chatRealtime.emitClearRequestUpdate(result.request));
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function acknowledgeClearRequest(req, res, next) {
+  preventResponseCaching(res);
+  try {
+    const result = await chatService.acknowledgeClearRequest(req.user.id, req.params.requestId);
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   listConversations,
   listMessages,
   sendMessage,
   markRead,
+  getClearState,
+  clearChat,
+  acceptClearRequest,
+  declineClearRequest,
+  cancelClearRequest,
+  acknowledgeClearRequest,
 };

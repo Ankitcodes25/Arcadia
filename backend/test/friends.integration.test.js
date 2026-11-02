@@ -573,3 +573,32 @@ test('presence is verified from recent authenticated sessions and clears on expi
   });
   assert.equal(unauthenticated.status, 401);
 });
+
+test('presence is shared with accepted friends only, never through search or requests', async () => {
+  const rook = await createPlayer('ArcadeDevRook');
+  const knight = await createPlayer('ArcadeDevKnight');
+  const oracle = await createPlayer('ArcadeDevOracle');
+  const stranger = await createPlayer('ArcadeDevStranger');
+  await makeFriends(rook, knight);
+  // Oracle has a pending request to Rook; Stranger has no relationship.
+  assert.equal((await sendRequest(tokenFor(oracle), String(rook._id))).status, 201);
+
+  // Everyone is genuinely online right now.
+  for (const player of [knight, oracle, stranger]) await createSessionFor(player);
+
+  const search = await requestJson('/api/v1/friends/search?q=ArcadeDev', { token: tokenFor(rook) });
+  assert.equal(search.status, 200);
+  const byName = new Map(search.body.players.map((player) => [player.username, player]));
+  assert.equal(byName.get('ArcadeDevKnight').online, true, 'a friend sees a friend online');
+  assert.equal(byName.get('ArcadeDevOracle').online, false, 'a pending request does not reveal presence');
+  assert.equal(byName.get('ArcadeDevStranger').online, false, 'a stranger does not reveal presence');
+
+  const rookRequests = await requestJson('/api/v1/friends/requests', { token: tokenFor(rook) });
+  assert.equal(rookRequests.body.incoming[0].user.online, false, 'incoming request sender stays hidden');
+  await createSessionFor(rook);
+  const oracleRequests = await requestJson('/api/v1/friends/requests', { token: tokenFor(oracle) });
+  assert.equal(oracleRequests.body.outgoing[0].user.online, false, 'outgoing request recipient stays hidden');
+
+  const friends = await requestJson('/api/v1/friends', { token: tokenFor(rook) });
+  assert.equal(friends.body.friends[0].online, true, 'the Friends list still shows friend presence');
+});

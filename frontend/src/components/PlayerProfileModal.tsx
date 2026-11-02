@@ -32,7 +32,8 @@ import {
   getDummyPlayerForPublicProfile,
   toDummyPublicProfile,
 } from "../data/development/dummyPlayers";
-import { friendsApi, notifyFriendsChanged } from "../friends/friendsApi";
+import { FRIENDS_CHANGED_EVENT, friendsApi, notifyFriendsChanged } from "../friends/friendsApi";
+import { onChatEvent } from "../chat/chatSocket";
 import type { FriendRelationship } from "../friends/friendsTypes";
 import "../pages/Myprofile/MyProfileModal.css";
 import "./PlayerProfileModal.css";
@@ -205,6 +206,26 @@ function PlayerProfile({
     };
   }, [currentUserId, loadRelationship, profile]);
 
+  // A friendship removed or blocked elsewhere (the Friends list, another tab,
+  // or the other player) re-reads the server state, so the button never shows
+  // "Friends" for a relationship that has ended.
+  useEffect(() => {
+    const targetId = profile?.id;
+    if (!targetId || !currentUserId || targetId === currentUserId) return undefined;
+    const onFriendsChanged = (event: Event) => {
+      const source = (event as CustomEvent<{ source?: string }>).detail?.source;
+      if (source !== "profile") void loadRelationship();
+    };
+    window.addEventListener(FRIENDS_CHANGED_EVENT, onFriendsChanged);
+    const unsubscribe = onChatEvent("friends:changed", ({ userId }) => {
+      if (userId === targetId) void loadRelationship();
+    });
+    return () => {
+      window.removeEventListener(FRIENDS_CHANGED_EVENT, onFriendsChanged);
+      unsubscribe();
+    };
+  }, [currentUserId, loadRelationship, profile?.id]);
+
   const handleFriendAction = useCallback(async (action: "send" | "accept" | "decline") => {
     const target = profile;
     if (!target || friendAction !== null) return;
@@ -376,7 +397,7 @@ function PlayerProfile({
           title="Already friends"
         >
           <Check aria-hidden="true" />
-          Friends ✓
+          Friends
         </button>
       );
     }

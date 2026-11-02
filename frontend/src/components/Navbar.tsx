@@ -76,6 +76,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
   const [isFriendsOpen, setIsFriendsOpen] = useState(false);
   const [incomingFriendRequests, setIncomingFriendRequests] = useState(0);
   const [unreadChatMessages, setUnreadChatMessages] = useState(0);
+  const [incomingClearRequests, setIncomingClearRequests] = useState(0);
   const {
     user,
     isAuthenticated,
@@ -130,6 +131,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
     if (!isAuthenticated || !currentUserId || !hasAuthToken()) {
       setIncomingFriendRequests(0);
       setUnreadChatMessages(0);
+      setIncomingClearRequests(0);
       disconnectChatSocket();
       return undefined;
     }
@@ -147,6 +149,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
         if (!cancelled && sequence === summarySequence) {
           setIncomingFriendRequests(response.incomingCount);
           setUnreadChatMessages(response.unreadMessageCount ?? 0);
+          setIncomingClearRequests(response.incomingClearRequestCount ?? 0);
         }
       } catch {
         // A transient summary failure must not disturb navigation or the modal.
@@ -419,6 +422,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
       setIsFriendsOpen(false);
       setIncomingFriendRequests(0);
       setUnreadChatMessages(0);
+      setIncomingClearRequests(0);
       disconnectChatSocket();
       navigateTo("/");
     }
@@ -616,6 +620,9 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
                 unreadChatMessages > 0
                   ? `${unreadChatMessages} unread message${unreadChatMessages === 1 ? "" : "s"}`
                   : null,
+                incomingClearRequests > 0
+                  ? `${incomingClearRequests} Clear Chat Request${incomingClearRequests === 1 ? "" : "s"}`
+                  : null,
               ].filter(Boolean).join(", ")}
               aria-haspopup="dialog"
               aria-expanded={isFriendsOpen}
@@ -626,7 +633,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
               }}
             >
               <span>Friends</span>
-              {(incomingFriendRequests > 0 || unreadChatMessages > 0) && (
+              {(incomingFriendRequests > 0 || unreadChatMessages > 0 || incomingClearRequests > 0) && (
                 <span className="navbar-friends-dot" aria-hidden="true" />
               )}
             </button>

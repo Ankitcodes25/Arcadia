@@ -1,9 +1,31 @@
 const friendshipService = require('../services/friendshipService');
 const chatService = require('../services/chatService');
 const presenceService = require('../services/presenceService');
+const chatRealtime = require('../realtime/chatSocket');
 
 function preventResponseCaching(res) {
   res.set('Cache-Control', 'no-store');
+}
+
+/**
+ * Follow-up work after a friendship ended. The relationship change is already
+ * committed, so neither step may fail the request: a pending clear-chat
+ * request is cancelled so it cannot leave an unanswerable dot, and both
+ * players' open sessions are told to refresh.
+ */
+async function afterFriendshipEnded(reason, userId, otherUserId) {
+  try {
+    const cancelled = await chatService.cancelPendingClearRequestsBetween(userId, otherUserId);
+    for (const request of cancelled) chatRealtime.emitClearRequestUpdate(request);
+  } catch {
+    // The request stays pending; it is hidden because the pair are no longer
+    // friends, and it is revalidated before any deletion.
+  }
+  try {
+    chatRealtime.emitFriendshipChanged({ reason, userId, otherUserId });
+  } catch {
+    // Best-effort delivery only.
+  }
 }
 
 async function listFriends(req, res, next) {
@@ -35,11 +57,15 @@ async function getSummary(req, res, next) {
       friendshipService.getRequestSummary(req.user.id),
       // Chat is additive to the existing Friends surface. A transient chat
       // read failure must not hide an actionable friend-request badge.
-      chatService.getUnreadSummary(req.user.id).catch(() => ({ unreadMessageCount: 0 })),
+      chatService.getUnreadSummary(req.user.id).catch(() => ({
+        unreadMessageCount: 0,
+        incomingClearRequestCount: 0,
+      })),
     ]);
     return res.json({
       ...result,
       unreadMessageCount: chatSummary.unreadMessageCount,
+      incomingClearRequestCount: chatSummary.incomingClearRequestCount,
     });
   } catch (error) {
     return next(error);
@@ -121,13 +147,26 @@ async function cancelRequest(req, res, next) {
   }
 }
 
+async function removeFriend(req, res, next) {
+  preventResponseCaching(res);
+  try {
+    const result = await friendshipService.removeFriend(
+      req.user.id,
+      req.params.userId,
+    );
+    await afterFriendshipEnded('removed', req.user.id, req.params.userId);
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function blockUser(req, res, next) {
   preventResponseCaching(res);
   try {
-    const result = await friendshipService.blockUser(
-      req.user.id,
-      req.body && req.body.userId,
-    );
+    const targetId = req.body && req.body.userId;
+    const result = await friendshipService.blockUser(req.user.id, targetId);
+    await afterFriendshipEnded('blocked', req.user.id, targetId);
     return res.json(result);
   } catch (error) {
     return next(error);
@@ -141,6 +180,7 @@ async function blockRequestSender(req, res, next) {
       req.user.id,
       req.params.requestId,
     );
+    await afterFriendshipEnded('blocked', req.user.id, result.userId);
     return res.json(result);
   } catch (error) {
     return next(error);
@@ -181,6 +221,7 @@ module.exports = {
   acceptRequest,
   rejectRequest,
   cancelRequest,
+  removeFriend,
   blockUser,
   blockRequestSender,
   unblockUser,

@@ -62,7 +62,7 @@ function FriendStatusButton({
         title="Already friends"
       >
         <Check aria-hidden="true" />
-        <span>Friends ✓</span>
+        <span>Friends</span>
       </button>
     );
   }

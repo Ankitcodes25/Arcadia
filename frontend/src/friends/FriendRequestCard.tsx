@@ -1,7 +1,6 @@
 import { Ban, Check, Clock3, X } from "lucide-react";
 import type { FriendRequestItem } from "./friendsTypes";
 import FriendAvatar from "./FriendAvatar";
-import OnlineStatusIndicator from "./OnlineStatusIndicator";
 import { formatRequestTime } from "./friendsFormat";
 
 type FriendRequestCardProps = {
@@ -42,7 +41,7 @@ function FriendRequestCard({
         <span className="friends-card-identity">
           <span className="friends-card-name-row">
             <span className="friends-card-name">{request.user.username}</span>
-            <OnlineStatusIndicator online={request.user.online} />
+            {/* No presence dot: online status is shared with friends only. */}
           </span>
           <span className="friends-card-player-id">{request.user.playerId ?? "Player ID unavailable"}</span>
           <span className="friends-card-meta">

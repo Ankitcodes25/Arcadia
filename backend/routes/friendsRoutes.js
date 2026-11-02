@@ -25,6 +25,9 @@ router.post('/requests/:requestId/reject', ...rateLimits.friendMutation, control
 router.delete('/requests/:requestId', ...rateLimits.friendMutation, controller.cancelRequest);
 router.post('/requests/:requestId/block', ...rateLimits.friendMutation, controller.blockRequestSender);
 router.post('/blocks', ...rateLimits.friendMutation, controller.blockUser);
+// Ends an accepted friendship. Chat history is kept; messaging stops because
+// every chat route requires an accepted friendship.
+router.delete('/:userId', ...rateLimits.friendMutation, controller.removeFriend);
 router.delete('/blocks/:userId', ...rateLimits.friendMutation, controller.unblockUser);
 
 module.exports = router;

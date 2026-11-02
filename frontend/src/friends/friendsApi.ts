@@ -89,6 +89,14 @@ export const friendsApi = {
     );
   },
 
+  /** Ends an accepted friendship. Chat history is kept on the server. */
+  removeFriend(userId: string) {
+    return request<FriendRelationshipResponse>(
+      `/api/v1/friends/${encodeURIComponent(userId)}`,
+      { method: "DELETE" },
+    );
+  },
+
   blockUser(userId: string) {
     return request<FriendRelationshipResponse>("/api/v1/friends/blocks", {
       method: "POST",

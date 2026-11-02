@@ -504,6 +504,25 @@
 }
 
 
+/* Below 900px the absolutely centred links collide with the brand on one side
+   and the username/XP chip on the other. The links join the row so they can
+   never slide under the brand, and the chip steps aside: the avatar next to it
+   opens the same account menu. */
+@media (max-width: 899px) {
+
+  .navbar-nav {
+    position: static;
+    transform: none;
+    margin-inline: auto;
+  }
+
+  .navbar-identity-button {
+    display: none;
+  }
+
+}
+
+
 /* =========================================
    MOBILE
 ========================================= */
@@ -625,7 +644,7 @@
    VERY SMALL SCREENS
 ========================================= */
 
-@media (max-width: 390px) {
+@media (max-width: 440px) {
 
   .brand-name {
     display: none;

@@ -11,6 +11,7 @@ import { createPortal } from "react-dom";
 import { Inbox, Search, Users, X } from "lucide-react";
 import { getAuthErrorMessage } from "../auth/authUtils";
 import { acquireModalScrollLock } from "../auth/modalScrollLock";
+import ConfirmDialog from "../components/ConfirmDialog";
 import PlayerProfileModal from "../components/PlayerProfileModal";
 import ChatModal from "../chat/ChatModal";
 import { chatApi, CHAT_CHANGED_EVENT } from "../chat/chatApi";
@@ -74,6 +75,9 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<{ playerId: string | null; username: string | null } | null>(null);
+  const [pendingFriendAction, setPendingFriendAction] = useState<{ kind: "remove" | "block"; friend: Friend } | null>(null);
+  const [friendActionBusy, setFriendActionBusy] = useState(false);
+  const [friendActionError, setFriendActionError] = useState<string | null>(null);
 
   const friendsSeq = useRef(0);
   const requestsSeq = useRef(0);
@@ -366,6 +370,85 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
     }
   }, [busyAction, refreshAfterChange, showFeedback]);
 
+  /** Drops a friend from every local surface once the server confirmed it. */
+  const forgetFriend = useCallback((friendId: string) => {
+    setFriends((current) => current.filter((friend) => friend.id !== friendId));
+    setConversationsByFriendId((current) => {
+      if (!current.has(friendId)) return current;
+      const next = new Map(current);
+      next.delete(friendId);
+      return next;
+    });
+    setActiveChat((current) => (current?.id === friendId ? null : current));
+  }, []);
+
+  const openFriendAction = useCallback((kind: "remove" | "block", friend: Friend) => {
+    setFriendActionError(null);
+    setPendingFriendAction({ kind, friend });
+  }, []);
+
+  const closeFriendAction = useCallback(() => {
+    if (friendActionBusy) return;
+    setPendingFriendAction(null);
+    setFriendActionError(null);
+  }, [friendActionBusy]);
+
+  const confirmFriendAction = useCallback(async () => {
+    const pending = pendingFriendAction;
+    if (!pending || friendActionBusy) return;
+    const { kind, friend } = pending;
+    setFriendActionBusy(true);
+    setFriendActionError(null);
+    try {
+      const response = kind === "remove"
+        ? await friendsApi.removeFriend(friend.id)
+        : await friendsApi.blockUser(friend.id);
+      // Only a confirmed server change touches the list.
+      forgetFriend(friend.id);
+      updateSearchRelationship(friend.id, response.relationship);
+      setPendingFriendAction(null);
+      showFeedback(
+        "success",
+        kind === "remove"
+          ? `${friend.username} was removed from your friends.`
+          : `${friend.username} has been blocked.`,
+      );
+      refreshAfterChange();
+      notifyFriendsChanged("friends-modal");
+    } catch (error) {
+      setFriendActionError(getAuthErrorMessage(
+        error,
+        kind === "remove"
+          ? "Unable to remove this friend. Please try again."
+          : "Unable to block this player. Please try again.",
+      ));
+      // The friendship may have ended elsewhere (for example the other player
+      // removed it first); re-read so the list shows the real state.
+      void loadFriends(true);
+    } finally {
+      setFriendActionBusy(false);
+    }
+  }, [
+    forgetFriend,
+    friendActionBusy,
+    loadFriends,
+    pendingFriendAction,
+    refreshAfterChange,
+    showFeedback,
+    updateSearchRelationship,
+  ]);
+
+  // The other player removed or blocked this account (or this account did it
+  // from another tab): drop them everywhere and close any open chat with them.
+  useEffect(() => onChatEvent("friends:changed", ({ userId }) => {
+    const closingChat = activeChat?.id === userId;
+    forgetFriend(userId);
+    refreshAfterChange();
+    if (closingChat) {
+      showFeedback("error", "That chat is no longer available because you are no longer friends.");
+    }
+  }), [activeChat, forgetFriend, refreshAfterChange, showFeedback]);
+
   const openProfile = useCallback((player: { id: string; username: string }) => {
     setSelectedPlayer({ playerId: player.id, username: player.username });
   }, []);
@@ -541,15 +624,22 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
                 </div>
               ) : (
                 <div className="friends-card-list">
-                  {sortedFriends.map((friend) => (
-                    <FriendCard
-                      key={friend.id}
-                      friend={friend}
-                      unreadCount={conversationsByFriendId.get(friend.id)?.unreadCount ?? 0}
-                      onOpen={openProfile}
-                      onChat={setActiveChat}
-                    />
-                  ))}
+                  {sortedFriends.map((friend) => {
+                    const conversation = conversationsByFriendId.get(friend.id);
+                    return (
+                      <FriendCard
+                        key={friend.id}
+                        friend={friend}
+                        unreadCount={conversation?.unreadCount ?? 0}
+                        clearRequestPending={conversation?.clearRequest?.recipientId === currentUserId}
+                        actionsDisabled={friendActionBusy}
+                        onOpen={openProfile}
+                        onChat={setActiveChat}
+                        onRemove={(item) => openFriendAction("remove", item)}
+                        onBlock={(item) => openFriendAction("block", item)}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </section>
@@ -733,6 +823,30 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
           currentUserId={currentUserId}
           onClose={() => setSelectedPlayer(null)}
           onRelationshipChange={handleProfileRelationshipChange}
+        />
+      )}
+
+      {pendingFriendAction && (
+        <ConfirmDialog
+          title={pendingFriendAction.kind === "remove" ? "Remove Friend?" : "Block Player?"}
+          message={pendingFriendAction.kind === "remove" ? (
+            <>
+              Are you sure you want to remove <strong>{pendingFriendAction.friend.username}</strong> from
+              your friends?
+            </>
+          ) : (
+            <>
+              Are you sure you want to block <strong>{pendingFriendAction.friend.username}</strong>? They
+              will no longer be able to send you friend requests or messages.
+            </>
+          )}
+          confirmLabel="Proceed"
+          busyLabel={pendingFriendAction.kind === "remove" ? "Removing…" : "Blocking…"}
+          tone="danger"
+          busy={friendActionBusy}
+          error={friendActionError}
+          onCancel={closeFriendAction}
+          onConfirm={() => void confirmFriendAction()}
         />
       )}
 

@@ -44,6 +44,21 @@ const conversationSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    // Per-participant "clear only my side" cutoff, keyed by account id. A
+    // participant never sees a message created at or before their own cutoff;
+    // the other participant's history is untouched. Bounded to two keys.
+    clearedAt: {
+      type: Map,
+      of: Date,
+      default: () => new Map(),
+    },
+    // Short lease held while a mutual clear deletes this conversation's
+    // messages. New sends are refused while it is in the future, so a message
+    // cannot be half-included in the deletion.
+    clearLockUntil: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
