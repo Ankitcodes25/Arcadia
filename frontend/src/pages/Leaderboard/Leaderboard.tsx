@@ -17,7 +17,6 @@ import {
   DUMMY_GAMES,
   DUMMY_PLAYERS,
   DUMMY_PLAYERS_ENABLED,
-  DUMMY_PLAYER_DATA_NOTICE,
   type DummyPlayer,
 } from "../../data/development/dummyPlayers";
 import { navigateTo } from "../../lib/navigation";
@@ -25,8 +24,9 @@ import PlayerProfile from "../../components/PlayerProfileModal";
 import "./Leaderboard.css";
 
 /* Hero images: Arcadion + peeche #1 / #2 / #3 cards.
-   Agar tumhare assets ka path alag hai to sirf yeh imports badal do. */
-import arcadion from "./assets/leadArc.png";
+   Arcadion wahi artwork hai jo Match History hero use karta hai, taaki dono
+   pages par decorative Arcadion ek jaisa soft dikhe. */
+import arcadion from "../../assets/ArcadionHistory.png";
 import rankCard1 from "./Assets/lead1.png";
 import rankCard2 from "./Assets/lead2.png";
 import rankCard3 from "./Assets/lead3.png";
@@ -746,12 +746,6 @@ function Leaderboard({ returnPath, entries, games }: LeaderboardProps) {
     <main className="leaderboard-page">
       <div className="leaderboard-inner">
       <LeaderboardHero onBack={handleReturn} />
-
-      {showingDummyPlayers && (
-        <p className="leaderboard-demo-note" role="note">
-          {DUMMY_PLAYER_DATA_NOTICE}
-        </p>
-      )}
 
       {/* ---------- Patla filter box ---------- */}
       <div className="leaderboard-filters" role="search">
