@@ -34,6 +34,18 @@ export type Friend = FriendPlayer & {
   friendsSince: string | null;
 };
 
+/**
+ * A player blocked by the authenticated viewer. A block is directional, so this
+ * list never includes players who only blocked the viewer.
+ */
+export type BlockedPlayer = FriendPlayer & {
+  blockedAt: string | null;
+};
+
+export type BlockedPlayersResponse = {
+  blocked: BlockedPlayer[];
+};
+
 export type FriendRequestItem = {
   id: string;
   createdAt: string | null;

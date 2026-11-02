@@ -8,7 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { Inbox, Search, Users, X } from "lucide-react";
+import { Ban, Inbox, Search, Users, X } from "lucide-react";
 import { getAuthErrorMessage } from "../auth/authUtils";
 import { acquireModalScrollLock } from "../auth/modalScrollLock";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -18,12 +18,15 @@ import { chatApi, CHAT_CHANGED_EVENT } from "../chat/chatApi";
 import { onChatEvent } from "../chat/chatSocket";
 import type { ChatConversation } from "../chat/chatTypes";
 import type {
+  BlockedPlayer,
   Friend,
+  FriendPlayer,
   FriendRelationship,
   FriendRequestItem,
   FriendSearchResult,
 } from "./friendsTypes";
 import { friendsApi, notifyFriendsChanged } from "./friendsApi";
+import BlockedPlayerCard from "./BlockedPlayerCard";
 import FriendCard from "./FriendCard";
 import FriendRequestCard from "./FriendRequestCard";
 import FriendSearchResultCard from "./FriendSearchResult";
@@ -35,12 +38,13 @@ type FriendsModalProps = {
   onIncomingCountChange: (count: number) => void;
 };
 
-type TabKey = "friends" | "requests" | "find";
+type TabKey = "friends" | "requests" | "find" | "blocked";
 
 const TABS: ReadonlyArray<{ key: TabKey; label: string; Icon: typeof Users }> = [
   { key: "friends", label: "Friends", Icon: Users },
   { key: "requests", label: "Requests", Icon: Inbox },
   { key: "find", label: "Find Friends", Icon: Search },
+  { key: "blocked", label: "Blocked", Icon: Ban },
 ];
 
 const SEARCH_DEBOUNCE_MS = 350;
@@ -53,13 +57,20 @@ function sortByName<T extends { username: string }>(items: T[]) {
 }
 
 function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: FriendsModalProps) {
-  const [activeTab, setActiveTab] = useState<0 | 1 | 2>(0);
+  const [activeTab, setActiveTab] = useState<0 | 1 | 2 | 3>(0);
 
   const [friends, setFriends] = useState<Friend[]>([]);
   const [friendsLoading, setFriendsLoading] = useState(true);
   const [friendsError, setFriendsError] = useState<string | null>(null);
   const [conversationsByFriendId, setConversationsByFriendId] = useState<Map<string, ChatConversation>>(new Map());
   const [activeChat, setActiveChat] = useState<Friend | null>(null);
+
+  const [blocked, setBlocked] = useState<BlockedPlayer[]>([]);
+  const [blockedLoading, setBlockedLoading] = useState(false);
+  const [blockedError, setBlockedError] = useState<string | null>(null);
+  const [pendingUnblock, setPendingUnblock] = useState<BlockedPlayer | null>(null);
+  const [unblockBusy, setUnblockBusy] = useState(false);
+  const [unblockError, setUnblockError] = useState<string | null>(null);
 
   const [incoming, setIncoming] = useState<FriendRequestItem[]>([]);
   const [outgoing, setOutgoing] = useState<FriendRequestItem[]>([]);
@@ -82,6 +93,9 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
   const friendsSeq = useRef(0);
   const requestsSeq = useRef(0);
   const conversationsSeq = useRef(0);
+  const blockedSeq = useRef(0);
+  const blockedLoadedRef = useRef(false);
+  const unblockInFlight = useRef(false);
   const searchSeq = useRef(0);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressClickRef = useRef(false);
@@ -116,6 +130,26 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
       if (!silent) setFriendsError(getAuthErrorMessage(error, "Unable to load your friends."));
     } finally {
       if (sequence === friendsSeq.current && !silent) setFriendsLoading(false);
+    }
+  }, []);
+
+  const loadBlocked = useCallback(async (silent = false) => {
+    const sequence = ++blockedSeq.current;
+    if (!silent) {
+      setBlockedLoading(true);
+      setBlockedError(null);
+    }
+    try {
+      const response = await friendsApi.listBlocked();
+      if (sequence !== blockedSeq.current) return;
+      setBlocked(response.blocked);
+      setBlockedError(null);
+      blockedLoadedRef.current = true;
+    } catch (error) {
+      if (sequence !== blockedSeq.current) return;
+      if (!silent) setBlockedError(getAuthErrorMessage(error, "Unable to load blocked players."));
+    } finally {
+      if (sequence === blockedSeq.current) setBlockedLoading(false);
     }
   }, []);
 
@@ -181,10 +215,18 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
       friendsSeq.current += 1;
       requestsSeq.current += 1;
       conversationsSeq.current += 1;
+      blockedSeq.current += 1;
       searchSeq.current += 1;
       if (feedbackTimer.current !== null) clearTimeout(feedbackTimer.current);
     };
   }, [loadFriends, loadRequests, loadConversations]);
+
+  // The Blocked tab reads the database when it is opened. Later opens refresh
+  // in the background so the current list stays visible while it reconciles.
+  useEffect(() => {
+    if (activeTab !== 3) return;
+    void loadBlocked(blockedLoadedRef.current);
+  }, [activeTab, loadBlocked]);
 
   useEffect(() => {
     const refreshConversations = () => { void loadConversations(true); };
@@ -239,7 +281,8 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
     void loadFriends(true);
     void loadRequests(true);
     void loadConversations(true);
-  }, [loadConversations, loadFriends, loadRequests]);
+    void loadBlocked(true);
+  }, [loadBlocked, loadConversations, loadFriends, loadRequests]);
 
   const handleProfileRelationshipChange = useCallback((playerId: string, relationship: FriendRelationship) => {
     updateSearchRelationship(playerId, relationship);
@@ -328,6 +371,18 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
     }
   }, [busyAction, incoming, onIncomingCountChange, refreshAfterChange, showFeedback]);
 
+  /**
+   * Reflects a confirmed server block immediately. The follow-up re-read keeps
+   * the row authoritative and reconciles any concurrent change.
+   */
+  const rememberBlocked = useCallback((player: FriendPlayer) => {
+    setBlocked((current) => (
+      current.some((blockedPlayer) => blockedPlayer.id === player.id)
+        ? current
+        : [{ ...player, blockedAt: new Date().toISOString() }, ...current]
+    ));
+  }, []);
+
   const handleBlockRequest = useCallback(async (request: FriendRequestItem) => {
     if (busyAction) return;
     setBusyAction(`block:${request.id}`);
@@ -344,6 +399,7 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
         return next;
       });
       setActiveChat((current) => (current?.id === request.user.id ? null : current));
+      rememberBlocked(request.user);
       showFeedback("success", `${request.user.username} has been blocked.`);
       refreshAfterChange();
       notifyFriendsChanged("friends-modal");
@@ -352,7 +408,7 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
     } finally {
       setBusyAction(null);
     }
-  }, [busyAction, incoming, onIncomingCountChange, refreshAfterChange, showFeedback]);
+  }, [busyAction, incoming, onIncomingCountChange, refreshAfterChange, rememberBlocked, showFeedback]);
 
   const handleCancelRequest = useCallback(async (request: FriendRequestItem) => {
     if (busyAction) return;
@@ -382,6 +438,52 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
     setActiveChat((current) => (current?.id === friendId ? null : current));
   }, []);
 
+  const openUnblock = useCallback((player: BlockedPlayer) => {
+    if (unblockInFlight.current) return;
+    setUnblockError(null);
+    setPendingUnblock(player);
+  }, []);
+
+  const closeUnblock = useCallback(() => {
+    if (unblockInFlight.current) return;
+    setPendingUnblock(null);
+    setUnblockError(null);
+  }, []);
+
+  const confirmUnblock = useCallback(async () => {
+    const target = pendingUnblock;
+    if (!target || unblockInFlight.current) return;
+
+    unblockInFlight.current = true;
+    setUnblockBusy(true);
+    setUnblockError(null);
+    try {
+      const response = await friendsApi.unblockUser(target.id);
+      // Only a confirmed server change removes the row. No friendship or old
+      // friend request is recreated here.
+      setBlocked((current) => current.filter((player) => player.id !== target.id));
+      updateSearchRelationship(target.id, response.relationship);
+      setPendingUnblock(null);
+      showFeedback("success", `${target.username} has been unblocked.`);
+      refreshAfterChange();
+      notifyFriendsChanged("friends-modal");
+    } catch (error) {
+      // Keep the row blocked locally: the server may still hold the block.
+      setUnblockError(getAuthErrorMessage(
+        error,
+        "Unable to unblock this player. Please try again.",
+      ));
+    } finally {
+      unblockInFlight.current = false;
+      setUnblockBusy(false);
+    }
+  }, [
+    pendingUnblock,
+    refreshAfterChange,
+    showFeedback,
+    updateSearchRelationship,
+  ]);
+
   const openFriendAction = useCallback((kind: "remove" | "block", friend: Friend) => {
     setFriendActionError(null);
     setPendingFriendAction({ kind, friend });
@@ -405,6 +507,7 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
         : await friendsApi.blockUser(friend.id);
       // Only a confirmed server change touches the list.
       forgetFriend(friend.id);
+      if (kind === "block") rememberBlocked(friend);
       updateSearchRelationship(friend.id, response.relationship);
       setPendingFriendAction(null);
       showFeedback(
@@ -434,12 +537,14 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
     loadFriends,
     pendingFriendAction,
     refreshAfterChange,
+    rememberBlocked,
     showFeedback,
     updateSearchRelationship,
   ]);
 
-  // The other player removed or blocked this account (or this account did it
-  // from another tab): drop them everywhere and close any open chat with them.
+  // A relationship changed elsewhere (another tab or the other player): drop
+  // any ended friendship everywhere, close an affected chat and re-read every
+  // relationship surface, including the Blocked list.
   useEffect(() => onChatEvent("friends:changed", ({ userId }) => {
     const closingChat = activeChat?.id === userId;
     forgetFriend(userId);
@@ -454,7 +559,7 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
   }, []);
 
   const goToTab = useCallback((index: number) => {
-    setActiveTab(Math.max(0, Math.min(TABS.length - 1, index)) as 0 | 1 | 2);
+    setActiveTab(Math.max(0, Math.min(TABS.length - 1, index)) as 0 | 1 | 2 | 3);
   }, []);
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -508,6 +613,7 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
     ...sortByName(friends.filter((friend) => friend.online)),
     ...sortByName(friends.filter((friend) => !friend.online)),
   ];
+  const sortedBlocked = sortByName(blocked);
   const hasAnyRequests = incoming.length > 0 || outgoing.length > 0;
 
   return createPortal(
@@ -812,6 +918,51 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
                 </div>
               ) : null}
             </section>
+
+            <section
+              id="friends-panel-blocked"
+              className="friends-tab-panel"
+              role="tabpanel"
+              aria-labelledby="friends-tab-blocked"
+              aria-hidden={activeTab !== 3}
+              inert={activeTab !== 3}
+            >
+              {feedback && (
+                <p className={`friends-feedback friends-feedback--${feedback.tone}`} role={feedback.tone === "error" ? "alert" : "status"}>
+                  {feedback.message}
+                </p>
+              )}
+
+              {blockedLoading ? (
+                <div className="friends-loading" role="status">
+                  <span className="friends-inline-spinner" aria-hidden="true" />
+                  Loading blocked players…
+                </div>
+              ) : blockedError ? (
+                <div className="friends-error" role="alert">
+                  <span>{blockedError}</span>
+                  <button type="button" onClick={() => void loadBlocked()}>Retry</button>
+                </div>
+              ) : sortedBlocked.length === 0 ? (
+                <div className="friends-empty">
+                  <span className="friends-empty-icon" aria-hidden="true"><Ban /></span>
+                  <h3>No blocked players</h3>
+                  <p>Players you block will appear here.</p>
+                </div>
+              ) : (
+                <div className="friends-card-list">
+                  {sortedBlocked.map((player) => (
+                    <BlockedPlayerCard
+                      key={player.id}
+                      player={player}
+                      busy={unblockBusy && pendingUnblock?.id === player.id}
+                      disabled={unblockBusy}
+                      onUnblock={openUnblock}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
         </div>
       </section>
@@ -823,6 +974,24 @@ function FriendsModal({ currentUserId, onClose, onIncomingCountChange }: Friends
           currentUserId={currentUserId}
           onClose={() => setSelectedPlayer(null)}
           onRelationshipChange={handleProfileRelationshipChange}
+        />
+      )}
+
+      {pendingUnblock && (
+        <ConfirmDialog
+          title="Unblock Player?"
+          message={(
+            <>
+              Are you sure you want to unblock <strong>{pendingUnblock.username}</strong>? They
+              will be able to send you friend requests and messages again.
+            </>
+          )}
+          confirmLabel="Unblock"
+          busyLabel="Unblocking…"
+          busy={unblockBusy}
+          error={unblockError}
+          onCancel={closeUnblock}
+          onConfirm={() => void confirmUnblock()}
         />
       )}
 

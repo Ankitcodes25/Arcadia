@@ -1,6 +1,7 @@
 import { apiRequest, getAccessToken } from "../auth/authApi";
 import type {
   AcceptFriendRequestResponse,
+  BlockedPlayersResponse,
   FriendPresenceResponse,
   FriendRelationshipResponse,
   FriendRequestsResponse,
@@ -33,6 +34,10 @@ function request<T>(path: string, input: Parameters<typeof apiRequest>[1] = {}) 
 export const friendsApi = {
   listFriends() {
     return request<FriendsResponse>("/api/v1/friends");
+  },
+
+  listBlocked() {
+    return request<BlockedPlayersResponse>("/api/v1/friends/blocks");
   },
 
   listRequests() {

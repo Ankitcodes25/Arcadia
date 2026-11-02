@@ -44,6 +44,11 @@ let clearCalls;
 let friendActionCalls;
 let friendActionError;
 let removedFriendIds;
+let blockedPlayers;
+let listBlockedCalls;
+let unblockCalls;
+let unblockError;
+let blockedListError;
 
 function installDom() {
   dom = new JSDOM("<!doctype html><html><body></body></html>", {
@@ -91,6 +96,13 @@ function player(id, username, online, extra = {}) {
     online,
     ...extra,
   };
+}
+
+function blockedPlayer(id, username, extra = {}) {
+  return player(id, username, false, {
+    blockedAt: "2026-10-01T00:00:00.000Z",
+    ...extra,
+  });
 }
 
 function clearRequestFixture(overrides = {}) {
@@ -193,6 +205,11 @@ beforeEach(() => {
   friendActionCalls = [];
   friendActionError = null;
   removedFriendIds = new Set();
+  blockedPlayers = [];
+  listBlockedCalls = 0;
+  unblockCalls = [];
+  unblockError = null;
+  blockedListError = null;
 
   chatApi.getClearState = async () => clearState;
   chatApi.clearForMe = async (friendId) => {
@@ -240,7 +257,34 @@ beforeEach(() => {
     friendActionCalls.push({ action: "block", userId });
     if (friendActionError) throw friendActionError;
     removedFriendIds.add(userId);
+    const target = player("player-online", "ZedOnline", false);
+    if (!blockedPlayers.some((blocked) => blocked.id === userId)) {
+      blockedPlayers = [
+        { ...(userId === target.id ? target : player(userId, "Blocked Player", false)), blockedAt: new Date().toISOString() },
+        ...blockedPlayers,
+      ];
+    }
     return { relationship: { status: "BLOCKED", requestId: null, blockedByMe: true, blockedMe: false, friendSince: null } };
+  };
+
+  friendsApi.listBlocked = async () => {
+    listBlockedCalls += 1;
+    if (blockedListError) throw blockedListError;
+    return { blocked: blockedPlayers };
+  };
+  friendsApi.unblockUser = async (userId) => {
+    unblockCalls.push(userId);
+    if (unblockError) throw unblockError;
+    blockedPlayers = blockedPlayers.filter((blocked) => blocked.id !== userId);
+    return {
+      relationship: {
+        status: "NONE",
+        requestId: null,
+        blockedByMe: false,
+        blockedMe: false,
+        friendSince: null,
+      },
+    };
   };
 
   friendsApi.listFriends = async () => {
@@ -523,12 +567,13 @@ async function settleSearch() {
 test("the modal opens on Friends, shows online friends first, and keeps tab state", async () => {
   const unmount = await renderModal();
   await flush();
+  assert.equal(listBlockedCalls, 0, "the Blocked list waits until its tab is opened");
 
   const tabs = qa('[role="tab"]');
   assert.deepEqual(
     tabs.map((tab) => tab.textContent.replace(/\d+/g, "").trim()),
-    ["Friends", "Requests", "Find Friends"],
-    "tabs are ordered Friends, Requests, Find Friends",
+    ["Friends", "Requests", "Find Friends", "Blocked"],
+    "tabs are ordered Friends, Requests, Find Friends, Blocked",
   );
   assert.equal(q(".friends-tab--active").textContent.includes("Friends"), true);
   assert.equal(q("#friends-panel-friends").getAttribute("aria-hidden"), "false");
@@ -1043,6 +1088,180 @@ test("Block asks first and removes the friend only after the server confirms", a
     ["AmyOffline"],
   );
   assert.match(q(".friends-feedback--success").textContent, /ZedOnline has been blocked/);
+
+  await unmount();
+});
+
+test("the Blocked tab lists persisted blocks and unblocks only after confirmation", async () => {
+  blockedPlayers = [
+    blockedPlayer("player-knight", "ArcadeDevKnight"),
+    blockedPlayer("player-oracle", "ArcadeDevOracle"),
+  ];
+  const unmount = await renderModal();
+  await flush();
+
+  await click(button("Blocked"));
+  await flush();
+  assert.equal(q("#friends-panel-blocked").getAttribute("aria-hidden"), "false");
+  assert.deepEqual(
+    qa("#friends-panel-blocked .friends-card-name").map((node) => node.textContent),
+    ["ArcadeDevKnight", "ArcadeDevOracle"],
+  );
+  const cards = qa("#friends-panel-blocked .friends-card");
+  assert.equal(cards.length, 2);
+  assert.ok(cards[0].querySelector(".friends-avatar-placeholder"), "each row reuses the friend avatar");
+  assert.equal(cards[0].querySelector(".friends-card-player-id").textContent, "ARC-PLAYER-K");
+  assert.ok(listBlockedCalls >= 1, "the modal reads the persisted block list");
+  assert.equal(qa("#friends-panel-blocked .friends-unblock-button").length, 2);
+
+  await click(q('[aria-label="Unblock ArcadeDevKnight"]'));
+  assert.equal(q(".confirm-dialog-title").textContent, "Unblock Player?");
+  assert.equal(
+    q(".confirm-dialog-message").textContent.replace(/\s+/g, " ").trim(),
+    "Are you sure you want to unblock ArcadeDevKnight? They will be able to send you friend requests and messages again.",
+  );
+  assert.deepEqual(
+    [...document.querySelectorAll(".confirm-dialog-actions button")].map((node) => node.textContent.trim()),
+    ["Cancel", "Unblock"],
+  );
+
+  await click(dialogButton("Cancel"));
+  assert.equal(q(".confirm-dialog"), null, "Cancel closes the confirmation");
+  assert.deepEqual(unblockCalls, [], "Cancel makes no backend change");
+  assert.equal(qa("#friends-panel-blocked .friends-card").length, 2, "the player stays blocked");
+
+  await click(q('[aria-label="Unblock ArcadeDevKnight"]'));
+  await click(dialogButton("Unblock"));
+  await flush();
+  assert.deepEqual(unblockCalls, ["player-knight"]);
+  assert.equal(q(".confirm-dialog"), null, "the dialog closes after success");
+  assert.deepEqual(
+    qa("#friends-panel-blocked .friends-card-name").map((node) => node.textContent),
+    ["ArcadeDevOracle"],
+    "the unblocked player leaves the list immediately",
+  );
+  assert.match(q(".friends-feedback--success").textContent, /ArcadeDevKnight has been unblocked/);
+
+  await unmount();
+});
+
+test("a failed unblock keeps the player blocked and reports the error in the dialog", async () => {
+  blockedPlayers = [blockedPlayer("player-knight", "ArcadeDevKnight")];
+  unblockError = new Error("Server unavailable");
+  const unmount = await renderModal();
+  await flush();
+
+  await click(button("Blocked"));
+  await flush();
+  await click(q('[aria-label="Unblock ArcadeDevKnight"]'));
+  await click(dialogButton("Unblock"));
+  await flush();
+
+  assert.ok(q(".confirm-dialog"), "the confirmation stays open");
+  assert.match(
+    q(".confirm-dialog-error").textContent,
+    /Unable to unblock this player\. Please try again\./,
+  );
+  assert.deepEqual(
+    qa("#friends-panel-blocked .friends-card-name").map((node) => node.textContent),
+    ["ArcadeDevKnight"],
+    "the failed player is still blocked",
+  );
+
+  await unmount();
+});
+
+test("duplicate unblock confirmations issue one backend request", async () => {
+  blockedPlayers = [blockedPlayer("player-knight", "ArcadeDevKnight")];
+  let resolveUnblock;
+  friendsApi.unblockUser = (userId) => {
+    unblockCalls.push(userId);
+    return new Promise((resolve) => {
+      resolveUnblock = () => {
+        blockedPlayers = blockedPlayers.filter((player) => player.id !== userId);
+        resolve({
+          relationship: {
+            status: "NONE",
+            requestId: null,
+            blockedByMe: false,
+            blockedMe: false,
+            friendSince: null,
+          },
+        });
+      };
+    });
+  };
+
+  const unmount = await renderModal();
+  await flush();
+  await click(button("Blocked"));
+  await flush();
+  await click(q('[aria-label="Unblock ArcadeDevKnight"]'));
+
+  await act(async () => {
+    const confirm = dialogButton("Unblock");
+    confirm.click();
+    confirm.click();
+  });
+  assert.deepEqual(unblockCalls, ["player-knight"], "a second confirmation is ignored");
+
+  await act(async () => {
+    resolveUnblock();
+  });
+  await flush();
+  assert.equal(q(".confirm-dialog"), null);
+  assert.equal(qa("#friends-panel-blocked .friends-card").length, 0);
+
+  await unmount();
+});
+
+test("the Blocked tab shows a loading state and then the empty state", async () => {
+  let releaseBlockedList;
+  friendsApi.listBlocked = () => {
+    listBlockedCalls += 1;
+    return new Promise((resolve) => {
+      releaseBlockedList = resolve;
+    });
+  };
+
+  const unmount = await renderModal();
+  await click(button("Blocked"));
+  await flush();
+  assert.match(q("#friends-panel-blocked .friends-loading").textContent, /Loading blocked players/);
+
+  await act(async () => {
+    releaseBlockedList({ blocked: [] });
+  });
+  await flush();
+  assert.equal(q("#friends-panel-blocked .friends-empty h3").textContent, "No blocked players");
+  assert.equal(
+    q("#friends-panel-blocked .friends-empty p").textContent,
+    "Players you block will appear here.",
+  );
+
+  await unmount();
+});
+
+test("the Blocked tab reports a fetch failure and retries", async () => {
+  blockedListError = new Error("Offline");
+  const unmount = await renderModal();
+  await flush();
+
+  await click(button("Blocked"));
+  await flush();
+  assert.match(
+    q("#friends-panel-blocked .friends-error").textContent,
+    /Unable to load blocked players/,
+  );
+
+  blockedListError = null;
+  blockedPlayers = [blockedPlayer("player-knight", "ArcadeDevKnight")];
+  await click(q("#friends-panel-blocked .friends-error button"));
+  await flush();
+  assert.deepEqual(
+    qa("#friends-panel-blocked .friends-card-name").map((node) => node.textContent),
+    ["ArcadeDevKnight"],
+  );
 
   await unmount();
 });

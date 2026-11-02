@@ -13,6 +13,9 @@ export function getAuthErrorMessage(error: unknown, fallback: string) {
  * An OAuth notice is rendered in exactly one place: inside the auth modal while
  * it is open, and as the global notice once the modal is closed. Showing both
  * at the same time would duplicate the same warning on screen.
+ *
+ * A sign-out failure has no modal of its own, so it is always reported by the
+ * same global notice. Form errors stay owned by the auth modal.
  */
 export function shouldShowGlobalAuthNotice({
   authError,
@@ -23,7 +26,9 @@ export function shouldShowGlobalAuthNotice({
   authErrorKind: AuthErrorKind | null;
   authMode: AuthMode | null;
 }) {
-  return authErrorKind === "oauth" && Boolean(authError) && !authMode;
+  if (!authError) return false;
+  if (authErrorKind === "logout") return true;
+  return authErrorKind === "oauth" && !authMode;
 }
 
 export function getInitials(user: AuthUser | null) {
