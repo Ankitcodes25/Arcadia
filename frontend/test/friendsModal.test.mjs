@@ -1212,6 +1212,29 @@ test("the requester sees a declined outcome until dismissing it", async () => {
   await unmount();
 });
 
+test("search results show presence for friends only", async () => {
+  searchResults = [
+    { ...player("player-online", "ZedOnline", true), relationship: FRIENDS_RELATIONSHIP },
+    {
+      // Even if a server sent presence for a stranger, the card never shows it.
+      ...player("player-stranger", "StrangerDanger", true),
+      relationship: { status: "NONE", requestId: null, blockedByMe: false, blockedMe: false, friendSince: null },
+    },
+  ];
+  const unmount = await renderModal();
+  await click(button("Find Friends"));
+  await setTextInput(q(".friends-search-input"), "Zed");
+  await settleSearch();
+
+  const [friendCard, strangerCard] = qa(".friends-search-result");
+  assert.match(friendCard.textContent, /Online now/, "a friend's presence is shown");
+  assert.equal(strangerCard.querySelector(".friends-card-meta"), null, "a stranger has no presence line");
+  assert.equal(strangerCard.querySelector(".friends-presence--online"), null, "and no online dot");
+  assert.doesNotMatch(strangerCard.textContent, /Online|Offline/);
+
+  await unmount();
+});
+
 test("the Friends navbar dot includes an incoming Clear Chat Request", async () => {
   setAccessToken("test-access-token");
   requestsState = { incoming: [], outgoing: [], incomingCount: 0 };

@@ -18,6 +18,7 @@ function FriendSearchResultCard({
   onSend,
   onAccept,
 }: FriendSearchResultProps) {
+  const isFriend = result.relationship.status === "FRIENDS";
   return (
     <article className="friends-search-result">
       <button
@@ -30,10 +31,13 @@ function FriendSearchResultCard({
         <span className="friends-card-identity">
           <span className="friends-card-name-row">
             <span className="friends-card-name">{result.username}</span>
-            {result.online && <OnlineStatusIndicator online />}
+            {isFriend && result.online && <OnlineStatusIndicator online />}
           </span>
           <span className="friends-card-player-id">{result.playerId ?? "Player ID unavailable"}</span>
-          <span className="friends-card-meta">{result.online ? "Online now" : "Offline"}</span>
+          {/* Presence is only shared between accepted friends. */}
+          {isFriend && (
+            <span className="friends-card-meta">{result.online ? "Online now" : "Offline"}</span>
+          )}
         </span>
       </button>
 

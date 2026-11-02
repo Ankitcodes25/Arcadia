@@ -261,16 +261,16 @@ async function listRequests(userId) {
   for (const row of outgoingRows) otherIds.add(String(row.to));
   const ids = [...otherIds];
 
-  const [users, onlineIds] = await Promise.all([
-    ids.length
-      ? User.find({
-        _id: { $in: ids },
-        status: ACCOUNT_STATUSES.ACTIVE,
-        role: USER_ROLES.USER,
-      }).select(PLAYER_FIELDS).lean()
-      : [],
-    listOnlineUserIds(ids),
-  ]);
+  const users = ids.length
+    ? await User.find({
+      _id: { $in: ids },
+      status: ACCOUNT_STATUSES.ACTIVE,
+      role: USER_ROLES.USER,
+    }).select(PLAYER_FIELDS).lean()
+    : [];
+  // Presence is shared with accepted friends only. A pending request is not a
+  // friendship, so neither side of it learns whether the other is online.
+  const onlineIds = new Set();
 
   const usersById = new Map(users.map((user) => [String(user._id), user]));
 
@@ -600,10 +600,13 @@ async function searchPlayers(viewerId, rawQuery) {
     .lean();
 
   const ids = users.map((user) => String(user._id));
-  const [onlineIds, relationships] = await Promise.all([
-    listOnlineUserIds(ids),
-    getRelationshipMap(viewer, ids),
-  ]);
+  const relationships = await getRelationshipMap(viewer, ids);
+  // Search reaches any public player, but presence is shared with accepted
+  // friends only: everyone else is reported as not online.
+  const friendIds = ids.filter((id) => (
+    relationships.get(id)?.status === RELATIONSHIP_STATUSES.FRIENDS
+  ));
+  const onlineIds = await listOnlineUserIds(friendIds);
 
   const players = users
     .map((user) => {
