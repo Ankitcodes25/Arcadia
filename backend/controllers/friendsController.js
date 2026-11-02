@@ -8,6 +8,19 @@ function preventResponseCaching(res) {
 }
 
 /**
+ * Best-effort realtime notification. The database row is already committed, so
+ * a transport failure must never turn a successful relationship change into an
+ * error response.
+ */
+function notifyRelationshipChanged(reason, userId, otherUserId) {
+  try {
+    chatRealtime.emitFriendshipChanged({ reason, userId, otherUserId });
+  } catch {
+    // Best-effort delivery only. Every surface re-reads the database.
+  }
+}
+
+/**
  * Follow-up work after a friendship ended. The relationship change is already
  * committed, so neither step may fail the request: a pending clear-chat
  * request is cancelled so it cannot leave an unanswerable dot, and both
@@ -21,11 +34,7 @@ async function afterFriendshipEnded(reason, userId, otherUserId) {
     // The request stays pending; it is hidden because the pair are no longer
     // friends, and it is revalidated before any deletion.
   }
-  try {
-    chatRealtime.emitFriendshipChanged({ reason, userId, otherUserId });
-  } catch {
-    // Best-effort delivery only.
-  }
+  notifyRelationshipChanged(reason, userId, otherUserId);
 }
 
 async function listFriends(req, res, next) {
@@ -33,6 +42,16 @@ async function listFriends(req, res, next) {
   try {
     const friends = await friendshipService.listFriends(req.user.id);
     return res.json({ friends });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function listBlockedUsers(req, res, next) {
+  preventResponseCaching(res);
+  try {
+    const blocked = await friendshipService.listBlockedUsers(req.user.id);
+    return res.json({ blocked });
   } catch (error) {
     return next(error);
   }
@@ -194,6 +213,7 @@ async function unblockUser(req, res, next) {
       req.user.id,
       req.params.userId,
     );
+    notifyRelationshipChanged('unblocked', req.user.id, req.params.userId);
     return res.json(result);
   } catch (error) {
     return next(error);
@@ -213,6 +233,7 @@ async function heartbeat(req, res, next) {
 
 module.exports = {
   listFriends,
+  listBlockedUsers,
   listRequests,
   getSummary,
   search,

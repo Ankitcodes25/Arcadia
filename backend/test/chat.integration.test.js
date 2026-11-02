@@ -1046,6 +1046,70 @@ test('removing a friend keeps history but stops chat; blocking stops requests an
   assert.equal(await Message.countDocuments({}), 2);
 });
 
+test('unblocking is creator-only, removes the persisted block, and notifies both sessions', async () => {
+  const rook = await createPlayer('ArcadeDevRook');
+  const knight = await createPlayer('ArcadeDevKnight');
+  const oracle = await createPlayer('ArcadeDevOracle');
+  await makeFriends(rook, knight);
+  assert.equal((await sendMessage(rook, knight, 'History survives unblock')).status, 201);
+
+  const rookSocket = await connectSocketFor(rook);
+  const knightSocket = await connectSocketFor(knight);
+
+  const blockedEvent = waitForEvent(
+    knightSocket,
+    'friends:changed',
+    (event) => event.reason === 'blocked',
+  );
+  const block = await requestJson('/api/v1/friends/blocks', {
+    token: tokenFor(rook),
+    method: 'POST',
+    body: { userId: String(knight._id) },
+  });
+  assert.equal(block.status, 200);
+  await blockedEvent;
+
+  const rookList = await requestJson('/api/v1/friends/blocks', { token: tokenFor(rook) });
+  assert.equal(rookList.body.blocked.length, 1);
+  assert.equal(rookList.body.blocked[0].id, String(knight._id));
+
+  const unblock = (viewer, target) => requestJson(`/api/v1/friends/blocks/${target._id}`, {
+    token: tokenFor(viewer),
+    method: 'DELETE',
+  });
+  assert.equal((await unblock(oracle, knight)).status, 404, 'an outsider cannot remove the block');
+  assert.equal((await unblock(knight, rook)).status, 404, 'the blocked side cannot remove the block');
+  assert.equal(await Block.countDocuments({ blocker: rook._id, blocked: knight._id }), 1);
+
+  const rookEvent = waitForEvent(
+    rookSocket,
+    'friends:changed',
+    (event) => event.reason === 'unblocked',
+  );
+  const knightEvent = waitForEvent(
+    knightSocket,
+    'friends:changed',
+    (event) => event.reason === 'unblocked',
+  );
+  const unblocked = await unblock(rook, knight);
+  assert.equal(unblocked.status, 200);
+  assert.equal(unblocked.body.relationship.status, 'NONE');
+  assert.deepEqual(await rookEvent, { reason: 'unblocked', userId: String(knight._id) });
+  assert.deepEqual(await knightEvent, { reason: 'unblocked', userId: String(rook._id) });
+
+  assert.equal(await Block.countDocuments({ blocker: rook._id, blocked: knight._id }), 0);
+  const emptyList = await requestJson('/api/v1/friends/blocks', { token: tokenFor(rook) });
+  assert.deepEqual(emptyList.body.blocked, []);
+  assert.equal(await Friendship.countDocuments({}), 0, 'the friendship is not restored');
+  assert.equal((await sendMessage(rook, knight, 'Should fail')).status, 403);
+  assert.equal(await Message.countDocuments({}), 1, 'chat history is preserved');
+  assert.equal((await requestJson('/api/v1/friends/requests', {
+    token: tokenFor(rook),
+    method: 'POST',
+    body: { userId: String(knight._id) },
+  })).status, 201, 'friend requests are allowed again');
+});
+
 test('live sockets are cut when their session is revoked, suspended or expired', async () => {
   const rook = await createPlayer('ArcadeDevRook');
   const knight = await createPlayer('ArcadeDevKnight');

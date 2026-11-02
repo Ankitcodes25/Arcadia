@@ -29,6 +29,8 @@ const blockSchema = new mongoose.Schema(
 );
 
 blockSchema.index({ blocker: 1, blocked: 1 }, { unique: true });
+// The Blocked tab reads one blocker's rows newest-first.
+blockSchema.index({ blocker: 1, createdAt: -1 });
 
 const Block = mongoose.models.Block || mongoose.model('Block', blockSchema);
 

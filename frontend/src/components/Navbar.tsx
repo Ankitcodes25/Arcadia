@@ -80,6 +80,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
   const {
     user,
     isAuthenticated,
+    isLoggingOut,
     isSubmitting,
     authError,
     authErrorKind,
@@ -235,10 +236,8 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
      Home page behavior:
 
      Hero                  -> Home
-     Popular Games         -> Popular
-     Continue Playing     -> Home
-     Daily Challenge      -> Home
-     Other sections       -> Home
+     Popular Games in view -> Popular
+     After Popular         -> Home
      About                 -> About
   ------------------------------------------------------- */
 
@@ -271,6 +270,10 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
 
       const popularTop =
         popularSection?.offsetTop ?? Number.POSITIVE_INFINITY;
+      const popularBottom =
+        popularSection
+          ? popularTop + popularSection.offsetHeight
+          : Number.NEGATIVE_INFINITY;
 
       const continuePlayingTop =
         continuePlayingSection?.offsetTop ?? Number.POSITIVE_INFINITY;
@@ -307,22 +310,13 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
         return;
       }
 
-      /* ---------------------------------------------------
-         POPULAR
-
-         Popular becomes active only after its own section
-         reaches the reference point.
-      --------------------------------------------------- */
-
-      if (popularTop <= referencePoint) {
+      /* Keep Popular active only while the reference point is inside it. */
+      if (popularTop <= referencePoint && popularBottom > referencePoint) {
         setActiveNavItem("popular");
         return;
       }
 
-      /* ---------------------------------------------------
-         HERO + ALL OTHER HOME SECTIONS
-      --------------------------------------------------- */
-
+      /* Hero and sections after Popular belong to Home. */
       setActiveNavItem("home");
     };
 
@@ -415,16 +409,24 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
     loginWithGoogle();
   };
 
+  /*
+   * Sign-out itself owns the request, the session teardown, the full-screen
+   * loading state and the final navigation. This handler only guards against a
+   * duplicate click and dismisses the authenticated layers once the confirmed
+   * sign-out resolves. A failure leaves the account signed in, so nothing is
+   * dismissed and the existing error notice explains how to retry.
+   */
   const handleLogout = async () => {
+    if (isLoggingOut) return;
     const result = await logout();
     if (result.success) {
       setIsProfileOpen(false);
       setIsFriendsOpen(false);
+      setIsMyProfileOpen(false);
       setIncomingFriendRequests(0);
       setUnreadChatMessages(0);
       setIncomingClearRequests(0);
       disconnectChatSocket();
-      navigateTo("/");
     }
   };
 
@@ -740,7 +742,7 @@ function Navbar({ isVisible = true }: NavbarProps = {}) {
                   onOpenMatchHistory={openMatchHistory}
                   onOpenLeaderboard={openLeaderboard}
                   onLogout={handleLogout}
-                  isLoggingOut={isSubmitting}
+                  isLoggingOut={isLoggingOut}
                 />
               )}
             </div>

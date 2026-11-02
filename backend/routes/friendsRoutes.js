@@ -13,6 +13,7 @@ router.get('/requests', ...rateLimits.friendRead, controller.listRequests);
 router.get('/summary', ...rateLimits.friendRead, controller.getSummary);
 router.get('/search', ...rateLimits.friendSearch, controller.search);
 router.get('/status/:userId', ...rateLimits.friendRead, controller.getRelationship);
+router.get('/blocks', ...rateLimits.friendRead, controller.listBlockedUsers);
 
 // Lightweight authenticated presence heartbeat. It updates the existing
 // refresh-session timestamp; there is no client-supplied online flag.

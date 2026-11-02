@@ -3799,6 +3799,7 @@ body:has(.all-games-page) .navbar {
 
 .category-filter-pills-primary {
   flex-wrap: nowrap;
+  column-gap: 10px;
   overflow: visible;
 }
 
@@ -3809,15 +3810,15 @@ body:has(.all-games-page) .navbar {
 /* ---- pills: richer, more "premium chip" look at rest + hover ---- */
 .category-filter-pills button {
   flex: none;
-  min-height: 44px;
-  padding: 0 21px;
+  min-height: 38px;
+  padding: 0 16px;
   border-radius: 999px;
   border: 1px solid rgba(199, 131, 255, 0.5);
   background: linear-gradient(160deg, rgba(146, 71, 232, 0.32), rgba(58, 24, 112, 0.42));
   color: #e7d7f9;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 780;
-  letter-spacing: 1.2px;
+  letter-spacing: 1px;
   text-transform: uppercase;
   white-space: nowrap;
   box-shadow:
@@ -3852,19 +3853,19 @@ body:has(.all-games-page) .navbar {
 /* ---- clear filters: rectangular chip, distinct from pill-shaped filters ---- */
 .category-filter-pills-primary .clear-filters {
   flex: none;
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  min-height: 44px;
-  padding: 0 20px;
+  gap: 7px;
+  min-height: 38px;
+  margin-left: auto;
+  padding: 0 15px;
   border-radius: 11px;
   border: 1px solid rgba(255, 145, 190, 0.72);
   background: linear-gradient(135deg, #7d286d 0%, #321341 100%);
   color: #ffe8f2;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 780;
-  letter-spacing: 1.2px;
+  letter-spacing: 1px;
   text-transform: uppercase;
   white-space: nowrap;
   box-shadow:
@@ -3886,8 +3887,8 @@ body:has(.all-games-page) .navbar {
 }
 
 .category-filter-pills-primary .clear-filters .clear-filters-icon {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   stroke: #ffc2dc;
   transition: stroke 0.22s ease;
 }

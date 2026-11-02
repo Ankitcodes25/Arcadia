@@ -245,6 +245,39 @@ async function listFriends(userId) {
     });
 }
 
+async function listBlockedUsers(userId) {
+  const viewer = toObjectId(userId);
+  if (!viewer) return [];
+
+  // Only blocks created by the authenticated viewer are returned. A block held
+  // against the viewer is a relationship detail, not an entry they can manage.
+  const rows = await Block.find({ blocker: viewer })
+    .sort({ createdAt: -1 })
+    .lean();
+  if (!rows.length) return [];
+
+  const blockedIds = rows.map((row) => String(row.blocked));
+  const users = await User.find({
+    _id: { $in: blockedIds },
+    status: ACCOUNT_STATUSES.ACTIVE,
+    role: USER_ROLES.USER,
+  }).select(PLAYER_FIELDS).lean();
+  const usersById = new Map(users.map((user) => [String(user._id), user]));
+
+  // Presence is only shared between accepted friends. A blocked player is
+  // therefore never shown as online here.
+  const onlineIds = new Set();
+  return rows
+    .map((row) => {
+      const user = usersById.get(String(row.blocked));
+      const summary = user ? getPlayerSummary(user, onlineIds) : null;
+      return summary
+        ? { ...summary, blockedAt: toIso(row.createdAt) }
+        : null;
+    })
+    .filter(Boolean);
+}
+
 async function listRequests(userId) {
   const viewer = toObjectId(userId);
   if (!viewer) {
@@ -547,10 +580,33 @@ async function blockRequestSender(viewerId, requestId) {
 async function unblockUser(viewerId, targetUserId) {
   const viewer = toObjectId(viewerId);
   const targetId = toObjectId(targetUserId);
-  if (!viewer || !targetId) throw createError('Invalid player', 400);
+  if (!viewer) throw createError('Authentication required', 401);
+  if (!targetId) throw createError('Invalid player', 400);
+  if (String(viewer) === String(targetId)) {
+    throw createError('You cannot unblock yourself', 400);
+  }
 
-  await Block.deleteOne({ blocker: viewer, blocked: targetId });
-  return { relationship: await getRelationship(viewer, targetId) };
+  const targetExists = await User.exists({ _id: targetId });
+  if (!targetExists) throw createError('Player not found', 404);
+
+  // The delete is scoped to the authenticated blocker. A player who did not
+  // create the block (including the blocked side of it) cannot remove it.
+  const result = await Block.deleteOne({ blocker: viewer, blocked: targetId });
+  if (!result.deletedCount) {
+    throw createError('Block not found', 404);
+  }
+
+  const blockedMe = Boolean(await Block.exists({
+    blocker: targetId,
+    blocked: viewer,
+  }));
+
+  return {
+    relationship: relationship(blockedMe ? RELATIONSHIP_STATUSES.BLOCKED : RELATIONSHIP_STATUSES.NONE, {
+      blockedByMe: false,
+      blockedMe,
+    }),
+  };
 }
 
 async function searchPlayers(viewerId, rawQuery) {
@@ -629,6 +685,7 @@ module.exports = {
   isBlocked,
   getRelationship,
   listFriends,
+  listBlockedUsers,
   listRequests,
   getRequestSummary,
   sendRequest,

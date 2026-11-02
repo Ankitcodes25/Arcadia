@@ -286,8 +286,9 @@ function emitChatCleared({ scope, userId, friendId, clearedAt = null }) {
 }
 
 /**
- * A friendship ended (removed or blocked). Each side learns which player the
- * change concerns so an open chat or profile with them can update at once.
+ * A relationship changed (friendship ended, block created or block removed).
+ * Each side learns which player the change concerns so an open chat, profile or
+ * Friends/Blocked list can update at once.
  */
 function emitFriendshipChanged({ reason, userId, otherUserId }) {
   if (!userId || !otherUserId) return;

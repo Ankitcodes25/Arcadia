@@ -90,7 +90,7 @@ export type ChatClearedEvent = {
 };
 
 export type FriendsChangedEvent = {
-  reason: "removed" | "blocked";
+  reason: "removed" | "blocked" | "unblocked";
   /** The other player whose relationship with the viewer changed. */
   userId: string;
 };

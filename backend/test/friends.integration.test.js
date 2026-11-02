@@ -419,6 +419,72 @@ test('blocking removes requests and friendships, hides search, and denies profil
   assert.equal(knightFriends.body.friends.length, 0);
 });
 
+test('blocked list is scoped to its creator and unblocking keeps the friendship ended', async () => {
+  const rook = await createPlayer('ArcadeDevRook');
+  const knight = await createPlayer('ArcadeDevKnight');
+  const oracle = await createPlayer('ArcadeDevOracle');
+  await makeFriends(rook, knight);
+
+  const block = await requestJson('/api/v1/friends/blocks', {
+    token: tokenFor(rook),
+    method: 'POST',
+    body: { userId: String(knight._id) },
+  });
+  assert.equal(block.status, 200);
+
+  const rookList = await requestJson('/api/v1/friends/blocks', { token: tokenFor(rook) });
+  assert.equal(rookList.status, 200);
+  assert.equal(rookList.body.blocked.length, 1);
+  assert.equal(rookList.body.blocked[0].id, String(knight._id));
+  assert.equal(rookList.body.blocked[0].username, 'ArcadeDevKnight');
+  assert.equal(rookList.body.blocked[0].playerId, knight.playerId);
+  assert.ok(rookList.body.blocked[0].blockedAt);
+  assertNoPrivateFields(rookList.body.blocked[0]);
+
+  // The blocked side and an unrelated account do not see, or control, a block
+  // they did not create.
+  const knightList = await requestJson('/api/v1/friends/blocks', { token: tokenFor(knight) });
+  const oracleList = await requestJson('/api/v1/friends/blocks', { token: tokenFor(oracle) });
+  assert.deepEqual(knightList.body.blocked, []);
+  assert.deepEqual(oracleList.body.blocked, []);
+
+  const oracleUnblock = await requestJson(`/api/v1/friends/blocks/${knight._id}`, {
+    token: tokenFor(oracle),
+    method: 'DELETE',
+  });
+  assert.equal(oracleUnblock.status, 404);
+  const blockedSideUnblock = await requestJson(`/api/v1/friends/blocks/${rook._id}`, {
+    token: tokenFor(knight),
+    method: 'DELETE',
+  });
+  assert.equal(blockedSideUnblock.status, 404);
+  assert.equal(await Block.countDocuments({ blocker: rook._id, blocked: knight._id }), 1);
+
+  const unblocked = await requestJson(`/api/v1/friends/blocks/${knight._id}`, {
+    token: tokenFor(rook),
+    method: 'DELETE',
+  });
+  assert.equal(unblocked.status, 200);
+  assert.equal(unblocked.body.relationship.status, 'NONE');
+  assert.equal(await Block.countDocuments({ blocker: rook._id, blocked: knight._id }), 0);
+  assert.equal(await Friendship.countDocuments({}), 0, 'unblocking does not restore the friendship');
+  assert.equal(await FriendRequest.countDocuments({}), 0, 'unblocking does not restore old requests');
+
+  const emptyList = await requestJson('/api/v1/friends/blocks', { token: tokenFor(rook) });
+  assert.deepEqual(emptyList.body.blocked, []);
+
+  const duplicateUnblock = await requestJson(`/api/v1/friends/blocks/${knight._id}`, {
+    token: tokenFor(rook),
+    method: 'DELETE',
+  });
+  assert.equal(duplicateUnblock.status, 404);
+  assert.equal(await Block.countDocuments({ blocker: rook._id, blocked: knight._id }), 0);
+
+  // Normal friend-request eligibility returns after the block is gone.
+  const sendAfterUnblock = await sendRequest(tokenFor(rook), String(knight._id));
+  assert.equal(sendAfterUnblock.status, 201);
+});
+
 test('deleting an account removes its friend graph without touching unrelated rows', async () => {
   const rook = await createPlayer('ArcadeDevRook');
   const knight = await createPlayer('ArcadeDevKnight');
