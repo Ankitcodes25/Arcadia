@@ -304,8 +304,8 @@ const stylesheets = {
   "ProfilePopupmodal.css": fileURLToPath(
     new URL("../src/components/ProfilePopupmodal.css", import.meta.url),
   ),
-  "PlayerProfile.css": fileURLToPath(
-    new URL("../src/components/PlayerProfile.css", import.meta.url),
+  "PlayerProfileModal.css": fileURLToPath(
+    new URL("../src/components/PlayerProfileModal.css", import.meta.url),
   ),
 };
 
@@ -354,7 +354,7 @@ test("the unearned theme exists and is neutral rather than a tier colour", () =>
 
 test("Player Profile badges use the same earned and unearned palettes as My Profile", () => {
   const myProfileRoot = postcss.parse(readFileSync(stylesheets["MyProfileModal.css"], "utf8"));
-  const playerProfileRoot = postcss.parse(readFileSync(stylesheets["PlayerProfile.css"], "utf8"));
+  const playerProfileRoot = postcss.parse(readFileSync(stylesheets["PlayerProfileModal.css"], "utf8"));
   const themes = [...TIERS, "unearned"];
 
   for (const theme of themes) {

@@ -73,20 +73,15 @@ def build():
     logo = logo.crop(logo.getchannel("A").getbbox())
     written.append(save_png(logo.resize((96, 96), Image.LANCZOS), "logo.png"))
 
-    # Welcome hero: the floating, reaching character from the landing hero.
-    hero = flatten(load("ArcadionFull.png")).crop((560, 0, 3960, 2305))
+    # Welcome hero: the hooded character reaching out, holding the cube.
+    hero = flatten(load("ArcadionEmailHero.png"))
     hero = fade_bottom(resize_to_width(hero, 1200), 0.22)
-    written.append(save_jpeg(hero, "hero-welcome.jpg"))
+    written.append(save_jpeg(hero, "hero-welcome-cube.jpg"))
 
     # Welcome-back hero: the same character at rest, from the landing CTA.
     rest = flatten(load("ArcadionCTA.png"))
     rest = fade_bottom(resize_to_width(rest, 1200), 0.18)
     written.append(save_jpeg(rest, "hero-welcome-back.jpg"))
-
-    # Floating cube beside the call to action; keeps its transparency.
-    cube = load("Arcadioncube.png")
-    cube = cube.crop(cube.getchannel("A").getbbox())
-    written.append(save_png(resize_to_width(cube, 176), "cube.png"))
 
     # Footer emblem: the Arcadion crest.
     crest = load("Arcadianlogo.png")

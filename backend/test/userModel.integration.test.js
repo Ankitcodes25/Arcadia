@@ -7185,7 +7185,7 @@ test('welcome emails link their artwork from EMAIL_ASSET_BASE_URL and escape the
     const [welcome] = getEmailsWithSubject(WELCOME_SUBJECT);
     assertLinkedImagesResolve(welcome);
     assert.ok(welcome.html.includes(`${TEST_ASSET_BASE_URL}/${EMAIL_IMAGES.heroWelcome.filename}`), 'the floating character is the hero');
-    assert.ok(welcome.html.includes(`${TEST_ASSET_BASE_URL}/${EMAIL_IMAGES.cube.filename}`), 'the floating cube sits by the call to action');
+    assert.ok(!welcome.html.includes('cube.png'), 'no cube sits beside the call to action');
     assert.ok(welcome.html.includes('#0b0316'), 'the Arcadia background colour is used');
     assert.ok(!welcome.html.includes('fonts.googleapis.com'), 'no external stylesheet is requested');
     assert.ok(welcome.html.includes('Ada &quot;Ace&quot; &amp; O&#039;Neil'), 'the display name is escaped');
