@@ -10,6 +10,8 @@ const path = require('node:path');
  * client and make a message look like bulk mail. Without a public assetBaseUrl
  * the layout drops its artwork and draws the logo in CSS, so it never shows
  * broken images. Every enhancement degrades to a layout that still reads correctly:
+ *   - the cube floats only where CSS animation is supported (Apple Mail, iOS);
+ *     elsewhere it simply sits beside the call to action;
  *   - the heading glow is text-shadow, ignored where unsupported;
  *   - the colour scheme is pinned dark so clients do not invert the artwork.
  *
@@ -24,8 +26,9 @@ const ASSET_DIRECTORY = path.join(__dirname, '..', '..', 'assets', 'email');
 // that blocks images still reserves the right space.
 const EMAIL_IMAGES = Object.freeze({
   logo: { filename: 'logo.png' },
-  heroWelcome: { filename: 'hero-welcome-cube.jpg', heroHeight: 400 },
+  heroWelcome: { filename: 'hero-welcome.jpg', heroHeight: 407 },
   heroWelcomeBack: { filename: 'hero-welcome-back.jpg', heroHeight: 338 },
+  cube: { filename: 'cube.png' },
   crest: { filename: 'crest.png' },
 });
 
@@ -52,10 +55,14 @@ function imageSource(assetBaseUrl, key) {
 }
 
 const HEAD_STYLES = `
+  @keyframes arcadiaFloat { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-10px) rotate(4deg); } }
+  .arcadia-float { animation: arcadiaFloat 4.5s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .arcadia-float { animation: none !important; } }
   @media only screen and (max-width: 620px) {
     .arcadia-pad { padding-left: 20px !important; padding-right: 20px !important; }
     .arcadia-title { font-size: 28px !important; letter-spacing: 2px !important; }
     .arcadia-feature { display: block !important; width: 100% !important; padding: 0 0 10px !important; }
+    .arcadia-cube { width: 56px !important; height: auto !important; }
     .arcadia-cta-link { padding: 14px 18px !important; font-size: 13px !important; letter-spacing: 1px !important; }
     .arcadia-hide-mobile { display: none !important; }
   }`;
@@ -101,10 +108,13 @@ function renderLogo(assetBaseUrl) {
   </tr></table>`;
 }
 
-function renderCallToAction({ label, url }) {
+function renderCallToAction({ label, url }, assetBaseUrl) {
   return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:8px 0 28px"><tr>
     <td align="center">
       <table role="presentation" cellspacing="0" cellpadding="0"><tr>
+        ${assetBaseUrl ? `<td valign="middle" style="padding-right:14px">
+          <img class="arcadia-float arcadia-cube" src="${imageSource(assetBaseUrl, 'cube')}" width="80" height="87" alt="" style="display:block;width:80px;height:auto;border:0">
+        </td>` : ''}
         <td valign="middle" bgcolor="#a93cff" style="border-radius:12px;background:#a93cff;background-image:linear-gradient(135deg,#e03cff 0%,#8b3bff 100%);box-shadow:0 8px 24px rgba(180,76,255,0.45)">
           <a class="arcadia-cta-link" href="${url}" style="display:inline-block;white-space:nowrap;padding:16px 28px;font-family:${DISPLAY_FONT_STACK};font-size:14px;font-weight:700;letter-spacing:2px;color:#ffffff;text-decoration:none;border-radius:12px">${label}</a>
         </td>
@@ -181,7 +191,7 @@ function renderArcadiaEmail({
       ${contentHtml || ''}
       ${renderFeatures(features)}
       ${renderHighlight(highlight)}
-      ${cta ? renderCallToAction(cta) : ''}
+      ${cta ? renderCallToAction(cta, assetBaseUrl) : ''}
       ${signoff ? renderParagraphs(signoff) : ''}
       <p style="margin:4px 0 24px;font-family:${DISPLAY_FONT_STACK};font-size:12px;font-weight:700;letter-spacing:4px;color:#ff5fe0">PLAY. CHALLENGE. REPEAT.</p>
     </td></tr>

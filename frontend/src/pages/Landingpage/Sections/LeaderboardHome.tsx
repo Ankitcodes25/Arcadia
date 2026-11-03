@@ -11,7 +11,6 @@ import { getLocalAvatarOption } from "../../../auth/avatarCatalog";
 import {
   DUMMY_PLAYERS_BY_SCORE,
   DUMMY_PLAYERS_ENABLED,
-  DUMMY_PLAYER_DATA_NOTICE,
   type DummyPlayer,
 } from "../../../data/development/dummyPlayers";
 import PlayerProfile from "../../../components/PlayerProfileModal";
@@ -250,12 +249,6 @@ export default function LeaderboardHome() {
           <p className="leaderboard-home-subtitle">
             Arcadia&apos;s best, ranked. Score big and claim your throne.
           </p>
-
-          {PLAYERS.length > 0 && (
-            <p className="leaderboard-home-demo" role="note">
-              {DUMMY_PLAYER_DATA_NOTICE}
-            </p>
-          )}
         </div>
 
         {/* arrows + View all ek saath, header ke right side me */}

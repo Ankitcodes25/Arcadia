@@ -57,7 +57,7 @@ function AppContent() {
     return `${url.pathname}${url.search}${url.hash}`;
   };
   const [path, setPath] = useState(getLocationKey);
-  const { isLoading, isLoggingOut, user, isAuthenticated } = useAuth();
+  const { isLoading, user, isAuthenticated } = useAuth();
 
   useEffect(() => onNavigation(() => setPath(getLocationKey())), []);
 
@@ -92,13 +92,7 @@ function AppContent() {
     return <AdminPanelApp />;
   }
 
-  /*
-   * The same full-screen restoration screen is reused for sign-out: it is
-   * raised before the logout request starts and stays until the confirmed
-   * guest homepage has been navigated to. No signed-in surface can flash in
-   * between, and normal session restoration is unchanged.
-   */
-  if (isLoading || isLoggingOut) {
+  if (isLoading) {
     return <AuthLoading />;
   }
 

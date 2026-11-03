@@ -8,10 +8,6 @@ const { OAuthHandoff } = require('./models/OAuthHandoff');
 const { PasswordResetToken } = require('./models/PasswordResetToken');
 const { RateLimitBucket } = require('./models/RateLimitBucket');
 const { AdminMutationLock } = require('./models/AdminMutationLock');
-const { Conversation } = require('./models/Conversation');
-const { Message } = require('./models/Message');
-const { ClearChatRequest } = require('./models/ClearChatRequest');
-const { attachChatSocket, closeChatSocket } = require('./realtime/chatSocket');
 const { isEmailConfigured, getEmailConfig } = require('./config/email');
 const { getGoogleOAuthConfig, isGoogleOAuthConfigured } = require('./config/googleOAuth');
 const { isAdminPanelConfigured } = require('./config/adminPanel');
@@ -53,9 +49,6 @@ async function startServer({ port = env.port, mongoUri = env.mongoUri } = {}) {
   await PasswordResetToken.init();
   await RateLimitBucket.init();
   await AdminMutationLock.init();
-  await Conversation.init();
-  await Message.init();
-  await ClearChatRequest.init();
 
   if (!isEmailConfigured()) {
     console.warn('Transactional email delivery is disabled; configure SMTP before sending password-reset links.');
@@ -77,20 +70,12 @@ async function startServer({ port = env.port, mongoUri = env.mongoUri } = {}) {
       resolve(httpServer);
     });
 
-    // Socket.IO shares this exact Express HTTP server. There is no second
-    // backend or listener; only authenticated, friendship-authorized events
-    // are handled over this connection.
-    attachChatSocket(httpServer);
-
     httpServer.once('error', reject);
   });
 }
 
 async function stopServer(httpServer) {
-  // io.close() also closes its underlying HTTP server, so only close the
-  // listener again if it is somehow still open.
-  closeChatSocket();
-  if (httpServer && httpServer.listening) {
+  if (httpServer) {
     await new Promise((resolve, reject) => {
       httpServer.close((error) => (error ? reject(error) : resolve()));
     });

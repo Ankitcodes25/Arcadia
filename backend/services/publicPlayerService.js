@@ -4,7 +4,6 @@ const { Match } = require('../models/Match');
 const { toSafeUser } = require('../utils/safeUser');
 const { normalizeUsername, USERNAME_MAX_LENGTH } = require('../utils/username');
 const { canViewProfile } = require('../utils/preferences');
-const { areFriends, isBlocked } = require('./friendshipService');
 
 function createError(message, statusCode) {
   const error = new Error(message);
@@ -46,12 +45,7 @@ async function getPublicPlayerProfile({ playerId, username, viewerId }) {
   ) {
     throw createError('Player profile not found', 404);
   }
-
-  const [blocked, friends] = await Promise.all([
-    isBlocked(target._id, viewerId),
-    areFriends(target._id, viewerId),
-  ]);
-  if (blocked || !canViewProfile(target, viewerId, { isFriend: friends })) {
+  if (!canViewProfile(target, viewerId)) {
     throw createError('This profile is private', 403);
   }
 
