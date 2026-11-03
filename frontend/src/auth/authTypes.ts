@@ -4,7 +4,7 @@ export type AuthStatus = "ACTIVE" | "SUSPENDED" | "DELETED";
 
 export type AuthMode = "login" | "signup";
 
-export type AuthErrorKind = "form" | "oauth";
+export type AuthErrorKind = "form" | "oauth" | "logout";
 
 export type AuthProvider = "PASSWORD" | "GOOGLE";
 

@@ -83,6 +83,9 @@ let googleMockPayload;
 let googleMockRequests;
 let preferencesUtils;
 let SupportReport;
+let Conversation;
+let Message;
+let ClearChatRequest;
 let EMAIL_IMAGES;
 
 before(async () => {
@@ -126,6 +129,9 @@ before(async () => {
   ({ RateLimitBucket } = require('../models/RateLimitBucket'));
   ({ AdminMutationLock } = require('../models/AdminMutationLock'));
   ({ SupportReport } = require('../models/SupportReport'));
+  ({ Conversation } = require('../models/Conversation'));
+  ({ Message } = require('../models/Message'));
+  ({ ClearChatRequest } = require('../models/ClearChatRequest'));
   ({ EMAIL_IMAGES } = require('../services/emailTemplates/arcadiaLayout'));
   accountProfileService = require('../services/accountProfileService');
   ({ resetAdminPanelConfigForTests } = require('../config/adminPanel'));
@@ -192,6 +198,9 @@ before(async () => {
   await RateLimitBucket.syncIndexes();
   await AdminMutationLock.syncIndexes();
   await SupportReport.syncIndexes();
+  await Conversation.syncIndexes();
+  await Message.syncIndexes();
+  await ClearChatRequest.syncIndexes();
 });
 
 after(async () => {
@@ -213,6 +222,9 @@ beforeEach(async () => {
   await Session.deleteMany({});
   await Match.deleteMany({});
   await SupportReport.deleteMany({});
+  await ClearChatRequest.deleteMany({});
+  await Message.deleteMany({});
+  await Conversation.deleteMany({});
   await User.deleteMany({});
   emailMessages = [];
   emailService.setEmailTransportForTests(async (message) => {
@@ -6951,6 +6963,112 @@ test('a confirmed deletion removes the account and all of its own data only', as
   }
 });
 
+test('account deletion removes Clear Chat requests on both sides and leaves unrelated chat intact', async () => {
+  const server = await startHttpServer();
+
+  try {
+    const victim = await registerAndLogin(server, 'delete-clear-victim@example.com');
+    const other = await registerAndLogin(server, 'delete-clear-other@example.com');
+    const third = await registerAndLogin(server, 'delete-clear-third@example.com');
+    const victimId = victim.registered.body.user.id;
+    const otherId = other.registered.body.user.id;
+    const thirdId = third.registered.body.user.id;
+
+    const pairKey = (first, second) => [String(first), String(second)].sort().join(':');
+    const victimConversation = await Conversation.create({
+      participants: [victimId, otherId],
+      participantKey: pairKey(victimId, otherId),
+    });
+    const victimThirdConversation = await Conversation.create({
+      participants: [victimId, thirdId],
+      participantKey: pairKey(victimId, thirdId),
+    });
+    const unrelatedConversation = await Conversation.create({
+      participants: [otherId, thirdId],
+      participantKey: pairKey(otherId, thirdId),
+    });
+
+    await Message.create({
+      conversationId: victimConversation._id,
+      senderId: victimId,
+      receiverId: otherId,
+      text: 'victim history',
+    });
+    await Message.create({
+      conversationId: unrelatedConversation._id,
+      senderId: otherId,
+      receiverId: thirdId,
+      text: 'unrelated history',
+    });
+
+    await ClearChatRequest.create([
+      {
+        conversationId: victimConversation._id,
+        requesterId: victimId,
+        recipientId: otherId,
+        status: 'pending',
+      },
+      {
+        conversationId: victimThirdConversation._id,
+        requesterId: thirdId,
+        recipientId: victimId,
+        status: 'declined',
+        respondedAt: new Date(),
+      },
+      {
+        conversationId: unrelatedConversation._id,
+        requesterId: otherId,
+        recipientId: thirdId,
+        status: 'pending',
+      },
+    ]);
+
+    const deleted = await requestJson(server, '/api/v1/account', {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${victim.loggedIn.body.token}` },
+      body: { confirmation: 'DELETE', password: 'session-password-123' },
+    });
+    assert.equal(deleted.response.status, 200);
+    assert.equal(await User.findById(victimId), null);
+
+    assert.equal(
+      await ClearChatRequest.countDocuments({
+        $or: [{ requesterId: victimId }, { recipientId: victimId }],
+      }),
+      0,
+      'both requester-side and recipient-side requests are removed',
+    );
+    const unrelatedRequest = await ClearChatRequest.findOne({
+      conversationId: unrelatedConversation._id,
+    }).lean();
+    assert.ok(unrelatedRequest, 'an unrelated pair keeps its request');
+    assert.equal(unrelatedRequest.status, 'pending');
+
+    assert.equal(
+      await Conversation.countDocuments({ participants: victimId }),
+      0,
+      'the deleted account has no conversations left',
+    );
+    assert.ok(await Conversation.findById(unrelatedConversation._id), 'unrelated conversation remains');
+    assert.equal(
+      await Message.countDocuments({
+        $or: [{ senderId: victimId }, { receiverId: victimId }],
+      }),
+      0,
+      'the deleted account has no messages left',
+    );
+    assert.equal(
+      await Message.countDocuments({ conversationId: unrelatedConversation._id }),
+      1,
+      'unrelated messages remain',
+    );
+    assert.ok(await User.findById(otherId));
+    assert.ok(await User.findById(thirdId));
+  } finally {
+    await stopHttpServer(server);
+  }
+});
+
 test('a Google-only account can delete itself with the typed confirmation alone', async () => {
   const server = await startHttpServer();
 
@@ -7185,7 +7303,7 @@ test('welcome emails link their artwork from EMAIL_ASSET_BASE_URL and escape the
     const [welcome] = getEmailsWithSubject(WELCOME_SUBJECT);
     assertLinkedImagesResolve(welcome);
     assert.ok(welcome.html.includes(`${TEST_ASSET_BASE_URL}/${EMAIL_IMAGES.heroWelcome.filename}`), 'the floating character is the hero');
-    assert.ok(welcome.html.includes(`${TEST_ASSET_BASE_URL}/${EMAIL_IMAGES.cube.filename}`), 'the floating cube sits by the call to action');
+    assert.ok(!welcome.html.includes('cube.png'), 'no cube sits beside the call to action');
     assert.ok(welcome.html.includes('#0b0316'), 'the Arcadia background colour is used');
     assert.ok(!welcome.html.includes('fonts.googleapis.com'), 'no external stylesheet is requested');
     assert.ok(welcome.html.includes('Ada &quot;Ace&quot; &amp; O&#039;Neil'), 'the display name is escaped');

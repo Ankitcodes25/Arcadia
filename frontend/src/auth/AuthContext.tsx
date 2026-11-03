@@ -15,6 +15,8 @@ import {
   getOAuthErrorMessage,
 } from "./authUtils";
 import { getOAuthErrorAuthMode } from "./oauthErrorMessages.js";
+import { disconnectChatSocket } from "../chat/chatSocket";
+import { navigateTo } from "../lib/navigation";
 import type {
   AccountAction,
   AuthErrorKind,
@@ -34,10 +36,25 @@ type LogoutResult = {
   message?: string;
 };
 
+/**
+ * A short floor for the full-screen sign-out screen. The request itself is
+ * never delayed: the screen is raised before the request goes out and this only
+ * keeps it on screen long enough to avoid a one-frame flash before the guest
+ * homepage is shown.
+ */
+const LOGOUT_MIN_LOADING_MS = 300;
+
 type AuthContextValue = {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  /**
+   * True from the moment sign-out starts until the guest homepage has been
+   * navigated to. It is what makes the existing full-screen loading screen
+   * replace the signed-in UI, so no authenticated surface flashes while the
+   * server session is being invalidated.
+   */
+  isLoggingOut: boolean;
   isSubmitting: boolean;
   authError: string | null;
   authErrorKind: AuthErrorKind | null;
@@ -100,6 +117,7 @@ function isInactiveAccountError(error: unknown) {
 function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authErrorKind, setAuthErrorKind] = useState<AuthErrorKind | null>(null);
@@ -107,6 +125,7 @@ function AuthProvider({ children }: AuthProviderProps) {
   const [accountAction, setAccountAction] = useState<AccountAction | null>(null);
   const [passwordChangeSuccess, setPasswordChangeSuccess] = useState(false);
   const refreshPromiseRef = useRef<Promise<AuthResponse | null> | null>(null);
+  const logoutPromiseRef = useRef<Promise<LogoutResult> | null>(null);
   const generationRef = useRef(0);
   const channelRef = useRef<BroadcastChannel | null>(null);
   const bootstrapStartedRef = useRef(false);
@@ -119,6 +138,10 @@ function AuthProvider({ children }: AuthProviderProps) {
     generationRef.current += 1;
     setAccessToken(null);
     setUser(null);
+    // Authenticated realtime connections must not survive the session they
+    // were opened for. Chat listeners are dropped with the socket, and the
+    // Navbar's authenticated effects see isAuthenticated flip to false.
+    disconnectChatSocket();
     if (notify) broadcast({ type: "signed-out" });
   }, [broadcast]);
 
@@ -128,8 +151,12 @@ function AuthProvider({ children }: AuthProviderProps) {
     }
     setAccessToken(response.token);
     setUser(response.user);
-    setAuthError(null);
-    setAuthErrorKind(null);
+    /*
+     * Existing auth notices are owned by the action that raised them: login,
+     * register, OAuth and sign-out each clear or replace their own message.
+     * A background refresh must not silently erase a visible sign-out failure
+     * just because it happened to succeed afterwards.
+     */
     broadcast({ type: "signed-in" });
     return true;
   }, [broadcast]);
@@ -475,25 +502,73 @@ function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [clearLocalAuth, waitForRefresh]);
 
-  const logout = useCallback(async () => {
-    setIsSubmitting(true);
-    generationRef.current += 1;
-    await waitForRefresh();
-    try {
-      await authApi.logout();
-      clearLocalAuth();
-      return { success: true };
-    } catch (requestError) {
-      const message = getAuthErrorMessage(
-        requestError,
-        "Sign-out could not be completed. This device may still be signed in.",
-      );
-      clearLocalAuth();
-      setVisibleError(message, "form");
-      return { success: false, message };
-    } finally {
-      setIsSubmitting(false);
-    }
+  /*
+   * Sign-out.
+   *
+   * The full-screen AuthLoading screen is raised before the request goes out,
+   * so the signed-in UI cannot flash while the server session is invalidated.
+   * Only a confirmed response clears local auth. A failure deliberately leaves
+   * the session in place: the server may still consider it valid, so dropping
+   * the user onto the guest homepage would be a lie. The existing global auth
+   * notice reports the failure and Logout stays available as a safe retry.
+   *
+   * Repeating the call while one is in flight returns the same promise, so a
+   * double click can never send two sign-out requests. Once confirmed, the
+   * browser is sent to the public homepage through the shared navigation
+   * helper, scrolled to the top, and only then is the loading screen released.
+   */
+  const logout = useCallback(() => {
+    if (logoutPromiseRef.current) return logoutPromiseRef.current;
+
+    const performLogout = async (): Promise<LogoutResult> => {
+      const startedAt = Date.now();
+      setIsLoggingOut(true);
+      setIsSubmitting(true);
+      generationRef.current += 1;
+
+      try {
+        await waitForRefresh();
+        await authApi.logout();
+        clearLocalAuth();
+        setAuthMode(null);
+        setAccountAction(null);
+        setAuthError(null);
+        setAuthErrorKind(null);
+
+        // Keep the shared loading screen visible for a single short transition
+        // beat; the request above has already completed.
+        const remaining = LOGOUT_MIN_LOADING_MS - (Date.now() - startedAt);
+        if (remaining > 0) {
+          await new Promise<void>((resolve) => {
+            window.setTimeout(resolve, remaining);
+          });
+        }
+
+        navigateTo("/");
+        window.scrollTo(0, 0);
+        if (typeof window.requestAnimationFrame === "function") {
+          window.requestAnimationFrame(() => window.scrollTo(0, 0));
+        }
+
+        return { success: true };
+      } catch (requestError) {
+        const message = getAuthErrorMessage(
+          requestError,
+          "Sign-out could not be completed. This device may still be signed in. Please try again.",
+        );
+        setVisibleError(message, "logout");
+        return { success: false, message };
+      } finally {
+        setIsSubmitting(false);
+        setIsLoggingOut(false);
+      }
+    };
+
+    const promise = performLogout().finally(() => {
+      logoutPromiseRef.current = null;
+    });
+    logoutPromiseRef.current = promise;
+    return promise;
   }, [clearLocalAuth, setVisibleError, waitForRefresh]);
 
   const logoutAll = useCallback(async () => {
@@ -538,6 +613,7 @@ function AuthProvider({ children }: AuthProviderProps) {
     user,
     isAuthenticated: Boolean(user && user.status === "ACTIVE"),
     isLoading,
+    isLoggingOut,
     isSubmitting,
     authError,
     authErrorKind,
@@ -576,6 +652,7 @@ function AuthProvider({ children }: AuthProviderProps) {
     dismissPasswordChangeSuccess,
     forgotPassword,
     isLoading,
+    isLoggingOut,
     isSubmitting,
     login,
     loginWithGoogle,

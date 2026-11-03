@@ -44,7 +44,7 @@ function buildWelcomeEmail({ displayName, link, supportEmail, assetBaseUrl = nul
     eyebrow: 'WELCOME TO ARCADIA',
     title: 'YOUR JOURNEY STARTS NOW',
     hero: 'heroWelcome',
-    heroAlt: 'The Arcadion, a hooded figure wreathed in violet light, reaching out',
+    heroAlt: 'The Arcadion, a hooded figure reaching out beside a glowing violet cube',
     paragraphs: [
       `Hey ${safeName},`,
       'Your account is officially ready, and your journey starts now.',

@@ -3,6 +3,11 @@ const normalizeEmail = require('../utils/normalizeEmail');
 
 const DEFAULT_WELCOME_BACK_INACTIVITY_DAYS = 30;
 const MAX_WELCOME_BACK_INACTIVITY_DAYS = 3650;
+const DEFAULT_EMAIL_LOG_RETENTION_DAYS = 90;
+const MAX_EMAIL_LOG_RETENTION_DAYS = 3650;
+const DEFAULT_EMAIL_LOG_MAX_SIZE_BYTES = 5 * 1024 * 1024;
+const MIN_EMAIL_LOG_MAX_SIZE_BYTES = 1024;
+const MAX_EMAIL_LOG_MAX_SIZE_BYTES = 100 * 1024 * 1024;
 const warnedConfigurationKeys = new Set();
 
 // Logged once per process per problem, so a bad value is visible without
@@ -175,10 +180,58 @@ function getWelcomeBackInactivityDays(source = process.env) {
   return days;
 }
 
+/*
+ * Bounded email logging. Retention is measured from a log file's last write.
+ * Size rotation keeps one active file below the configured ceiling; the
+ * default is deliberately small because these are operational delivery
+ * outcomes, not an analytics archive.
+ */
+function getEmailLogConfig(source = process.env) {
+  const retentionValue = optionalValue(source, 'EMAIL_LOG_RETENTION_DAYS');
+  let retentionDays = DEFAULT_EMAIL_LOG_RETENTION_DAYS;
+  if (retentionValue) {
+    const parsed = /^\d+$/.test(retentionValue) ? Number(retentionValue) : NaN;
+    if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > MAX_EMAIL_LOG_RETENTION_DAYS) {
+      warnConfigurationOnce(
+        'EMAIL_LOG_RETENTION_DAYS',
+        `[email] EMAIL_LOG_RETENTION_DAYS must be a whole number from 1 to ${MAX_EMAIL_LOG_RETENTION_DAYS}; `
+          + `using ${DEFAULT_EMAIL_LOG_RETENTION_DAYS}. Fix it in backend/.env and restart the backend.`,
+      );
+    } else {
+      retentionDays = parsed;
+    }
+  }
+
+  const sizeValue = optionalValue(source, 'EMAIL_LOG_MAX_SIZE_BYTES');
+  let maxBytes = DEFAULT_EMAIL_LOG_MAX_SIZE_BYTES;
+  if (sizeValue) {
+    const parsed = /^\d+$/.test(sizeValue) ? Number(sizeValue) : NaN;
+    if (
+      !Number.isSafeInteger(parsed)
+      || parsed < MIN_EMAIL_LOG_MAX_SIZE_BYTES
+      || parsed > MAX_EMAIL_LOG_MAX_SIZE_BYTES
+    ) {
+      warnConfigurationOnce(
+        'EMAIL_LOG_MAX_SIZE_BYTES',
+        `[email] EMAIL_LOG_MAX_SIZE_BYTES must be a whole number from ${MIN_EMAIL_LOG_MAX_SIZE_BYTES} `
+          + `to ${MAX_EMAIL_LOG_MAX_SIZE_BYTES}; using ${DEFAULT_EMAIL_LOG_MAX_SIZE_BYTES}. `
+          + 'Fix it in backend/.env and restart the backend.',
+      );
+    } else {
+      maxBytes = parsed;
+    }
+  }
+
+  return Object.freeze({ retentionDays, maxBytes });
+}
+
 module.exports = {
+  DEFAULT_EMAIL_LOG_MAX_SIZE_BYTES,
+  DEFAULT_EMAIL_LOG_RETENTION_DAYS,
   DEFAULT_WELCOME_BACK_INACTIVITY_DAYS,
   getEmailAssetBaseUrl,
   getEmailConfig,
+  getEmailLogConfig,
   getSupportInboxEmail,
   getWelcomeBackInactivityDays,
   isEmailConfigured,

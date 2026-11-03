@@ -7,7 +7,7 @@
  * topbar's menu button (AdminLayout owns the open state).
  */
 
-import { LayoutDashboard, Users, Flag, LifeBuoy, Gamepad2, Shield, Megaphone, Settings, X } from "lucide-react";
+import { LayoutDashboard, Users, Flag, LifeBuoy, Mail, Gamepad2, Shield, Megaphone, Settings, X } from "lucide-react";
 import type { ComponentType } from "react";
 import { ADMIN_PAGE_PATHS, ADMIN_PAGE_TITLES } from "../hooks/adminRouting";
 import type { AdminPageKey } from "../types/adminTypes";
@@ -18,6 +18,7 @@ const PAGE_ICONS: Record<AdminPageKey, ComponentType<{ size?: number; strokeWidt
   players: Users,
   reports: Flag,
   support: LifeBuoy,
+  emailLogs: Mail,
   games: Gamepad2,
   moderation: Shield,
   announcements: Megaphone,

@@ -1,0 +1,154 @@
+/*
+ * Email Logs page: searchable log table, date range controls and local
+ * pagination. Reuses the shared admin theme primitives.
+ */
+
+.ael-toolbar {
+  align-items: flex-end;
+}
+
+.ael-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 280px;
+  min-width: 220px;
+  max-width: 380px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(205, 88, 255, 0.35);
+  border-radius: var(--adm-radius-sm);
+  background: rgba(24, 12, 44, 0.75);
+  color: var(--adm-text-muted);
+  cursor: text;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ael-search:focus-within {
+  border-color: rgba(205, 88, 255, 0.8);
+  box-shadow: 0 0 0 3px rgba(166, 64, 255, 0.18);
+}
+
+.ael-search input {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--adm-text);
+}
+
+.ael-search input::placeholder {
+  color: var(--adm-text-muted);
+}
+
+.ael-date-range {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ael-date {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ael-date span {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--adm-text-muted);
+}
+
+.ael-date .adm-input {
+  width: 145px;
+  min-height: 38px;
+  font-size: 12.5px;
+}
+
+.ael-clear {
+  min-height: 38px;
+}
+
+.ael-provider-id {
+  display: inline-block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.ael-view {
+  white-space: nowrap;
+}
+
+.ael-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.ael-pagination__summary,
+.ael-pagination__page {
+  font-size: 12px;
+  color: var(--adm-text-muted);
+}
+
+.ael-pagination__controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ael-empty-clear {
+  display: block;
+  margin: 10px auto 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #d9a9ff;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ael-empty-clear:focus-visible {
+  outline: 2px solid rgba(185, 92, 255, 0.8);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+@media (max-width: 640px) {
+  .ael-search {
+    max-width: none;
+    flex-basis: 100%;
+  }
+
+  .ael-date .adm-input {
+    width: 100%;
+  }
+
+  .ael-date-range {
+    width: 100%;
+  }
+
+  .ael-date {
+    flex: 1 1 140px;
+  }
+
+  .ael-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

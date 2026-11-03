@@ -22,7 +22,6 @@ import {
   formatDuration,
   getEarliestDate,
   getOpponentTypeLabel,
-  getRangeError,
   getResultLabel,
   getResultTone,
   getTimezoneOffsetMinutes,
@@ -94,17 +93,6 @@ function HistoryIcon() {
       />
       <path d="M3.4 4.2v4.2h4.2" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M12 7.6V12l3 1.8" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function SparkleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="M12 2.5c.6 3.8 2.2 5.4 6 6-3.8.6-5.4 2.2-6 6-.6-3.8-2.2-5.4-6-6 3.8-.6 5.4-2.2 6-6Z"
-        fill="currentColor"
-      />
     </svg>
   );
 }
