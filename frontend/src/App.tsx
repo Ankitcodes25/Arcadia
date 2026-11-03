@@ -6,11 +6,17 @@ import {
   onNavigation,
   MATCH_HISTORY_PATH,
   LEADERBOARD_PATH,
+  TERMS_OF_SERVICE_PATH,
+  PRIVACY_POLICY_PATH,
+  COOKIE_POLICY_PATH,
   getMatchHistoryReturnPath,
   getLeaderboardReturnPath,
 } from "./lib/navigation";
 import MatchHistory from "./pages/MatchHistory/MatchHistory";
 import Leaderboard from "./pages/Leaderboard/Leaderboard";
+import TermsOfService from "./pages/TermsofService/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyandPolicy/PrivacyPolicy";
+import CookiePolicy from "./pages/CookiePolicy/CookiePolicy";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { shouldShowGlobalAuthNotice } from "./auth/authUtils";
 import { NOTICE_FADING_CLASS, useAutoDismissNotice } from "./auth/authNotice";
@@ -118,6 +124,11 @@ function AppContent() {
   const isGamesPage = path.startsWith("/games");
   const isMatchHistoryPage = path.startsWith(MATCH_HISTORY_PATH);
   const isLeaderboardPage = path.startsWith(LEADERBOARD_PATH);
+  const isTermsOfServicePage = path.startsWith(TERMS_OF_SERVICE_PATH);
+  const isPrivacyPolicyPage = path.startsWith(PRIVACY_POLICY_PATH);
+  const isCookiePolicyPage = path.startsWith(COOKIE_POLICY_PATH);
+  const isLegalPage =
+    isTermsOfServicePage || isPrivacyPolicyPage || isCookiePolicyPage;
 
   return (
     <>
@@ -129,18 +140,26 @@ function AppContent() {
           ? "match-history-page"
           : isLeaderboardPage
             ? "leaderboard-page"
-            : isGamesPage
-              ? "games-page"
-              : "home-page"}
+            : isLegalPage
+              ? "legal-page"
+              : isGamesPage
+                ? "games-page"
+                : "home-page"}
         className="page-transition"
       >
         {isMatchHistoryPage
           ? <MatchHistory returnPath={getMatchHistoryReturnPath()} />
           : isLeaderboardPage
             ? <Leaderboard returnPath={getLeaderboardReturnPath()} />
-            : isGamesPage
-              ? <Allgames />
-              : <LandingPage />}
+            : isTermsOfServicePage
+              ? <TermsOfService />
+              : isPrivacyPolicyPage
+                ? <PrivacyPolicy />
+                : isCookiePolicyPage
+                  ? <CookiePolicy />
+                  : isGamesPage
+                    ? <Allgames />
+                    : <LandingPage />}
       </div>
     </>
   );
