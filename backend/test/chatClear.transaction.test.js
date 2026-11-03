@@ -17,12 +17,14 @@ let Conversation;
 let Message;
 let ClearChatRequest;
 let chatService;
+let deleteAccount;
 let getPairKey;
 let getOrderedPair;
 
 before(async () => {
   replSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
   process.env.NODE_ENV = 'test';
+  process.env.MONGODB_URI = replSet.getUri('arcadia_chat_clear_tx');
   process.env.JWT_SECRET = crypto.randomBytes(32).toString('hex');
 
   mongoose = require('mongoose');
@@ -32,6 +34,7 @@ before(async () => {
   ({ Message } = require('../models/Message'));
   ({ ClearChatRequest } = require('../models/ClearChatRequest'));
   chatService = require('../services/chatService');
+  ({ deleteAccount } = require('../services/accountActionService'));
   ({ getPairKey, getOrderedPair } = require('../utils/friendship'));
 
   await mongoose.connect(replSet.getUri('arcadia_chat_clear_tx'));
@@ -204,4 +207,57 @@ test('a second accept while the first holds the lock is refused without deleting
   assert.equal(results.filter((row) => row.status === 'fulfilled').length, 1);
   assert.equal(results.find((row) => row.status === 'rejected').reason.statusCode, 409);
   assert.equal(await Message.countDocuments({}), 0);
+});
+
+test('account deletion removes both sides of Clear Chat requests in a transaction', async () => {
+  const { rook, knight } = await createFriends();
+  const outsider = await User.create({
+    email: 'outsider@example.com',
+    name: 'Outsider',
+    username: 'Outsider',
+    usernameNormalized: 'outsider',
+    totalXp: 0,
+  });
+
+  const unrelatedConversationId = new mongoose.Types.ObjectId();
+  await ClearChatRequest.create([
+    {
+      conversationId: new mongoose.Types.ObjectId(),
+      requesterId: rook,
+      recipientId: knight,
+      status: 'pending',
+    },
+    {
+      conversationId: new mongoose.Types.ObjectId(),
+      requesterId: knight,
+      recipientId: rook,
+      status: 'declined',
+      respondedAt: new Date(),
+    },
+    {
+      conversationId: unrelatedConversationId,
+      requesterId: knight,
+      recipientId: outsider._id,
+      status: 'pending',
+    },
+  ]);
+
+  const result = await deleteAccount({
+    userId: rook,
+    body: { confirmation: 'DELETE' },
+  });
+  assert.match(result.message, /permanently deleted/);
+
+  assert.equal(await User.findById(rook), null);
+  assert.equal(
+    await ClearChatRequest.countDocuments({
+      $or: [{ requesterId: rook }, { recipientId: rook }],
+    }),
+    0,
+    'both requester and recipient references are removed',
+  );
+  assert.ok(
+    await ClearChatRequest.exists({ conversationId: unrelatedConversationId }),
+    'an unrelated pair keeps its request',
+  );
 });

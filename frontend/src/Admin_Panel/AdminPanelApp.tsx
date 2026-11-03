@@ -28,6 +28,7 @@ import DashboardPage from "./pages/DashboardPage";
 import PlayersPage from "./pages/PlayersPage";
 import ReportsPage from "./pages/ReportsPage";
 import SupportPage from "./pages/SupportPage";
+import EmailLogsPage from "./pages/EmailLogsPage";
 import GameManagementPage from "./pages/GameManagementPage";
 import ModerationPage from "./pages/ModerationPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
@@ -78,6 +79,8 @@ function AdminRoutes() {
       return <ReportsPage />;
     case "support":
       return <SupportPage />;
+    case "emailLogs":
+      return <EmailLogsPage />;
     case "games":
       return <GameManagementPage />;
     case "moderation":

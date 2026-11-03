@@ -270,6 +270,15 @@ function renderNavbarWithPage(user = navbarUser(), returnPath = "/") {
 function q(selector) { return document.querySelector(selector); }
 function qa(selector) { return [...document.querySelectorAll(selector)]; }
 
+/*
+ * The open calendar. Closing leaves an inert, aria-hidden copy behind for the
+ * exit animation, and that copy keeps the .mhc-popover class. Counting it as
+ * the open popover makes assertions depend on how long the interaction took.
+ */
+function openCalendar() {
+  return q(".mhc-popover:not(.mhc-popover--closing)");
+}
+
 function click(node) {
   return act(async () => {
     node.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
@@ -681,10 +690,10 @@ test("Clear Filters is disabled when there is nothing to clear", async () => {
 test("the Date dropdown opens a calendar popover beneath it", async () => {
   const unmount = await renderPage();
 
-  assert.equal(q(".mhc-popover") === null, true, "no calendar to begin with");
+  assert.equal(openCalendar() === null, true, "no calendar to begin with");
   await click(q("#mh-filter-date"));
 
-  const popover = q(".mhc-popover");
+  const popover = openCalendar();
   assert.ok(popover, "the calendar opened");
   assert.equal(popover.getAttribute("role"), "dialog", "as a dialog");
   assert.equal(q("#mh-filter-date").getAttribute("aria-expanded"), "true", "the trigger says so");
@@ -935,7 +944,7 @@ test("the range label shows the account start date through today", async () => {
   // It is a quiet line inside the popover, above the day grid — not a card.
   assert.equal(label.tagName, "P", "it is a plain paragraph");
   assert.ok(q(".mhc-popover .mhc-range"), "inside the calendar");
-  const popoverChildren = [...q(".mhc-popover").children].map((n) => n.className);
+  const popoverChildren = [...openCalendar().children].map((n) => n.className);
   assert.ok(popoverChildren.indexOf("mhc-range") < popoverChildren.indexOf("mhc-grid"),
     "and it sits above the day grid");
   await unmount();
@@ -1072,13 +1081,13 @@ test("the reveal scroll does not close the calendar or block selection", async (
 
   try {
     await press(q("#mh-filter-date"));
-    assert.ok(q(".mhc-popover") !== null, "the calendar stayed open");
+    assert.ok(openCalendar() !== null, "the calendar stayed open");
 
     // The default account started 15 March 2024, so the 20th is selectable.
     const before = matchHistoryCalls.length;
     await press(qa(".mhc-day").find((n) => !n.disabled && n.textContent === "20"));
     assert.equal(matchHistoryCalls.length, before + 1, "a day can still be chosen");
-    assert.equal(q(".mhc-popover") === null, true, "and choosing it closes the calendar");
+    assert.equal(openCalendar() === null, true, "and choosing it closes the calendar");
   } finally {
     stub.restore();
   }
@@ -1138,7 +1147,7 @@ test("Escape dismisses the calendar without applying", async () => {
     }));
   });
 
-  assert.equal(q(".mhc-popover") === null, true, "Escape closes it");
+  assert.equal(openCalendar() === null, true, "Escape closes it");
   assert.equal(matchHistoryCalls.length, before, "and applies nothing");
   await unmount();
 });
@@ -1148,7 +1157,7 @@ test("a click outside the calendar dismisses it", async () => {
   await click(q("#mh-filter-date"));
 
   await pointerDown(q("#mh-hero-title"));
-  assert.equal(q(".mhc-popover") === null, true, "an outside press closes it");
+  assert.equal(openCalendar() === null, true, "an outside press closes it");
   await unmount();
 });
 
@@ -1787,10 +1796,10 @@ test("pressing the Date trigger again closes the calendar", async () => {
   const unmount = await renderPage();
 
   await press(q("#mh-filter-date"));
-  assert.ok(q(".mhc-popover") !== null, "the calendar opened");
+  assert.ok(openCalendar() !== null, "the calendar opened");
 
   await press(q("#mh-filter-date"));
-  assert.equal(q(".mhc-popover") === null, true, "the calendar closed on the second press");
+  assert.equal(openCalendar() === null, true, "the calendar closed on the second press");
   assert.equal(q("#mh-filter-date").getAttribute("aria-expanded"), "false", "and reports closed");
   await unmount();
 });
@@ -1814,10 +1823,10 @@ test("pressing outside closes the calendar too", async () => {
   const unmount = await renderPage();
 
   await press(q("#mh-filter-date"));
-  assert.ok(q(".mhc-popover") !== null, "the calendar opened");
+  assert.ok(openCalendar() !== null, "the calendar opened");
 
   await pressPageBackground();
-  assert.equal(q(".mhc-popover") === null, true, "an outside press closed the calendar");
+  assert.equal(openCalendar() === null, true, "an outside press closed the calendar");
   await unmount();
 });
 
@@ -1842,10 +1851,10 @@ test("the calendar close button still closes the calendar", async () => {
   const unmount = await renderPage();
 
   await press(q("#mh-filter-date"));
-  assert.ok(q(".mhc-popover") !== null, "the calendar opened");
+  assert.ok(openCalendar() !== null, "the calendar opened");
 
   await click(q('button[aria-label="Close calendar"]'));
-  assert.equal(q(".mhc-popover") === null, true, "the close button closed it");
+  assert.equal(openCalendar() === null, true, "the close button closed it");
   await unmount();
 });
 
@@ -1900,7 +1909,7 @@ test("opening the calendar closes an open list dropdown", async () => {
 
   await press(q("#mh-filter-date"));
   assert.equal(isDropdownOpen("mh-filter-result"), false, "Result closed");
-  assert.ok(q(".mhc-popover") !== null, "and the calendar is the open one");
+  assert.ok(openCalendar() !== null, "and the calendar is the open one");
   await unmount();
 });
 
@@ -1908,10 +1917,10 @@ test("opening a list dropdown closes the calendar", async () => {
   const unmount = await renderPage();
 
   await press(q("#mh-filter-date"));
-  assert.ok(q(".mhc-popover") !== null, "the calendar opened");
+  assert.ok(openCalendar() !== null, "the calendar opened");
 
   await press(q("#mh-filter-opponent"));
-  assert.equal(q(".mhc-popover") === null, true, "the calendar closed");
+  assert.equal(openCalendar() === null, true, "the calendar closed");
   assert.equal(isDropdownOpen("mh-filter-opponent"), true, "and the list is the open one");
   await unmount();
 });
@@ -1920,7 +1929,7 @@ test("never more than one dropdown is open, in any order", async () => {
   const unmount = await renderPage();
   const ids = ["mh-filter-date", "mh-filter-opponent", "mh-filter-result"];
   const isOpen = () => ids.filter((id) => {
-    if (id === "mh-filter-date") return q(".mhc-popover") !== null;
+    if (id === "mh-filter-date") return openCalendar() !== null;
     return isDropdownOpen(id);
   });
 
@@ -1959,11 +1968,11 @@ test("using the calendar month navigation does not close the calendar", async ()
   // The calendar opens on the account start month, so go forward first: the
   // back control is clamped there.
   await press(q('.mhc-nav[aria-label="Next month"]'));
-  assert.ok(q(".mhc-popover") !== null, "still open after going forward a month");
+  assert.ok(openCalendar() !== null, "still open after going forward a month");
   assert.notEqual(q(".mhc-month").textContent, before, "and the month actually changed");
 
   await press(q('.mhc-nav[aria-label="Previous month"]'));
-  assert.ok(q(".mhc-popover") !== null, "still open after going back again");
+  assert.ok(openCalendar() !== null, "still open after going back again");
   assert.equal(q(".mhc-month").textContent, before, "and it returned to the start month");
   await unmount();
 });
@@ -2315,10 +2324,10 @@ test("the calendar shows no date-range summary card", async () => {
 
   const unmount = await renderPage();
   await press(q("#mh-filter-date"));
-  assert.ok(q(".mhc-popover") !== null, "the calendar still opens");
+  assert.ok(openCalendar() !== null, "the calendar still opens");
 
   // Nothing inside it describes a range, a duration or a month summary.
-  const text = q(".mhc-popover").textContent;
+  const text = openCalendar().textContent;
   assert.doesNotMatch(text, /Pick a start date|now pick the end date|days/i,
     "no range prompt, no duration or month summary");
   assert.equal(q(".mhc-clear") === null, true, "and no Clear control inside the calendar");
@@ -2398,7 +2407,7 @@ test("choosing a date filters to that day and closes the calendar", async () => 
 
   await chooseDay(4);
 
-  assert.equal(q(".mhc-popover") === null, true, "the calendar closed on the single click");
+  assert.equal(openCalendar() === null, true, "the calendar closed on the single click");
   assert.match(q("#mh-filter-date").textContent, /\d{4}/, "and the Date control shows the day");
   await unmount();
 });
@@ -2435,7 +2444,7 @@ test("there is no range, no From/To and no multi-day selection", async () => {
 
   // The only dash in the calendar is the bounds label's separator, which shows
   // the available range above the grid; nothing else reads as a range to pick.
-  const dashes = q(".mhc-popover").textContent.match(/[–—]/g) || [];
+  const dashes = openCalendar().textContent.match(/[–—]/g) || [];
   assert.equal(dashes.length, 1, "exactly one dash, in the bounds label");
   assert.equal(q(".mhc-range") === null, false, "and it belongs to the range label");
   assert.match(q(".mhc-range").textContent, /^\d{1,2} \w{3,4} \d{4} – \d{1,2} \w{3,4} \d{4}$/,
@@ -2543,7 +2552,7 @@ test("disabled days and the future still cannot be selected", async () => {
   const disabled = cells.find((n) => n.disabled);
   if (disabled) {
     await press(disabled);
-    assert.ok(q(".mhc-popover") !== null, "the calendar stays open");
+    assert.ok(openCalendar() !== null, "the calendar stays open");
     assert.equal(matchHistoryCalls.length, 1, "and nothing was fetched");
   }
 
@@ -2560,7 +2569,7 @@ test("disabled days and the future still cannot be selected", async () => {
 
   const before = matchHistoryCalls.length;
   await press(nextCells[0]);
-  assert.ok(q(".mhc-popover") !== null, "the calendar stays open");
+  assert.ok(openCalendar() !== null, "the calendar stays open");
   assert.equal(matchHistoryCalls.length, before, "and a future day selects nothing");
   await unmount();
 });
@@ -2707,20 +2716,20 @@ test("interacting with the calendar never closes it mid-gesture", async () => {
     "the back control is disabled on the start month");
 
   await press(q('.mhc-nav[aria-label="Next month"]'));
-  assert.ok(q(".mhc-popover") !== null, "still open after going forward");
+  assert.ok(openCalendar() !== null, "still open after going forward");
   assert.notEqual(q(".mhc-month").textContent, before, "and the month changed");
 
   await press(q('.mhc-nav[aria-label="Previous month"]'));
-  assert.ok(q(".mhc-popover") !== null, "still open after going back");
+  assert.ok(openCalendar() !== null, "still open after going back");
   assert.equal(q(".mhc-month").textContent, before, "and it returned to the start month");
 
   await press(q('.mhc-nav[aria-label="Next month"]'));
   await press(q('.mhc-nav[aria-label="Previous month"]'));
-  assert.ok(q(".mhc-popover") !== null, "still open after stepping forward and back again");
+  assert.ok(openCalendar() !== null, "still open after stepping forward and back again");
 
   // Only a real choice closes it, because that is the end of the interaction.
   await press(qa(".mhc-day").find((n) => !n.disabled && !n.className.includes("blank")));
-  assert.equal(q(".mhc-popover") === null, true, "and a chosen day closes it");
+  assert.equal(openCalendar() === null, true, "and a chosen day closes it");
   await unmount();
 });
 
@@ -2728,10 +2737,10 @@ test("pressing the open Date trigger again still closes the calendar", async () 
   const unmount = await renderPage();
 
   await press(q("#mh-filter-date"));
-  assert.ok(q(".mhc-popover") !== null, "the calendar opened");
+  assert.ok(openCalendar() !== null, "the calendar opened");
 
   await press(q("#mh-filter-date"));
-  assert.equal(q(".mhc-popover") === null, true, "the second press closed it");
+  assert.equal(openCalendar() === null, true, "the second press closed it");
   assert.equal(q("#mh-filter-date").getAttribute("aria-expanded"), "false", "and it says so");
   await unmount();
 });
@@ -2758,6 +2767,6 @@ test("opening another dropdown still closes the open one", async () => {
 
   await press(q("#mh-filter-date"));
   assert.equal(isDropdownOpen("mh-filter-result"), false, "the list closed");
-  assert.ok(q(".mhc-popover") !== null, "and the calendar is the open one");
+  assert.ok(openCalendar() !== null, "and the calendar is the open one");
   await unmount();
 });

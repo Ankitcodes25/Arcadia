@@ -7,6 +7,12 @@ const CLEAR_CHAT_REQUEST_STATUSES = Object.freeze({
   CANCELLED: 'cancelled',
 });
 
+// Completed outcomes are retained for 90 days so both participants can see
+// what happened after a refresh, logout or offline period. Pending requests
+// have no `respondedAt` and are deliberately excluded from expiry.
+const CLEAR_CHAT_REQUEST_RETENTION_DAYS = 90;
+const CLEAR_CHAT_REQUEST_RETENTION_SECONDS = CLEAR_CHAT_REQUEST_RETENTION_DAYS * 24 * 60 * 60;
+
 /*
  * A request to permanently clear one conversation for both participants.
  *
@@ -72,7 +78,32 @@ clearChatRequestSchema.index(
 // pending requests.
 clearChatRequestSchema.index({ recipientId: 1, status: 1 });
 
+// TTL cleanup for completed requests. Only rows with a real `respondedAt` date
+// are indexed, so a pending request is never removed simply because it is old.
+clearChatRequestSchema.index(
+  { respondedAt: 1 },
+  {
+    expireAfterSeconds: CLEAR_CHAT_REQUEST_RETENTION_SECONDS,
+    partialFilterExpression: {
+      status: {
+        $in: [
+          CLEAR_CHAT_REQUEST_STATUSES.ACCEPTED,
+          CLEAR_CHAT_REQUEST_STATUSES.DECLINED,
+          CLEAR_CHAT_REQUEST_STATUSES.CANCELLED,
+        ],
+      },
+      respondedAt: { $type: 'date' },
+    },
+    name: 'completed_clear_requests_expire',
+  },
+);
+
 const ClearChatRequest = mongoose.models.ClearChatRequest
   || mongoose.model('ClearChatRequest', clearChatRequestSchema);
 
-module.exports = { ClearChatRequest, CLEAR_CHAT_REQUEST_STATUSES };
+module.exports = {
+  ClearChatRequest,
+  CLEAR_CHAT_REQUEST_STATUSES,
+  CLEAR_CHAT_REQUEST_RETENTION_DAYS,
+  CLEAR_CHAT_REQUEST_RETENTION_SECONDS,
+};

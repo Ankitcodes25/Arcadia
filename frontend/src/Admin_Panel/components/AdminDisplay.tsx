@@ -26,6 +26,9 @@ const STATUS_TONES: Record<string, BadgeTone> = {
   New: "warning",
   "In Progress": "info",
   Closed: "neutral",
+  // Email delivery
+  Sent: "success",
+  Failed: "danger",
   // Games
   Live: "success",
   Maintenance: "warning",

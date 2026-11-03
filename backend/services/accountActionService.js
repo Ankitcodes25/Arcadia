@@ -9,6 +9,8 @@ const { Friendship } = require('../models/Friendship');
 const { Block } = require('../models/Block');
 const { Conversation } = require('../models/Conversation');
 const { Message } = require('../models/Message');
+const { ClearChatRequest } = require('../models/ClearChatRequest');
+const { runInTransactionIfSupported } = require('../utils/mongoTransactions');
 const normalizeEmail = require('../utils/normalizeEmail');
 const {
   generatePasswordResetToken,
@@ -190,11 +192,14 @@ async function resetPassword({ token, password, body } = {}) {
  *     documented limitation of the current architecture, not a design goal:
  *     adding an OAuth re-prompt would close it without changing this flow.
  *
- * The order below is deliberate and fail-safe. Sessions and tokens are revoked
- * FIRST, so an interruption leaves a live account that is merely signed out
- * everywhere rather than a half-deleted one that still answers tokens. The user
- * document is deleted LAST, guarded by the tokenVersion written in step one, so
- * a concurrent session cannot resurrect data the cleanup already removed.
+ * On a replica set or sharded cluster the whole mutation runs in one MongoDB
+ * transaction. A failure therefore leaves the account and all related rows
+ * untouched. Standalone deployments (local development and the test database)
+ * fall back to the same fail-safe order: sessions and tokens are revoked FIRST,
+ * so an interruption leaves a live account that is merely signed out everywhere
+ * rather than a half-deleted one that still answers tokens. The user document is
+ * deleted LAST, guarded by the tokenVersion written in step one, so a concurrent
+ * session cannot resurrect data the cleanup already removed.
  *
  * Ownership is never inferred from the request beyond the verified access
  * token: every delete is scoped to the authenticated user's own id, so no
@@ -240,66 +245,80 @@ async function deleteAccount({ userId, body }) {
     throw createError('Password is incorrect', 401);
   }
 
-  const now = new Date();
+  return runInTransactionIfSupported(async (session) => {
+    const sessionOptions = session ? { session } : {};
+    const now = new Date();
 
-  // 1. Invalidate every credential this account holds anywhere.
-  const deletion = await User.findOneAndUpdate(
-    { _id: user._id, status: ACCOUNT_STATUSES.ACTIVE },
-    { $inc: { tokenVersion: 1 } },
-    { returnDocument: 'after' },
-  ).select('+passwordHash');
-  if (!deletion) {
-    throw createError('Account not found', 404);
-  }
+    // 1. Invalidate every credential this account holds anywhere.
+    const deletion = await User.findOneAndUpdate(
+      { _id: user._id, status: ACCOUNT_STATUSES.ACTIVE },
+      { $inc: { tokenVersion: 1 } },
+      { returnDocument: 'after', ...sessionOptions },
+    ).select('+passwordHash');
+    if (!deletion) {
+      throw createError('Account not found', 404);
+    }
 
-  await Session.updateMany(
-    { userId: user._id, revokedAt: null },
-    {
-      $set: { revokedAt: now },
-      $unset: { rotationClaimId: 1, rotationClaimExpiresAt: 1 },
-    },
-  );
-  await PasswordResetToken.updateMany(
-    { userId: user._id, consumedAt: null },
-    { $set: { consumedAt: now } },
-  );
+    await Session.updateMany(
+      { userId: user._id, revokedAt: null },
+      {
+        $set: { revokedAt: now },
+        $unset: { rotationClaimId: 1, rotationClaimExpiresAt: 1 },
+      },
+      sessionOptions,
+    );
+    await PasswordResetToken.updateMany(
+      { userId: user._id, consumedAt: null },
+      { $set: { consumedAt: now } },
+      sessionOptions,
+    );
 
-  // 2. Remove every record owned by this account. Nothing here is another
-  //    account's data: match rows carry a public opponent label, never a
-  //    reference to the other player's document, so deleting this account's
-  //    rows leaves every other account's history intact.
-  await Session.deleteMany({ userId: user._id });
-  await PasswordResetToken.deleteMany({ userId: user._id });
-  await OAuthHandoff.deleteMany({ userId: user._id });
-  await Match.deleteMany({ userId: user._id });
-  await SupportReport.deleteMany({ userId: user._id });
-  // Friend rows are shared with another account, so delete both directions:
-  // a pending request, friendship or block involving this account cannot
-  // outlive it and leave the other player with a phantom badge or entry.
-  await FriendRequest.deleteMany({
-    $or: [{ from: user._id }, { to: user._id }],
+    // 2. Remove every record owned by this account. Nothing here is another
+    //    account's data: match rows carry a public opponent label, never a
+    //    reference to the other player's document, so deleting this account's
+    //    rows leaves every other account's history intact.
+    await Session.deleteMany({ userId: user._id }, sessionOptions);
+    await PasswordResetToken.deleteMany({ userId: user._id }, sessionOptions);
+    await OAuthHandoff.deleteMany({ userId: user._id }, sessionOptions);
+    await Match.deleteMany({ userId: user._id }, sessionOptions);
+    await SupportReport.deleteMany({ userId: user._id }, sessionOptions);
+    // Friend rows are shared with another account, so delete both directions:
+    // a pending request, friendship or block involving this account cannot
+    // outlive it and leave the other player with a phantom badge or entry.
+    await FriendRequest.deleteMany({
+      $or: [{ from: user._id }, { to: user._id }],
+    }, sessionOptions);
+    await Friendship.deleteMany({
+      $or: [{ userA: user._id }, { userB: user._id }],
+    }, sessionOptions);
+    await Block.deleteMany({
+      $or: [{ blocker: user._id }, { blocked: user._id }],
+    }, sessionOptions);
+    // Clear Chat requests are shared with the other participant. Remove both
+    // sides before their conversations disappear, otherwise a deleted account
+    // would remain referenced by a pending or completed request.
+    await ClearChatRequest.deleteMany({
+      $or: [{ requesterId: user._id }, { recipientId: user._id }],
+    }, sessionOptions);
+    // Chat rows are also shared with another account. Remove the account's
+    // messages and conversations so no private history outlives the account.
+    await Message.deleteMany({
+      $or: [{ senderId: user._id }, { receiverId: user._id }],
+    }, sessionOptions);
+    await Conversation.deleteMany({ participants: user._id }, sessionOptions);
+
+    // 3. Delete the account itself, guarded so a concurrent status change (an
+    //    admin suspension racing this write) cannot be overwritten.
+    const removed = await User.deleteOne(
+      { _id: user._id, status: ACCOUNT_STATUSES.ACTIVE },
+      sessionOptions,
+    );
+    if (removed.deletedCount !== 1) {
+      throw createError('Account could not be deleted; please try again', 409);
+    }
+
+    return { message: 'Your account and all of its data have been permanently deleted.' };
   });
-  await Friendship.deleteMany({
-    $or: [{ userA: user._id }, { userB: user._id }],
-  });
-  await Block.deleteMany({
-    $or: [{ blocker: user._id }, { blocked: user._id }],
-  });
-  // Chat rows are also shared with another account. Remove the account's
-  // messages and conversations so no private history outlives the account.
-  await Message.deleteMany({
-    $or: [{ senderId: user._id }, { receiverId: user._id }],
-  });
-  await Conversation.deleteMany({ participants: user._id });
-
-  // 3. Delete the account itself, guarded so a concurrent status change (an
-  //    admin suspension racing this write) cannot be overwritten.
-  const removed = await User.deleteOne({ _id: user._id, status: ACCOUNT_STATUSES.ACTIVE });
-  if (removed.deletedCount !== 1) {
-    throw createError('Account could not be deleted; please try again', 409);
-  }
-
-  return { message: 'Your account and all of its data have been permanently deleted.' };
 }
 
 module.exports = {

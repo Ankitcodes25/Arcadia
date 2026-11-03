@@ -23,6 +23,7 @@ export type AdminPageKey =
   | "players"
   | "reports"
   | "support"
+  | "emailLogs"
   | "games"
   | "moderation"
   | "announcements"
@@ -91,6 +92,23 @@ export interface PreviewSupportRequest {
   submittedDate: string;
   status: PreviewSupportStatus;
   priority: "Low" | "Normal" | "High";
+}
+
+export type PreviewEmailLogStatus = "Sent" | "Failed" | "Pending";
+export type PreviewEmailLogType =
+  | "Welcome"
+  | "Welcome Back"
+  | "Password Reset"
+  | "Support Report";
+
+export interface PreviewEmailLog {
+  id: string;
+  recipient: string;
+  emailType: PreviewEmailLogType;
+  status: PreviewEmailLogStatus;
+  sentAt: string;
+  providerMessageId: string | null;
+  failureReason: string | null;
 }
 
 export interface PreviewGame {

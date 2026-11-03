@@ -1,9 +1,11 @@
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
 const {
   getEmailAssetBaseUrl,
   getEmailConfig,
+  getEmailLogConfig,
   getSupportInboxEmail,
   getWelcomeBackInactivityDays,
 } = require('../config/email');
@@ -71,9 +73,155 @@ const SKIPPED_EMAIL_ADVICE = Object.freeze({
 
 const DEFAULT_EMAIL_LOG_PATH = path.join(__dirname, '..', 'logs', 'email.log');
 let emailLogPath = DEFAULT_EMAIL_LOG_PATH;
+let emailLogConfigOverride = null;
+let emailLogWriteQueue = Promise.resolve();
 
 function setEmailLogPathForTests(logPath) {
   emailLogPath = logPath || DEFAULT_EMAIL_LOG_PATH;
+}
+
+function setEmailLogConfigForTests(config) {
+  emailLogConfigOverride = config ? { ...getEmailLogConfig(), ...config } : null;
+}
+
+function resetEmailLogConfigForTests() {
+  emailLogConfigOverride = null;
+}
+
+function getActiveEmailLogConfig() {
+  return emailLogConfigOverride || getEmailLogConfig();
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getEmailLogBaseName() {
+  return path.basename(emailLogPath);
+}
+
+function getEmailLogArchivePattern() {
+  const stem = getEmailLogBaseName().replace(/\.log$/i, '');
+  return new RegExp(`^${escapeRegex(stem)}-\\d{8}-\\d{6}-\\d{3}-[a-f0-9]{8}\\.log$`);
+}
+
+function buildEmailLogArchivePath(now = new Date()) {
+  const pad = (value, length = 2) => String(value).padStart(length, '0');
+  const stamp = [
+    now.getUTCFullYear(),
+    pad(now.getUTCMonth() + 1),
+    pad(now.getUTCDate()),
+    '-',
+    pad(now.getUTCHours()),
+    pad(now.getUTCMinutes()),
+    pad(now.getUTCSeconds()),
+    '-',
+    pad(now.getUTCMilliseconds(), 3),
+  ].join('');
+  const stem = getEmailLogBaseName().replace(/\.log$/i, '');
+  return path.join(
+    path.dirname(emailLogPath),
+    `${stem}-${stamp}-${crypto.randomBytes(4).toString('hex')}.log`,
+  );
+}
+
+/*
+ * Serializes rotation, cleanup and append operations inside this process. Two
+ * concurrent email sends can otherwise both see the same undersized file and
+ * rotate it twice. Cross-process log shipping is out of scope for this local
+ * file; the serialization guarantees an uncorrupted single-writer log.
+ */
+function enqueueEmailLogWrite(work) {
+  const run = emailLogWriteQueue.then(work, work);
+  emailLogWriteQueue = run.then(() => undefined, () => undefined);
+  return run;
+}
+
+function isManagedEmailLogFile(name) {
+  return name === getEmailLogBaseName() || getEmailLogArchivePattern().test(name);
+}
+
+/**
+ * Deletes only this log's active file and archives that are older than the
+ * configured retention period. Unrelated files in the directory are ignored.
+ */
+async function cleanupExpiredEmailLogs({ now = Date.now(), config = getActiveEmailLogConfig() } = {}) {
+  const directory = path.dirname(emailLogPath);
+  let entries;
+  try {
+    entries = await fs.promises.readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return 0;
+    throw error;
+  }
+
+  const cutoff = Number(now) - (config.retentionDays * 24 * 60 * 60 * 1000);
+  let removed = 0;
+  for (const entry of entries) {
+    if (!entry.isFile() || !isManagedEmailLogFile(entry.name)) continue;
+    const filePath = path.join(directory, entry.name);
+    try {
+      const stats = await fs.promises.stat(filePath);
+      if (stats.mtimeMs < cutoff) {
+        await fs.promises.unlink(filePath);
+        removed += 1;
+      }
+    } catch (error) {
+      // A file removed by another worker between readdir and stat/unlink is
+      // already at the desired state. Other errors are reported by the caller.
+      if (!error || error.code !== 'ENOENT') throw error;
+    }
+  }
+  return removed;
+}
+
+/**
+ * Moves the active file to a dated archive when the next line would exceed the
+ * configured size. Returns the archive path, or null when no rotation was due.
+ */
+async function rotateEmailLogIfNeeded(lineBytes, config) {
+  let stats;
+  try {
+    stats = await fs.promises.stat(emailLogPath);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return null;
+    throw error;
+  }
+
+  if (!stats.isFile() || stats.size === 0 || stats.size + lineBytes <= config.maxBytes) {
+    return null;
+  }
+
+  const archivePath = buildEmailLogArchivePath();
+  try {
+    await fs.promises.rename(emailLogPath, archivePath);
+    return archivePath;
+  } catch (error) {
+    // Rotation must not silently stop delivery logging. If the archive cannot
+    // be created, keep appending to the active file; the next send retries.
+    if (error && error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+async function writeEmailLogLine(line) {
+  const config = getActiveEmailLogConfig();
+  const payload = `${new Date().toISOString()} ${line}\n`;
+  const payloadBytes = Buffer.byteLength(payload);
+  const directory = path.dirname(emailLogPath);
+
+  return enqueueEmailLogWrite(async () => {
+    await fs.promises.mkdir(directory, { recursive: true, mode: 0o700 });
+    await fs.promises.chmod(directory, 0o700).catch(() => {});
+    await cleanupExpiredEmailLogs({ config }).catch((error) => {
+      console.warn(`[email] could not clean expired logs (${error && error.code}): continuing to log delivery outcomes.`);
+    });
+    await rotateEmailLogIfNeeded(payloadBytes, config).catch((error) => {
+      console.warn(`[email] could not rotate ${emailLogPath} (${error && error.code}): continuing to append.`);
+    });
+    await fs.promises.appendFile(emailLogPath, payload, { mode: 0o600 });
+    await fs.promises.chmod(emailLogPath, 0o600).catch(() => {});
+  });
 }
 
 // Keeps the log useful for matching a report to a user without storing full
@@ -110,8 +258,7 @@ async function recordEmailOutcome(kind, to, result) {
   console[level](line);
 
   try {
-    await fs.promises.mkdir(path.dirname(emailLogPath), { recursive: true });
-    await fs.promises.appendFile(emailLogPath, `${new Date().toISOString()} ${line}\n`);
+    await writeEmailLogLine(line);
   } catch (error) {
     console.warn(`[email] could not write ${emailLogPath} (${error && error.code}): check that backend/logs is writable.`);
   }
@@ -254,7 +401,11 @@ module.exports = {
   sendWelcomeBackEmail,
   sendSupportReportEmail,
   sendPasswordResetEmail,
+  recordEmailOutcome,
+  cleanupExpiredEmailLogs,
   setEmailTransportForTests,
   resetEmailTransportForTests,
   setEmailLogPathForTests,
+  setEmailLogConfigForTests,
+  resetEmailLogConfigForTests,
 };
