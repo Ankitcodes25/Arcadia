@@ -41,7 +41,7 @@ function WeeklyTrending({ games }: WeeklyTrendingProps) {
   const [calibrating] = useState(
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("arcadion-debug"),
   );
-  const [, setCalibration] = useState("");
+  const [calibration, setCalibration] = useState("");
   const stageRef = useRef<HTMLElement>(null);
   const figureRef = useRef<HTMLImageElement>(null);
 

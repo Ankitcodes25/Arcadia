@@ -717,6 +717,7 @@ footer {
 
   color: white;
 
+  font-size: 17px;
   font-weight: 800;
 
   letter-spacing: 2px;
@@ -744,13 +745,17 @@ footer {
 footer p {
   margin: 0;
 
-  font-size: 11px;
+  color: #9685a5;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .copyright {
   margin-left: auto;
 
-  font-size: 10px;
+  color: #9685a5;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 /* =========================================================
@@ -759,8 +764,7 @@ footer p {
 
 @media (max-width: 1100px) {
 
-  /* The fixed navbar is not part of this content column: it always spans the
-     viewport and keeps its own gutter in Navbar.css. */
+  .navbar,
   .section,
   footer {
     width:
@@ -780,6 +784,7 @@ footer p {
 
 @media (max-width: 700px) {
 
+  .navbar,
   .section,
   .quick-stats,
   footer {

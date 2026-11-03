@@ -8,6 +8,11 @@ export const MATCH_HISTORY_PATH = "/match-history";
 /** The Leaderboard page, reached from the Profile Popup. */
 export const LEADERBOARD_PATH = "/leaderboard";
 
+/** Legal pages, reached from the footer. */
+export const TERMS_OF_SERVICE_PATH = "/terms-of-service";
+export const PRIVACY_POLICY_PATH = "/privacy-policy";
+export const COOKIE_POLICY_PATH = "/cookie-policy";
+
 function scrollToSection(targetId: string) {
   const targetElement = document.getElementById(targetId);
   if (!targetElement) return;

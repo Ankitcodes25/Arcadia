@@ -58,3 +58,69 @@
 		--footer-ray-angle: 360deg;
 	}
 }
+
+/* =========================================================
+   FOOTER LEGAL LINKS
+   ========================================================= */
+
+.footer-legal {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 18px;
+	margin-left: auto;
+	margin-right: 8px;
+}
+
+.footer-legal a {
+	position: relative;
+	color: #9c84b5;
+	font-size: 11.5px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	line-height: 1.5;
+	text-decoration: none;
+	white-space: nowrap;
+	transition: color 0.18s ease, text-shadow 0.18s ease;
+}
+
+.footer-legal a::after {
+	position: absolute;
+	right: 0;
+	bottom: -3px;
+	left: 0;
+	height: 1px;
+	background: rgba(224, 105, 255, 0.75);
+	content: "";
+	transform: scaleX(0);
+	transform-origin: center;
+	transition: transform 0.18s ease;
+}
+
+.footer-legal a:hover,
+.footer-legal a:focus-visible {
+	color: #d9b3ff;
+	text-shadow: 0 0 10px rgba(205, 123, 255, 0.45);
+}
+
+.footer-legal a:hover::after,
+.footer-legal a:focus-visible::after {
+	transform: scaleX(1);
+}
+
+.footer-legal a:focus-visible {
+	outline: 2px solid rgba(224, 105, 255, 0.8);
+	outline-offset: 4px;
+	border-radius: 3px;
+}
+
+footer .copyright {
+	margin-left: 0;
+}
+
+@media (max-width: 700px) {
+	.footer-legal {
+		gap: 5px 14px;
+		margin-right: 0;
+	}
+}
