@@ -180,23 +180,6 @@ const TERMS: TermsSection[] = [
         type: "p",
         text: "The chat system supports message history, delivery status, read receipts, timestamps, and conversation management.",
       },
-      { type: "sub", text: "Message Storage and Encryption" },
-      {
-        type: "callout",
-        text: "Arcadia's current private chat system does not use end-to-end encryption.",
-      },
-      {
-        type: "p",
-        text: "Messages are transmitted through the Arcadia backend and stored in the database in plaintext. This means the server-side system can access message contents.",
-      },
-      {
-        type: "p",
-        text: "Users should avoid sharing passwords, authentication codes, financial information, or other highly sensitive information through chat.",
-      },
-      {
-        type: "p",
-        text: "We take reasonable measures to protect information handled by the platform, but no online system can guarantee absolute security.",
-      },
       { type: "sub", text: "Clear Chat" },
       { type: "p", text: "Arcadia provides conversation-clearing options:" },
       {
@@ -296,24 +279,6 @@ const TERMS: TermsSection[] = [
     ],
   },
   {
-    id: "third-party",
-    title: "Third-Party Authentication and Services",
-    blocks: [
-      {
-        type: "p",
-        text: "Arcadia may use third-party services, including Google authentication and email delivery services, to support existing platform functionality.",
-      },
-      {
-        type: "p",
-        text: "Your use of those services may also be subject to their respective terms and privacy policies.",
-      },
-      {
-        type: "p",
-        text: "Arcadia does not control independent third-party services or guarantee their availability.",
-      },
-    ],
-  },
-  {
     id: "availability",
     title: "Platform Availability",
     blocks: [
@@ -354,29 +319,7 @@ const TERMS: TermsSection[] = [
       },
       {
         type: "p",
-        text: "Account deletion may remove your profile, account information, sessions, friendships, and associated platform data.",
-      },
-      {
-        type: "p",
-        text: "Certain information may be retained where required by law or reasonably necessary for security, dispute resolution, or legal compliance.",
-      },
-    ],
-  },
-  {
-    id: "privacy",
-    title: "Privacy",
-    blocks: [
-      {
-        type: "p",
-        text: "Your use of Arcadia is also governed by our Privacy Policy.",
-      },
-      {
-        type: "p",
-        text: "The Privacy Policy explains the personal information handled by Arcadia, how it is used and stored, and the rights available to users.",
-      },
-      {
-        type: "p",
-        text: "Please review it to understand our data practices.",
+        text: "Account deletion removes your account and associated platform data, subject to applicable legal requirements.",
       },
     ],
   },

@@ -132,7 +132,7 @@ function AppContent() {
 
   return (
     <>
-      <Navbar isVisible={!isMatchHistoryPage && !isTermsOfServicePage} />
+      <Navbar isVisible={!isMatchHistoryPage && !isLegalPage} />
       <AccountActionPanel />
       <AuthNotice />
       <div

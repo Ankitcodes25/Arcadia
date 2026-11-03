@@ -213,7 +213,7 @@ body:has(.leaderboard-page) .page-transition {
   max-width: none;
   translate: -50% 0;
   user-select: none;
-  filter: brightness(1.12) drop-shadow(0 0 16px rgba(150, 60, 245, 0.4));
+  filter: brightness(1.04) drop-shadow(0 0 16px rgba(150, 60, 245, 0.28));
   animation: lbpHeroCardFloat 7s ease-in-out infinite;
 }
 
@@ -287,11 +287,11 @@ body:has(.leaderboard-page) .page-transition {
   padding: var(--glow-pad);
   margin: calc(var(--glow-pad) * -1);
   filter:
-    brightness(1.02)hue-rotate(4deg) saturate(1.0)
-    contrast(1.12)
-    drop-shadow(0 0 8px rgba(200, 130, 255, 0.3))
-    drop-shadow(0 0 26px rgba(150, 60, 245, 0.25))
-    drop-shadow(0 0 46px rgba(120, 40, 220, 0.15));
+    brightness(0.94) hue-rotate(4deg) saturate(1.0)
+    contrast(1.06)
+    drop-shadow(0 0 8px rgba(200, 130, 255, 0.24))
+    drop-shadow(0 0 26px rgba(150, 60, 245, 0.19))
+    drop-shadow(0 0 46px rgba(120, 40, 220, 0.12));
   -webkit-mask-image: var(--char-mask);
   -webkit-mask-composite: source-in;
   mask-image: var(--char-mask);

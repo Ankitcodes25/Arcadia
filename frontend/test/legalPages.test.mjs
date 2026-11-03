@@ -163,6 +163,17 @@ function click(node) {
 }
 
 function assertLegalPage(title) {
+  if (title === "Terms of Service") {
+    const termsTitle = q(".tos-hero h1");
+    assert.ok(termsTitle, "the Terms page renders its hero");
+    assert.match(termsTitle.textContent, /TERMS OF\s+SERVICE/);
+    assert.ok(q(".tos-meta"), "the Terms page renders its date panel");
+    assert.ok(q(".tos-toc"), "the Terms page renders its contents navigation");
+    assert.ok(qa(".tos-section").length > 0, "the Terms page renders its sections");
+    assert.equal(q(".mh-hero"), null, "the legal pages do not reuse the Match History hero");
+    return;
+  }
+
   assert.equal(q(".legal-title").textContent, title);
   assert.match(q(".legal-eyebrow").textContent, /ARCADIA\s*•\s*LEGAL/);
   assert.match(q(".legal-intro").textContent, /temporary introduction/i);
@@ -218,12 +229,66 @@ test("each legal route works on direct access and after a remount", async () => 
   }
 });
 
+test("Terms of Service keeps the remaining sections and renumbers its contents", async () => {
+  await mountApp("/terms-of-service", null);
+
+  const expectedTitles = [
+    "About Arcadia",
+    "User Accounts",
+    "User Profiles and Player IDs",
+    "Friends and User Interactions",
+    "Private Messaging",
+    "Match History and Experience Points",
+    "Acceptable Use",
+    "Intellectual Property",
+    "Platform Availability",
+    "Account Suspension and Deletion",
+    "Disclaimers",
+    "Limitation of Liability",
+    "Changes to These Terms",
+    "Governing Law",
+    "Contact Information",
+  ];
+
+  assert.deepEqual(
+    qa(".tos-toc-title").map((node) => node.textContent.trim()),
+    expectedTitles,
+  );
+  assert.equal(qa(".tos-section").length, expectedTitles.length);
+  assert.equal(q("#third-party"), null);
+  assert.equal(q("#privacy"), null);
+  assert.equal(qa(".tos-section-num")[9].textContent, "10");
+  assert.equal(qa(".tos-section-num")[14].textContent, "15");
+
+  assert.match(q("#messaging").textContent, /Clear for Me/);
+  assert.match(q("#messaging").textContent, /Clear for Both/);
+  assert.match(q("#messaging").textContent, /other participant's approval/);
+  assert.doesNotMatch(
+    q("#messaging").textContent,
+    /end-to-end|plaintext|Message Storage and Encryption|sensitive information/i,
+  );
+
+  assert.match(
+    q("#suspension").textContent,
+    /Account deletion removes your account and associated platform data, subject to applicable legal requirements\./,
+  );
+  assert.doesNotMatch(
+    q("#suspension").textContent,
+    /retained where required|dispute resolution/i,
+  );
+
+  const suspensionToc = qa(".tos-toc-link")
+    .find((link) => link.textContent.includes("Account Suspension and Deletion"));
+  await click(suspensionToc);
+  assert.equal(suspensionToc.getAttribute("aria-current"), "true");
+});
+
 test("the back button uses history when the page was reached in-app", async () => {
   await mountApp("/");
 
-  const terms = qa(".footer-legal a")
-    .find((item) => item.textContent.trim() === "Terms of Service");
-  await click(terms);
+  const privacy = qa(".footer-legal a")
+    .find((item) => item.textContent.trim() === "Privacy Policy");
+  await click(privacy);
   await flush();
 
   let backCalls = 0;
@@ -232,7 +297,7 @@ test("the back button uses history when the page was reached in-app", async () =
   await click(q(".legal-back"));
 
   assert.equal(backCalls, 1);
-  assert.equal(window.location.pathname, "/terms-of-service");
+  assert.equal(window.location.pathname, "/privacy-policy");
 });
 
 test("the back button falls back to the homepage on a direct visit", async () => {
