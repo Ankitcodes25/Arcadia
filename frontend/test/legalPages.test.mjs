@@ -249,6 +249,36 @@ test("the back button falls back to the homepage on a direct visit", async () =>
   assert.equal(q(".legal-page"), null);
 });
 
+test("Terms of Service back button returns to the previous in-app page", async () => {
+  await mountApp("/");
+
+  const terms = qa(".footer-legal a")
+    .find((item) => item.textContent.trim() === "Terms of Service");
+  await click(terms);
+  await flush();
+
+  let backCalls = 0;
+  window.history.back = () => { backCalls += 1; };
+
+  await click(q(".tos-return"));
+
+  assert.equal(backCalls, 1);
+  assert.equal(window.location.pathname, "/terms-of-service");
+});
+
+test("Terms of Service back button returns home on a direct visit", async () => {
+  await mountApp("/terms-of-service", null);
+
+  let backCalls = 0;
+  window.history.back = () => { backCalls += 1; };
+
+  await click(q(".tos-return"));
+  await flush();
+
+  assert.equal(backCalls, 0);
+  assert.equal(window.location.pathname, "/");
+});
+
 test("the footer links wrap on small screens without becoming a column layout", async () => {
   const footerCss = await readFile(
     new URL("../src/components/Footer.css", import.meta.url),
