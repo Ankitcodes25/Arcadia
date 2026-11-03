@@ -764,7 +764,8 @@ footer p {
 
 @media (max-width: 1100px) {
 
-  .navbar,
+  /* The fixed navbar is not part of this content column: it always spans the
+     viewport and keeps its own gutter in Navbar.css. */
   .section,
   footer {
     width:
@@ -784,7 +785,6 @@ footer p {
 
 @media (max-width: 700px) {
 
-  .navbar,
   .section,
   .quick-stats,
   footer {

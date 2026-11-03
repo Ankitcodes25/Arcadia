@@ -41,6 +41,8 @@ Admin Panel sign-in uses `ADMIN_EMAIL`, `ADMIN_USERNAME`, and the session settin
 
 For production, set `NODE_ENV=production`, an explicit HTTPS `FRONTEND_URL` (and any additional origins in `CORS_ORIGIN`), a high-entropy `JWT_SECRET`, a TLS-protected `MONGODB_URI`, Google OAuth server credentials, and SMTP delivery for password-reset messages. Production startup fails closed when those required values are absent or unsafe. Cross-site frontend/API deployments should use `COOKIE_SAME_SITE=none`; same-site deployments should prefer `lax` or `strict`.
 
+Backend email delivery logs rotate at `EMAIL_LOG_MAX_SIZE_BYTES` (default 5 MiB) and files older than `EMAIL_LOG_RETENTION_DAYS` (default 90) are removed. The files stay under `backend/logs/` and are never served publicly.
+
 The frontend requires `VITE_API_URL` for production builds. Set `VITE_GOOGLE_AUTH_ENABLED=true` only when the backend Google OAuth routes are configured. Configure the static host to serve `index.html` for SPA routes and to send `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, and a clickjacking protection header.
 
 ## Verification

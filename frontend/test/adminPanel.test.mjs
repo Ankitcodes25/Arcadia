@@ -125,6 +125,26 @@ async function render(element) {
   });
 }
 
+async function flush() {
+  for (let index = 0; index < 8; index += 1) {
+    await act(async () => { await Promise.resolve(); });
+  }
+}
+
+function setNativeValue(element, value) {
+  const prototype = element instanceof window.HTMLSelectElement
+    ? window.HTMLSelectElement.prototype
+    : window.HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+  setter.call(element, value);
+}
+
+function findButton(label) {
+  return [...document.querySelectorAll("button")].find(
+    (button) => button.textContent?.trim().toLowerCase() === label.toLowerCase(),
+  );
+}
+
 /* ---- Routing helpers ------------------------------------------------------ */
 
 test("isAdminPath recognises only /admin paths", () => {
@@ -141,6 +161,7 @@ test("resolveAdminPageKey maps known routes and falls back to dashboard", () => 
   assert.equal(adminRouting.resolveAdminPageKey("/admin/players"), "players");
   assert.equal(adminRouting.resolveAdminPageKey("/admin/reports"), "reports");
   assert.equal(adminRouting.resolveAdminPageKey("/admin/support"), "support");
+  assert.equal(adminRouting.resolveAdminPageKey("/admin/email-logs"), "emailLogs");
   assert.equal(adminRouting.resolveAdminPageKey("/admin/games"), "games");
   assert.equal(adminRouting.resolveAdminPageKey("/admin/moderation"), "moderation");
   assert.equal(adminRouting.resolveAdminPageKey("/admin/announcements"), "announcements");
@@ -154,9 +175,77 @@ test("resolveAdminPageKey maps known routes and falls back to dashboard", () => 
 test("sidebar order matches the product spec exactly", () => {
   const keys = adminRouting.ADMIN_PAGE_PATHS.map((entry) => entry.key);
   assert.deepEqual(keys, [
-    "dashboard", "players", "reports", "support",
+    "dashboard", "players", "reports", "support", "emailLogs",
     "games", "moderation", "announcements", "settings",
   ]);
+});
+
+test("email logs page supports search, filters, pagination and the details modal", async () => {
+  fetchPlan = [{
+    match: "/api/admin/auth/me",
+    status: 200,
+    body: { admin: { username: "admin", displayName: "Super Admin", role: "SUPER_ADMIN" } },
+  }];
+  window.history.pushState({}, "", "/admin/dashboard");
+
+  await render(React.createElement(AdminPanelApp));
+  await flush();
+
+  const emailLogsNav = findButton("Email Logs");
+  assert.ok(emailLogsNav, "Email Logs is present in the Admin Panel navigation");
+  await act(async () => {
+    emailLogsNav.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  });
+  await flush();
+
+  assert.equal(window.location.pathname, "/admin/email-logs");
+  assert.match(document.body.textContent, /Email Logs/);
+  assert.match(document.body.textContent, /Total Emails/);
+  assert.equal(document.querySelectorAll(".adm-table tbody tr").length, 8, "page size is applied");
+
+  const search = document.querySelector('input[aria-label="Search email logs by recipient"]');
+  assert.ok(search, "the recipient search is present");
+  await act(async () => {
+    setNativeValue(search, "novarider@example.com");
+    search.dispatchEvent(new window.Event("input", { bubbles: true }));
+  });
+  await flush();
+  assert.equal(document.querySelectorAll(".adm-table tbody tr").length, 3, "search narrows the rows");
+
+  const statusFilter = document.querySelector('select[aria-label="Filter email logs by status"]');
+  assert.ok(statusFilter, "the status filter is present");
+  await act(async () => {
+    setNativeValue(statusFilter, "Failed");
+    statusFilter.dispatchEvent(new window.Event("change", { bubbles: true }));
+  });
+  await flush();
+  assert.equal(document.querySelectorAll(".adm-table tbody tr").length, 1, "only the empty-state row is shown");
+  assert.match(document.body.textContent, /No email logs match these filters/);
+
+  await act(async () => {
+    findButton("Clear filters").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  });
+  await flush();
+  assert.equal(document.querySelectorAll(".adm-table tbody tr").length, 8, "clear filters restores the first page");
+  assert.match(document.body.textContent, /Page 1 of 3/);
+
+  await act(async () => {
+    findButton("Next").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  });
+  await flush();
+  assert.match(document.body.textContent, /Page 2 of 3/);
+
+  const viewButton = document.querySelector('button[aria-label^="View details for email"]');
+  assert.ok(viewButton, "a row exposes View Details");
+  await act(async () => {
+    viewButton.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  });
+  await flush();
+  const dialog = document.querySelector('[role="dialog"]');
+  assert.ok(dialog, "the details modal opens");
+  assert.match(dialog.textContent, /Email delivery details/);
+  assert.match(dialog.textContent, /Provider message ID/);
+  assert.doesNotMatch(dialog.textContent, /test-password|arc_reset_/i);
 });
 
 /* ---- Server-side login-account resolution (frontend hand-off) ------------- */

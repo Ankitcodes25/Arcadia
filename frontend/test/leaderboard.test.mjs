@@ -371,9 +371,7 @@ test("the rankings are reachable on the same page as the hero", async () => {
 test("the default rankings come from the centralized development fixtures", async () => {
   const unmount = await renderPage();
 
-  const notice = q(".leaderboard-demo-note");
-  assert.ok(notice, "the development demo notice is shown");
-  assert.match(notice.textContent, /development demo/i, "and says the data is demo-only");
+  assert.equal(q(".leaderboard-demo-note"), null, "no development demo caption is shown");
 
   // The podium is the top three by XP from the single fixture file.
   assert.equal(q(".leaderboard-slot-1 .leaderboard-card-player").textContent, "SolarisPrime");
