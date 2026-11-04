@@ -21,6 +21,7 @@ const USER_ROLES = Object.freeze({
 const ACCOUNT_STATUSES = Object.freeze({
   ACTIVE: 'ACTIVE',
   SUSPENDED: 'SUSPENDED',
+  BANNED: 'BANNED',
   DELETED: 'DELETED',
 });
 
