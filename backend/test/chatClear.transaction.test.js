@@ -17,6 +17,7 @@ let Conversation;
 let Message;
 let ClearChatRequest;
 let chatService;
+let chatResetService;
 let deleteAccount;
 let getPairKey;
 let getOrderedPair;
@@ -34,6 +35,7 @@ before(async () => {
   ({ Message } = require('../models/Message'));
   ({ ClearChatRequest } = require('../models/ClearChatRequest'));
   chatService = require('../services/chatService');
+  chatResetService = require('../services/chatResetService');
   ({ deleteAccount } = require('../services/accountActionService'));
   ({ getPairKey, getOrderedPair } = require('../utils/friendship'));
 
@@ -207,6 +209,32 @@ test('a second accept while the first holds the lock is refused without deleting
   assert.equal(results.filter((row) => row.status === 'fulfilled').length, 1);
   assert.equal(results.find((row) => row.status === 'rejected').reason.statusCode, 409);
   assert.equal(await Message.countDocuments({}), 0);
+});
+
+test('a blocked conversation is replaced inside a transaction when the pair re-friend', async () => {
+  const { rook, knight } = await createFriends();
+  await chatService.sendMessage(rook, knight, 'old message', null);
+  const { request } = await chatService.createClearRequest(rook, knight);
+  const oldConversation = await Conversation.findOne({}).lean();
+  assert.ok(oldConversation);
+
+  assert.equal(await chatResetService.markConversationForReset(rook, knight), true);
+  const reset = await chatResetService.resetConversationForNewFriendship(rook, knight);
+
+  assert.equal(reset.reset, true);
+  assert.equal(reset.previousConversationId, String(oldConversation._id));
+  assert.notEqual(reset.conversationId, String(oldConversation._id));
+  assert.equal(await Conversation.countDocuments({ _id: oldConversation._id }), 0);
+  assert.equal(await Message.countDocuments({ conversationId: oldConversation._id }), 0);
+  assert.equal(await ClearChatRequest.countDocuments({ _id: request.id }), 0);
+
+  const fresh = await Conversation.findById(reset.conversationId).lean();
+  assert.ok(fresh);
+  assert.equal(fresh.lastMessage, '');
+  assert.equal(fresh.lastMessageAt, null);
+  assert.equal(fresh.chatResetAt, null);
+  assert.deepEqual((await chatService.listMessages(rook, knight)).messages, []);
+  assert.equal((await chatService.listMessages(rook, knight)).conversationId, reset.conversationId);
 });
 
 test('account deletion removes both sides of Clear Chat requests in a transaction', async () => {

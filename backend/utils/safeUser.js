@@ -13,6 +13,8 @@ const { getTrustedGooglePictureUrl } = require('./profileValidation');
 const { getProgression } = require('./progression');
 const { isValidPlayerId } = require('./playerId');
 
+const INACTIVE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
+
 function getGoogleIdentity(user, source) {
   if (user && typeof user === 'object' && user.google) {
     return user.google;
@@ -33,6 +35,22 @@ function getSafeAvatar(sourceAvatar, googlePictureUrl) {
       : DEFAULT_LOCAL_AVATAR_ID;
 
   return { type, value };
+}
+
+function getAccountStatus(source) {
+  const status = Object.values(ACCOUNT_STATUSES).includes(source.status)
+    ? source.status
+    : ACCOUNT_STATUSES.ACTIVE;
+  if (status !== ACCOUNT_STATUSES.ACTIVE) {
+    return status;
+  }
+
+  const lastActivityAt = source.lastLoginAt || source.createdAt;
+  const activityTimestamp = lastActivityAt ? new Date(lastActivityAt).getTime() : NaN;
+  return Number.isFinite(activityTimestamp)
+    && Date.now() - activityTimestamp >= INACTIVE_AFTER_MS
+    ? 'INACTIVE'
+    : ACCOUNT_STATUSES.ACTIVE;
 }
 
 function toSafeUser(user) {
@@ -72,9 +90,7 @@ function toSafeUser(user) {
     playerId: isValidPlayerId(source.playerId) ? source.playerId : null,
     progression: getProgression(source.totalXp),
     role: source.role === USER_ROLES.ADMIN ? USER_ROLES.ADMIN : USER_ROLES.USER,
-    status: Object.values(ACCOUNT_STATUSES).includes(source.status)
-      ? source.status
-      : ACCOUNT_STATUSES.ACTIVE,
+    status: getAccountStatus(source),
     createdAt: source.createdAt || null,
     updatedAt: source.updatedAt || null,
     lastLoginAt: source.lastLoginAt || null,
