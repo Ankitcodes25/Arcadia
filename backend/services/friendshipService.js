@@ -12,6 +12,7 @@ const {
   escapeRegex,
 } = require('../utils/friendship');
 const { listOnlineUserIds } = require('./presenceService');
+const chatResetService = require('./chatResetService');
 
 const RELATIONSHIP_STATUSES = Object.freeze({
   NONE: 'NONE',
@@ -436,6 +437,15 @@ async function acceptRequest(viewerId, requestId) {
   const pairKey = getPairKey(request.from, request.to);
   const { userA, userB } = getOrderedPair(request.from, request.to);
 
+  // A block marks the old conversation. Discard it before the friendship
+  // exists so no chat request can observe the stale thread once both users are
+  // friends again. The replacement conversation is created immediately, so
+  // both sides list the same new conversation even before the first message.
+  const reset = await chatResetService.resetConversationForNewFriendship(
+    request.from,
+    request.to,
+  );
+
   await Friendship.updateOne(
     { pairKey },
     { $setOnInsert: { userA, userB, pairKey } },
@@ -451,6 +461,15 @@ async function acceptRequest(viewerId, requestId) {
 
   if (!friendUser) {
     await Friendship.deleteOne({ pairKey });
+    // The friendship never became visible, so roll the fresh conversation
+    // back rather than leaving an empty thread that nobody can use.
+    if (reset.reset) {
+      await chatResetService.discardFreshConversation(
+        reset.conversationId,
+        request.from,
+        request.to,
+      );
+    }
     throw createError('Player not found', 404);
   }
 
@@ -544,6 +563,10 @@ async function blockUser(viewerId, targetUserId) {
   }
 
   const pairKey = getPairKey(viewer, targetId);
+  // A block must not merely hide the thread: the next accepted friendship is
+  // required to start from an empty conversation with a new id. The marker is
+  // harmless when no conversation exists yet.
+  await chatResetService.markConversationForReset(viewer, targetId);
   await Promise.all([
     FriendRequest.deleteMany({ pairKey }),
     Friendship.deleteOne({ pairKey }),

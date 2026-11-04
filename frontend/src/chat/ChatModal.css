@@ -142,11 +142,46 @@
   outline: none;
 }
 
+.chat-menu-item:disabled,
+.chat-menu-item:disabled:hover,
+.chat-menu-item:disabled:focus-visible {
+  background: transparent;
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.chat-menu-item:disabled svg {
+  color: rgba(224, 161, 255, 0.5);
+}
+
 /* ---------- Clear Chat request card ---------- */
+
+/*
+ * Clear Chat status sits in normal document flow immediately above the
+ * composer. It is never absolutely positioned, so it cannot cover the input,
+ * send button or a future attachment button. The message log keeps its own
+ * scroll area and the region scrolls internally if a long request card would
+ * otherwise crowd a short viewport (including a mobile keyboard).
+ */
+.chat-clear-region {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  min-height: 0;
+  max-height: min(46dvh, 360px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(224, 105, 255, 0.4) transparent;
+}
+
+.chat-clear-region:empty {
+  display: none;
+}
 
 .chat-clear-banner {
   flex: none;
-  margin: 12px 18px 0;
+  margin: 12px 18px 12px;
   padding: 12px 14px;
   border: 1px solid rgba(224, 105, 255, 0.5);
   border-radius: 14px;
@@ -728,6 +763,10 @@
   .chat-clear-state-error {
     margin-left: 14px;
     margin-right: 14px;
+  }
+
+  .chat-clear-region {
+    max-height: min(42dvh, 300px);
   }
 
   .chat-clear-banner-button {

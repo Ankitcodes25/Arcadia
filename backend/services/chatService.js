@@ -322,7 +322,9 @@ async function listMessages(userId, friendId, options = {}) {
   const conversation = await findConversation(viewer, friendId);
   if (!conversation) {
     return {
+      conversationId: null,
       messages: [],
+      hasMessages: false,
       hasMore: false,
       nextCursor: null,
       clearedAt: null,
@@ -363,7 +365,12 @@ async function listMessages(userId, friendId, options = {}) {
   // that it received each message through the authenticated socket, and only
   // that acknowledgement may advance the persisted status.
   return {
+    conversationId: String(conversation._id),
     messages: page.map(serializeMessage),
+    // Server truth for the Clear Chat menu: a viewer's one-sided cutoff hides
+    // rows without deleting them, while a both-sides clear leaves none.
+    hasMessages: page.length > 0
+      || Boolean(await Message.exists({ conversationId: conversation._id })),
     hasMore,
     nextCursor: hasMore ? String(page[0]._id) : null,
     clearedAt: toIso(clearedAt),
@@ -818,6 +825,12 @@ async function createClearRequest(userId, friendId) {
   await assertCanChat(viewer, friendId);
   const conversation = await findConversation(viewer, friendId);
   if (!conversation) {
+    throw createError('There are no messages to clear yet', 400);
+  }
+  // A conversation shell can outlive its messages, for example after a
+  // both-sides clear or a fresh re-friend conversation. The UI disables the
+  // action, but the API must refuse it independently.
+  if (!(await Message.exists({ conversationId: conversation._id }))) {
     throw createError('There are no messages to clear yet', 400);
   }
 

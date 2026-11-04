@@ -24,6 +24,7 @@ let connectDatabase;
 let disconnectDatabase;
 let signAccessToken;
 let normalizeUsername;
+let getPairKey;
 let attachChatSocket;
 let closeChatSocket;
 let revalidateConnectedSockets;
@@ -58,6 +59,7 @@ before(async () => {
   ({ ClearChatRequest } = require('../models/ClearChatRequest'));
   ({ signAccessToken } = require('../utils/jwt'));
   ({ normalizeUsername } = require('../utils/username'));
+  ({ getPairKey } = require('../utils/friendship'));
   ({ connectDatabase, disconnectDatabase } = require('../config/database'));
   ({
     attachChatSocket,
@@ -802,7 +804,9 @@ test('a both-sides clear needs the recipient to accept and then deletes permanen
 
   // Nothing is deleted or hidden while the request is pending.
   assert.equal(await Message.countDocuments({}), 4);
-  assert.equal((await listMessagesFor(rook, knight)).body.messages.length, 3);
+  const pendingHistory = await listMessagesFor(rook, knight);
+  assert.equal(pendingHistory.body.messages.length, 3);
+  assert.equal(pendingHistory.body.hasMessages, true);
 
   assert.equal((await clearChat(rook, knight, 'both')).status, 409);
   const reverse = await clearChat(knight, rook, 'both');
@@ -855,10 +859,18 @@ test('a both-sides clear needs the recipient to accept and then deletes permanen
 
   assert.deepEqual((await listMessagesFor(rook, knight)).body.messages, []);
   assert.deepEqual((await listMessagesFor(knight, rook)).body.messages, []);
+  assert.equal((await listMessagesFor(rook, knight)).body.hasMessages, false);
   assert.equal((await conversationWith(knight, rook)).clearRequest, null);
   assert.equal((await friendsSummary(knight)).incomingClearRequestCount, 0);
   assert.equal((await friendsSummary(knight)).unreadMessageCount, 0);
   assert.equal((await actOnClearRequest(knight, requestId, 'accept')).status, 409);
+
+  // The conversation shell still exists but has no messages: a new request is
+  // refused by the API even if a client tries to bypass the disabled menu.
+  const emptyRequest = await clearChat(rook, knight, 'both');
+  assert.equal(emptyRequest.status, 400);
+  assert.match(emptyRequest.body.error, /no messages to clear/i);
+  assert.equal(await ClearChatRequest.countDocuments({ status: 'pending' }), 0);
 
   // The requester sees the outcome until dismissing it.
   assert.equal((await getClearState(rook, knight)).body.outcome.status, 'accepted');
@@ -932,6 +944,9 @@ test('a both-sides request needs a conversation, and sends wait for a clear in p
   const knight = await createPlayer('ArcadeDevKnight');
   await makeFriends(rook, knight);
 
+  const emptyHistory = await listMessagesFor(rook, knight);
+  assert.equal(emptyHistory.status, 200);
+  assert.equal(emptyHistory.body.hasMessages, false);
   assert.equal((await clearChat(rook, knight, 'both')).status, 400);
 
   await sendMessage(rook, knight, 'Hello');
@@ -1044,6 +1059,93 @@ test('removing a friend keeps history but stops chat; blocking stops requests an
   await delay(50);
   assert.equal(rookSawTyping, false);
   assert.equal(await Message.countDocuments({}), 2);
+});
+
+test('block, unblock and re-friend starts a new conversation without old messages or previews', async () => {
+  const rook = await createPlayer('ArcadeDevRook');
+  const knight = await createPlayer('ArcadeDevKnight');
+  const oracle = await createPlayer('ArcadeDevOracle');
+  await makeFriends(rook, knight);
+  await makeFriends(rook, oracle);
+
+  assert.equal((await sendMessage(rook, knight, 'Old secret')).status, 201);
+  assert.equal((await sendMessage(knight, rook, 'Old reply')).status, 201);
+  assert.equal((await sendMessage(rook, oracle, 'Unrelated conversation')).status, 201);
+  assert.equal((await clearChat(knight, rook, 'both')).status, 201);
+
+  const oldConversation = await Conversation.findOne({
+    participantKey: getPairKey(rook._id, knight._id),
+  }).lean();
+  assert.ok(oldConversation, 'the pre-block conversation exists');
+  const oldConversationId = String(oldConversation._id);
+
+  const block = (viewer, target) => requestJson('/api/v1/friends/blocks', {
+    token: tokenFor(viewer),
+    method: 'POST',
+    body: { userId: String(target._id) },
+  });
+  const unblock = (viewer, target) => requestJson(`/api/v1/friends/blocks/${target._id}`, {
+    token: tokenFor(viewer),
+    method: 'DELETE',
+  });
+
+  assert.equal((await block(rook, knight)).status, 200);
+  assert.equal((await unblock(rook, knight)).status, 200);
+
+  // Unblocking alone never restores the friendship, the thread or access to it.
+  assert.equal((await conversationWith(rook, knight)), null);
+  assert.equal((await conversationWith(knight, rook)), null);
+  assert.equal((await listMessagesFor(rook, knight)).status, 403);
+  assert.equal((await Message.countDocuments({ conversationId: oldConversation._id })), 2);
+
+  const rookSocket = await connectSocketFor(rook);
+  const acceptedEvent = waitForEvent(
+    rookSocket,
+    'friends:changed',
+    (event) => event.reason === 'accepted',
+  );
+  await makeFriends(knight, rook);
+  assert.deepEqual(await acceptedEvent, {
+    reason: 'accepted',
+    userId: String(knight._id),
+  });
+
+  const freshForRook = await conversationWith(rook, knight);
+  const freshForKnight = await conversationWith(knight, rook);
+  assert.ok(freshForRook, 'the re-friended pair sees a conversation');
+  assert.ok(freshForKnight, 'both participants see the same conversation');
+  assert.notEqual(freshForRook.id, oldConversationId, 'the new conversation has a new id');
+  assert.equal(freshForRook.id, freshForKnight.id);
+  assert.equal(freshForRook.lastMessage, null);
+  assert.equal(freshForRook.lastMessageAt, null);
+  assert.equal(freshForRook.unreadCount, 0);
+  assert.equal(freshForRook.lastMessageFromMe, false);
+  assert.equal(freshForRook.clearRequest, null);
+
+  const freshHistory = await listMessagesFor(rook, knight);
+  assert.equal(freshHistory.status, 200);
+  assert.equal(freshHistory.body.conversationId, freshForRook.id);
+  assert.deepEqual(freshHistory.body.messages, [], 'old messages cannot appear');
+  assert.equal((await listMessagesFor(knight, rook)).body.conversationId, freshForRook.id);
+
+  // The old thread and its requests are gone, not merely hidden. No orphaned
+  // message rows remain behind.
+  assert.equal(await Conversation.countDocuments({ _id: oldConversation._id }), 0);
+  assert.equal(await Message.countDocuments({ conversationId: oldConversation._id }), 0);
+  assert.equal(await ClearChatRequest.countDocuments({ conversationId: oldConversation._id }), 0);
+
+  // An unrelated pair's conversation is untouched in every respect.
+  const unrelated = await conversationWith(rook, oracle);
+  assert.ok(unrelated);
+  assert.equal(unrelated.lastMessage, 'Unrelated conversation');
+  assert.equal((await listMessagesFor(rook, oracle)).body.messages.length, 1);
+  assert.equal(await Message.countDocuments({ conversationId: unrelated.id }), 1);
+
+  // The fresh thread is fully writable and uses the new conversation id.
+  const sent = await sendMessage(knight, rook, 'Fresh start');
+  assert.equal(sent.status, 201);
+  assert.equal(sent.body.message.conversationId, freshForRook.id);
+  assert.equal((await conversationWith(rook, knight)).lastMessage, 'Fresh start');
 });
 
 test('unblocking is creator-only, removes the persisted block, and notifies both sessions', async () => {
