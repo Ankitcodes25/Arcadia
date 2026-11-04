@@ -24,7 +24,9 @@ async function listMessages(req, res, next) {
     });
 
     return res.json({
+      conversationId: result.conversationId,
       messages: result.messages,
+      hasMessages: result.hasMessages,
       hasMore: result.hasMore,
       nextCursor: result.nextCursor,
       clearedAt: result.clearedAt,

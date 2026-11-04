@@ -48,7 +48,11 @@ export type ChatConversationsResponse = {
 };
 
 export type ChatMessagesResponse = {
+  /** The current conversation, or null before either user has messaged. */
+  conversationId: string | null;
   messages: ChatMessage[];
+  /** Whether any message rows remain in the conversation. */
+  hasMessages: boolean;
   hasMore: boolean;
   nextCursor: string | null;
   /** The viewer's own "clear my side" cutoff, if they set one. */
@@ -90,7 +94,7 @@ export type ChatClearedEvent = {
 };
 
 export type FriendsChangedEvent = {
-  reason: "removed" | "blocked" | "unblocked";
+  reason: "removed" | "blocked" | "unblocked" | "accepted";
   /** The other player whose relationship with the viewer changed. */
   userId: string;
 };

@@ -134,6 +134,10 @@ async function acceptRequest(req, res, next) {
       req.user.id,
       req.params.requestId,
     );
+    // Both sides must refresh their conversation lists immediately: after a
+    // block, accepting starts a new conversation that did not exist a moment
+    // ago, and neither client may keep showing the old preview.
+    notifyRelationshipChanged('accepted', req.user.id, result.friend && result.friend.id);
     return res.json(result);
   } catch (error) {
     return next(error);
