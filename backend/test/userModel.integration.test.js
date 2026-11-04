@@ -726,6 +726,25 @@ test('does not select password hashes unless explicitly requested and safe seria
   );
 });
 
+test('safe player status becomes inactive after 30 days, while explicit account statuses take precedence', () => {
+  const now = Date.now();
+  const thirtyOneDaysAgo = new Date(now - 31 * 24 * 60 * 60 * 1000);
+  const twentyNineDaysAgo = new Date(now - 29 * 24 * 60 * 60 * 1000);
+  const statusFor = (overrides) => toSafeUser({
+    email: 'activity@example.com',
+    name: 'Activity User',
+    createdAt: thirtyOneDaysAgo,
+    lastLoginAt: twentyNineDaysAgo,
+    ...overrides,
+  }).status;
+
+  assert.equal(statusFor({}), ACCOUNT_STATUSES.ACTIVE);
+  assert.equal(statusFor({ lastLoginAt: thirtyOneDaysAgo }), 'INACTIVE');
+  assert.equal(statusFor({ lastLoginAt: null }), 'INACTIVE');
+  assert.equal(statusFor({ status: ACCOUNT_STATUSES.SUSPENDED, lastLoginAt: thirtyOneDaysAgo }), ACCOUNT_STATUSES.SUSPENDED);
+  assert.equal(statusFor({ status: ACCOUNT_STATUSES.BANNED, lastLoginAt: twentyNineDaysAgo }), ACCOUNT_STATUSES.BANNED);
+});
+
 test('public registration stores a hash, ignores a client-supplied role, and returns safe data', async () => {
   const result = await authService.register({
     email: 'Public@Example.com',

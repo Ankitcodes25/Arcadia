@@ -14,7 +14,7 @@ router.use(authMiddleware, requireAdmin);
 router.get('/users', controller.listUsers);
 // GET /api/v1/admin/users/:userId
 router.get('/users/:userId', controller.getUserDetails);
-// PATCH /api/v1/admin/users/:userId/status with { status: "ACTIVE" | "INACTIVE" }
+// PATCH /api/v1/admin/users/:userId/status with { status: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "BANNED" }
 router.patch('/users/:userId/status', ...rateLimits.adminMutation, controller.updateUserStatus);
 // POST /api/v1/admin/users/:userId/logout-all
 router.post('/users/:userId/logout-all', ...rateLimits.adminMutation, controller.logoutAllUserSessions);

@@ -20,6 +20,7 @@ const STATUS_ALIASES = Object.freeze({
   ACTIVE: ACCOUNT_STATUSES.ACTIVE,
   INACTIVE: ACCOUNT_STATUSES.SUSPENDED,
   SUSPENDED: ACCOUNT_STATUSES.SUSPENDED,
+  BANNED: ACCOUNT_STATUSES.BANNED,
 });
 
 function createError(message, statusCode) {
@@ -67,7 +68,7 @@ function parseUserId(value) {
 
 function parseStatus(value) {
   if (typeof value !== 'string' || !Object.prototype.hasOwnProperty.call(STATUS_ALIASES, value)) {
-    throw createError('Status must be ACTIVE, INACTIVE, or SUSPENDED', 400);
+    throw createError('Status must be ACTIVE, INACTIVE, SUSPENDED, or BANNED', 400);
   }
   return STATUS_ALIASES[value];
 }
@@ -165,7 +166,10 @@ async function updateUserStatus({ userId, status, actingUserId, body }) {
   const normalizedStatus = parseStatus(status);
   const normalizedActingUserId = parseUserId(actingUserId);
 
-  if (normalizedStatus === ACCOUNT_STATUSES.SUSPENDED && normalizedId === normalizedActingUserId) {
+  if (
+    [ACCOUNT_STATUSES.SUSPENDED, ACCOUNT_STATUSES.BANNED].includes(normalizedStatus)
+    && normalizedId === normalizedActingUserId
+  ) {
     throw createError('An administrator cannot deactivate their own account', 403);
   }
 
