@@ -4,7 +4,7 @@ import {
   rememberReturningToProfilePopup,
 } from "../../lib/navigation";
 import Footer from "../../components/Footer";
-import pageArt from "../../assets/ArcadionHistory.png";
+import pageArt from "../../assets/CookiepolicyArcadion.png";
 import pageRingBg from "../../assets/ArcadionpickBG.png";
 import "./CookiePolicy.css";
 
