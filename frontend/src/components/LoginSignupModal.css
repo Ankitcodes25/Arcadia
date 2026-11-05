@@ -29,13 +29,16 @@
    FIT-TO-SCREEN — modal kabhi viewport se bada nahi hota
    Har spacing (padding/margin/gap/font/input-height) clamp() se
    viewport height (dvh) ke hisaab se sikudta hai, isliye chhoti
-   screen (ya signup ke extra fields) pe bhi scroll ki zaroorat
-   nahi padti — koi overflow/scrollbar nahi hai.
+   screen (ya signup ke extra fields) pe bhi modal screen ke andar
+   rehta hai. Agar content phir bhi zyada ho, sirf modal ke andar
+   scroll hota hai — page peeche fixed rehta hai.
    ========================================================= */
 .auth-modal {
 	position: relative;
 	width: min(100%, 430px);
 	max-height: 96dvh;
+	overflow-y: auto;
+	overscroll-behavior: contain;
 	padding: clamp(16px, 4.5dvh, 30px) clamp(20px, 6vw, 39px) clamp(14px, 3.2dvh, 25px);
 	border: 1px solid rgba(224, 105, 255, 0.85);
 	border-radius: 21px;

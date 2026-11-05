@@ -2074,8 +2074,11 @@ test("the Navbar is not displayed on this page but is still mounted", async () =
   const { default: App } = await vite.ssrLoadModule("/src/App.tsx");
 
   const source = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
-  assert.match(source, /<Navbar isVisible=\{!isMatchHistoryPage\} \/>/,
-    "the bar is told to hide on this page");
+  assert.match(
+    source,
+    /<Navbar isVisible=\{!isMatchHistoryPage && !isLegalPage\} \/>/,
+    "the bar is told to hide on this page (and on the legal pages)",
+  );
 
   // Hidden, not unmounted: it still owns the Profile Popup state and the
   // navigation listener the back button depends on.

@@ -34,6 +34,7 @@ import {
 } from "../data/development/dummyPlayers";
 import { FRIENDS_CHANGED_EVENT, friendsApi, notifyFriendsChanged } from "../friends/friendsApi";
 import { onChatEvent } from "../chat/chatSocket";
+import { acquireModalScrollLock } from "../auth/modalScrollLock";
 import type { FriendRelationship } from "../friends/friendsTypes";
 import "../pages/Myprofile/MyProfileModal.css";
 import "./PlayerProfileModal.css";
@@ -101,6 +102,10 @@ function PlayerProfile({
   const relationshipGeneration = useRef(0);
   const lookupPlayerId = playerId?.trim() || null;
   const lookupUsername = username?.trim() || null;
+
+  // Hold the page still for as long as this dialog is mounted, including while
+  // its own Report dialog is open above it.
+  useEffect(() => acquireModalScrollLock(), []);
 
   const loadProfile = useCallback(async () => {
     const generation = requestGeneration.current + 1;

@@ -22,6 +22,7 @@ import {
   USERNAME_MIN_LENGTH,
   USERNAME_TOO_SMALL_MESSAGE,
 } from "../auth/usernameRules";
+import { acquireModalScrollLock } from "../auth/modalScrollLock";
 import "./LoginSignupModal.css";
 
 type LoginSignupModalProps = {
@@ -106,6 +107,9 @@ function LoginSignupModal({
   const [localError, setLocalError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [usernameWarning, setUsernameWarning] = useState<string | null>(null);
+
+  // The page behind the dialog stays fixed until this layer unmounts.
+  useEffect(() => acquireModalScrollLock(), []);
 
   useEffect(() => {
     setView("form");

@@ -78,7 +78,18 @@ body {
    ========================================================= */
 
 html.has-modal-scroll-lock {
+  overflow: hidden;
+  overscroll-behavior: none;
   scrollbar-gutter: stable;
+}
+
+html.has-modal-scroll-lock body {
+  /*
+   * The body is fixed in place by the shared lock (modalScrollLock.ts). This
+   * also stops horizontal and rubber-band scrolling from chaining through to
+   * the document on touch devices.
+   */
+  overscroll-behavior: none;
 }
 
 .page-transition {
