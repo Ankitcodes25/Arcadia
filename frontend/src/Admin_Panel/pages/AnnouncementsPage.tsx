@@ -7,21 +7,52 @@
  * any backend and nothing is delivered to players. The UI says so explicitly.
  */
 
-import { useState, type FormEvent } from "react";
-import { Plus } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
+import { Eye, Megaphone, Pencil, Plus } from "lucide-react";
 import AdminLayout from "../components/AdminLayout";
 import AdminModal from "../components/AdminModal";
 import { PreviewDataNotice, StatusBadge } from "../components/AdminDisplay";
+import {
+  Chip,
+  EmptyState,
+  FilterTabs,
+  KeyValueGrid,
+  Note,
+  PageHeader,
+  PageShell,
+  SectionTitle,
+  toneForStatus,
+} from "../components/AdminKit";
 import { useAdminAuth } from "../hooks/useAdminAuth";
 import { previewAnnouncements } from "../data/previewData";
 import { formatDate, formatRelativeTime } from "../utils/formatters";
 import type { PreviewAnnouncement, PreviewAnnouncementStatus } from "../types/adminTypes";
+import "./AdminPages.css";
+
+type StatusFilter = "all" | PreviewAnnouncementStatus;
+
+const STATUSES: PreviewAnnouncementStatus[] = ["Published", "Scheduled", "Draft"];
+const TITLE_LIMIT = 120;
 
 interface ComposerState {
   id: string | null;
   title: string;
   body: string;
   status: PreviewAnnouncementStatus;
+}
+
+/* What a player would see: reused by the composer and the Preview modal. */
+function AnnouncementPreview({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="adp-ann-preview">
+      <span className="adp-ann-preview__kicker">
+        <Megaphone size={13} aria-hidden="true" />
+        Arcadia announcement
+      </span>
+      <h4 className="adp-ann-preview__title">{title}</h4>
+      <p className="adp-ann-preview__body">{body}</p>
+    </div>
+  );
 }
 
 function ComposerModal({
@@ -66,74 +97,85 @@ function ComposerModal({
       onClose={onClose}
       wide
     >
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div className="adm-field">
-          <label htmlFor="ann-title">Title</label>
-          <input
-            id="ann-title"
-            className="adm-input"
-            type="text"
-            value={title}
-            onChange={(event) => {
-              setTitle(event.target.value);
-              setError(null);
-            }}
-            placeholder="Announcement title"
-            maxLength={120}
-          />
-        </div>
+      <form onSubmit={handleSubmit} className="adp-composer">
+        <div className="adp-composer__form">
+          <div className="adk-field">
+            <label className="adk-label" htmlFor="ann-title">
+              Title
+            </label>
+            <input
+              id="ann-title"
+              className="adk-input"
+              type="text"
+              value={title}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                setError(null);
+              }}
+              placeholder="Announcement title"
+              maxLength={TITLE_LIMIT}
+            />
+            <span className="adk-field__meta">
+              <span />
+              <span>
+                {title.length}/{TITLE_LIMIT}
+              </span>
+            </span>
+          </div>
 
-        <div className="adm-field">
-          <label htmlFor="ann-body">Body</label>
-          <textarea
-            id="ann-body"
-            className="adm-textarea"
-            value={body}
-            onChange={(event) => {
-              setBody(event.target.value);
-              setError(null);
-            }}
-            placeholder="What should players know?"
-            rows={5}
-          />
-        </div>
+          <div className="adk-field">
+            <label className="adk-label" htmlFor="ann-body">
+              Body
+            </label>
+            <textarea
+              id="ann-body"
+              className="adk-textarea"
+              value={body}
+              onChange={(event) => {
+                setBody(event.target.value);
+                setError(null);
+              }}
+              placeholder="What should players know?"
+              rows={6}
+            />
+          </div>
 
-        <div className="adm-field" style={{ maxWidth: 220 }}>
-          <label htmlFor="ann-status">Status</label>
-          <select
-            id="ann-status"
-            className="adm-select"
-            value={status}
-            onChange={(event) => setStatus(event.target.value as PreviewAnnouncementStatus)}
-          >
-            <option value="Draft">Draft</option>
-            <option value="Scheduled">Scheduled</option>
-            <option value="Published">Published</option>
-          </select>
-        </div>
-
-        <div className="adm-field">
-          <label>Live preview</label>
-          <div className="adm-ann-preview">
-            <span className="adm-ann-preview__kicker">Arcadia announcement</span>
-            <h4 className="adm-ann-preview__title">{title.trim() || "Untitled announcement"}</h4>
-            <p className="adm-ann-preview__body">
-              {body.trim() || "Your announcement body will appear here as you type."}
-            </p>
+          <div className="adk-field adp-composer__status">
+            <label className="adk-label" htmlFor="ann-status">
+              Status
+            </label>
+            <select
+              id="ann-status"
+              className="adk-select"
+              value={status}
+              onChange={(event) => setStatus(event.target.value as PreviewAnnouncementStatus)}
+            >
+              <option value="Draft">Draft</option>
+              <option value="Scheduled">Scheduled</option>
+              <option value="Published">Published</option>
+            </select>
           </div>
         </div>
 
+        <div className="adp-composer__preview">
+          <span className="adk-label">Live preview</span>
+          <AnnouncementPreview
+            title={title.trim() || "Untitled announcement"}
+            body={body.trim() || "Your announcement body will appear here as you type."}
+          />
+        </div>
+
         {error ? (
-          <div className="adm-login__error" role="alert">
+          <div className="adk-form-error adp-composer__error" role="alert">
             {error}
           </div>
         ) : null}
 
-        <div className="adm-modal__footer" style={{ padding: 0, borderTop: "none" }}>
-          <button type="button" className="adm-btn" onClick={onClose}>
+        <div className="adk-modal-actions adp-composer__actions">
+          <button type="button" className="adk-btn" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="adm-btn adm-btn--primary">
+          <button type="submit" className="adk-btn adk-btn--primary">
             {initial.id ? "Save changes" : "Create announcement"}
           </button>
         </div>
@@ -147,6 +189,7 @@ function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<PreviewAnnouncement[]>(previewAnnouncements);
   const [composer, setComposer] = useState<ComposerState | null>(null);
   const [previewItem, setPreviewItem] = useState<PreviewAnnouncement | null>(null);
+  const [filter, setFilter] = useState<StatusFilter>("all");
 
   const handleSave = (saved: PreviewAnnouncement) => {
     // Local state only — explicitly NOT a backend write.
@@ -160,122 +203,150 @@ function AnnouncementsPage() {
     setComposer(null);
   };
 
+  const counts = useMemo(() => {
+    const result: Record<string, number> = { all: announcements.length };
+    STATUSES.forEach((status) => {
+      result[status] = announcements.filter((item) => item.status === status).length;
+    });
+    return result;
+  }, [announcements]);
+
+  const visible = announcements.filter((item) => filter === "all" || item.status === filter);
+
   return (
     <AdminLayout activePage="announcements">
-      <div className="adm-page-head">
-        <div>
-          <h2 className="adm-page-head__title">Announcements</h2>
-          <p className="adm-page-head__sub">
-            Draft, schedule and preview platform announcements. Saving here updates this page only —
-            announcements are not actually published or delivered.
-          </p>
-        </div>
-        <div className="adm-page-actions">
-          <button
-            type="button"
-            className="adm-btn adm-btn--primary"
-            onClick={() => setComposer({ id: null, title: "", body: "", status: "Draft" })}
-          >
-            <Plus size={15} />
-            Create Announcement
-          </button>
-        </div>
-      </div>
-
-      <PreviewDataNotice />
-
-      <div className="adm-announcements-list">
-        {announcements.map((announcement) => (
-          <article key={announcement.id} className="adm-announcement">
-            <div style={{ minWidth: 0 }}>
-              <h3 className="adm-announcement__title">{announcement.title}</h3>
-              <p className="adm-announcement__body">{announcement.body}</p>
-              <div className="adm-announcement__meta">
-                <StatusBadge status={announcement.status} />
-                <span>
-                  {announcement.publishedDate
-                    ? `Published ${formatRelativeTime(announcement.publishedDate)}`
-                    : `Created ${formatDate(announcement.createdDate)}`}
-                </span>
-                <span>by {announcement.author}</span>
-              </div>
-            </div>
-            <div className="adm-announcement__actions">
-              <button
-                type="button"
-                className="adm-btn adm-btn--sm"
-                onClick={() => setPreviewItem(announcement)}
-              >
-                Preview
-              </button>
-              <button
-                type="button"
-                className="adm-btn adm-btn--sm"
-                onClick={() =>
-                  setComposer({
-                    id: announcement.id,
-                    title: announcement.title,
-                    body: announcement.body,
-                    status: announcement.status,
-                  })
-                }
-              >
-                Edit
-              </button>
-            </div>
-          </article>
-        ))}
-      </div>
-
-      {composer ? (
-        <ComposerModal
-          initial={composer}
-          adminUsername={admin?.username ?? "admin"}
-          onClose={() => setComposer(null)}
-          onSave={handleSave}
-        />
-      ) : null}
-
-      {previewItem ? (
-        <AdminModal
-          title="Announcement preview"
-          subtitle="How this announcement would appear to players."
-          onClose={() => setPreviewItem(null)}
-          footer={
-            <button type="button" className="adm-btn" onClick={() => setPreviewItem(null)}>
-              Close
+      <PageShell>
+        <PageHeader
+          title="Announcements"
+          icon={<Megaphone />}
+          subtitle="Draft, schedule and preview platform announcements. Saving here updates this page only — announcements are not actually published or delivered."
+          actions={
+            <button
+              type="button"
+              className="adk-btn adk-btn--primary"
+              onClick={() => setComposer({ id: null, title: "", body: "", status: "Draft" })}
+            >
+              <Plus size={16} aria-hidden="true" />
+              Create Announcement
             </button>
           }
-        >
-          <div className="adm-ann-preview">
-            <span className="adm-ann-preview__kicker">Arcadia announcement</span>
-            <h4 className="adm-ann-preview__title">{previewItem.title}</h4>
-            <p className="adm-ann-preview__body">{previewItem.body}</p>
+        />
+
+        <PreviewDataNotice />
+
+        <FilterTabs<StatusFilter>
+          label="Filter announcements by status"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: "all", label: "All", count: counts.all },
+            ...STATUSES.map((status) => ({
+              value: status as StatusFilter,
+              label: status,
+              count: counts[status],
+              tone: toneForStatus(status),
+            })),
+          ]}
+        />
+
+        {visible.length === 0 ? (
+          <EmptyState
+            icon={<Megaphone size={24} />}
+            title="No announcements here"
+            hint="Nothing matches this filter yet."
+          />
+        ) : (
+          <div className="adp-announcements">
+            {visible.map((announcement) => (
+              <article
+                key={announcement.id}
+                className={`adp-announcement adp-tone-${toneForStatus(announcement.status)}`}
+              >
+                <div className="adp-announcement__main">
+                  <div className="adp-announcement__top">
+                    <h3 className="adp-announcement__title">{announcement.title}</h3>
+                    <StatusBadge status={announcement.status} />
+                  </div>
+                  <p className="adp-announcement__body">{announcement.body}</p>
+                  <div className="adp-announcement__meta">
+                    <span>
+                      {announcement.publishedDate
+                        ? `Published ${formatRelativeTime(announcement.publishedDate)}`
+                        : `Created ${formatDate(announcement.createdDate)}`}
+                    </span>
+                    <span className="adp-dot" aria-hidden="true" />
+                    <span>by {announcement.author}</span>
+                    <Chip tone="neutral">{announcement.id}</Chip>
+                  </div>
+                </div>
+                <div className="adp-announcement__actions">
+                  <button
+                    type="button"
+                    className="adk-btn adk-btn--sm"
+                    onClick={() => setPreviewItem(announcement)}
+                  >
+                    <Eye size={14} aria-hidden="true" />
+                    Preview
+                  </button>
+                  <button
+                    type="button"
+                    className="adk-btn adk-btn--sm"
+                    onClick={() =>
+                      setComposer({
+                        id: announcement.id,
+                        title: announcement.title,
+                        body: announcement.body,
+                        status: announcement.status,
+                      })
+                    }
+                  >
+                    <Pencil size={14} aria-hidden="true" />
+                    Edit
+                  </button>
+                </div>
+              </article>
+            ))}
           </div>
-          <div className="adm-kv-grid" style={{ marginTop: 16 }}>
-            <div className="adm-kv">
-              <span className="adm-kv__label">Status</span>
-              <span className="adm-kv__value">
-                <StatusBadge status={previewItem.status} />
-              </span>
-            </div>
-            <div className="adm-kv">
-              <span className="adm-kv__label">Author</span>
-              <span className="adm-kv__value">{previewItem.author}</span>
-            </div>
-            <div className="adm-kv">
-              <span className="adm-kv__label">Created</span>
-              <span className="adm-kv__value">{formatDate(previewItem.createdDate)}</span>
-            </div>
-            <div className="adm-kv">
-              <span className="adm-kv__label">Published</span>
-              <span className="adm-kv__value">
-                {previewItem.publishedDate ? formatDate(previewItem.publishedDate) : "Not published"}
-              </span>
-            </div>
-          </div>
-        </AdminModal>
-      ) : null}
+        )}
+
+        {composer ? (
+          <ComposerModal
+            initial={composer}
+            adminUsername={admin?.username ?? "admin"}
+            onClose={() => setComposer(null)}
+            onSave={handleSave}
+          />
+        ) : null}
+
+        {previewItem ? (
+          <AdminModal
+            title="Announcement preview"
+            subtitle="How this announcement would appear to players."
+            onClose={() => setPreviewItem(null)}
+            footer={
+              <button type="button" className="adk-btn" onClick={() => setPreviewItem(null)}>
+                Close
+              </button>
+            }
+          >
+            <AnnouncementPreview title={previewItem.title} body={previewItem.body} />
+
+            <SectionTitle>Details</SectionTitle>
+            <KeyValueGrid
+              items={[
+                { label: "Status", value: <StatusBadge status={previewItem.status} /> },
+                { label: "Author", value: previewItem.author },
+                { label: "Created", value: formatDate(previewItem.createdDate) },
+                {
+                  label: "Published",
+                  value: previewItem.publishedDate ? formatDate(previewItem.publishedDate) : "Not published",
+                },
+              ]}
+            />
+            <Note tone="blue">This is a preview only. Nothing has been sent to players.</Note>
+          </AdminModal>
+        ) : null}
+      </PageShell>
     </AdminLayout>
   );
 }

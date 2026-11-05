@@ -1,18 +1,36 @@
 /*
- * Player Reports — reports table with a Report Details modal.
+ * Player Reports — reports table with status tabs and a Report Details modal.
  *
  * Preview data only; resolution actions are display placeholders pending a
  * future moderation backend.
  */
 
 import { useMemo, useState } from "react";
+import { Flag, ShieldAlert, User } from "lucide-react";
 import AdminLayout from "../components/AdminLayout";
 import AdminModal from "../components/AdminModal";
 import { PreviewDataNotice, StatusBadge } from "../components/AdminDisplay";
+import {
+  Chip,
+  DetailText,
+  EmptyState,
+  FilterTabs,
+  KeyValueGrid,
+  Note,
+  PageHeader,
+  PageShell,
+  Person,
+  SectionTitle,
+  toneForStatus,
+} from "../components/AdminKit";
 import { previewReports } from "../data/previewData";
 import { formatDate, formatRelativeTime } from "../utils/formatters";
 import type { PreviewReport } from "../types/adminTypes";
-import "./ListPages.css";
+import "./AdminPages.css";
+
+type StatusFilter = "all" | PreviewReport["status"];
+
+const STATUSES: Array<PreviewReport["status"]> = ["Open", "Under Review", "Resolved", "Dismissed"];
 
 function ReportDetailsModal({ report, onClose }: { report: PreviewReport; onClose: () => void }) {
   return (
@@ -23,58 +41,78 @@ function ReportDetailsModal({ report, onClose }: { report: PreviewReport; onClos
       wide
       footer={
         <>
-          <button type="button" className="adm-btn" onClick={onClose}>
+          <button type="button" className="adk-btn" onClick={onClose}>
             Close
           </button>
-          <button type="button" className="adm-btn adm-btn--primary" disabled title="Requires backend integration and authorization">
+          <button
+            type="button"
+            className="adk-btn adk-btn--primary"
+            disabled
+            title="Requires backend integration and authorization"
+          >
             Resolve report
           </button>
         </>
       }
     >
-      <div className="adm-kv-grid">
-        <div className="adm-kv">
-          <span className="adm-kv__label">Reported player</span>
-          <span className="adm-kv__value">
-            {report.reportedPlayer.displayName} <span className="adm-mono">({report.reportedPlayer.playerId})</span>
+      <div className="adp-people">
+        <div className="adp-people__card adp-people__card--reported">
+          <span className="adp-people__label">
+            <ShieldAlert size={13} aria-hidden="true" />
+            Reported player
           </span>
+          <Person
+            name={report.reportedPlayer.displayName}
+            sub={<span className="adk-mono">{report.reportedPlayer.playerId}</span>}
+            tone="rose"
+            size="lg"
+          />
         </div>
-        <div className="adm-kv">
-          <span className="adm-kv__label">Reporting player</span>
-          <span className="adm-kv__value">
-            {report.reportingPlayer.displayName} <span className="adm-mono">({report.reportingPlayer.playerId})</span>
+        <div className="adp-people__card">
+          <span className="adp-people__label">
+            <User size={13} aria-hidden="true" />
+            Reported by
           </span>
-        </div>
-        <div className="adm-kv">
-          <span className="adm-kv__label">Reason</span>
-          <span className="adm-kv__value">{report.reason}</span>
-        </div>
-        <div className="adm-kv">
-          <span className="adm-kv__label">Submitted</span>
-          <span className="adm-kv__value">{formatDate(report.submittedDate)}</span>
-        </div>
-        <div className="adm-kv">
-          <span className="adm-kv__label">Status</span>
-          <span className="adm-kv__value">
-            <StatusBadge status={report.status} />
-          </span>
+          <Person
+            name={report.reportingPlayer.displayName}
+            sub={<span className="adk-mono">{report.reportingPlayer.playerId}</span>}
+            tone="blue"
+            size="lg"
+          />
         </div>
       </div>
 
-      <h4 className="adm-modal__section-title">Report details</h4>
-      <p className="lp-detail-text">{report.details}</p>
+      <SectionTitle>Overview</SectionTitle>
+      <KeyValueGrid
+        items={[
+          { label: "Reason", value: report.reason },
+          { label: "Submitted", value: formatDate(report.submittedDate) },
+          { label: "Status", value: <StatusBadge status={report.status} /> },
+        ]}
+      />
 
-      <p className="lp-note">
+      <SectionTitle>Report details</SectionTitle>
+      <DetailText>{report.details}</DetailText>
+
+      <Note>
         Resolution actions are disabled in this preview. Acting on reports requires a future
         moderation backend and explicit authorization.
-      </p>
+      </Note>
     </AdminModal>
   );
 }
 
 function ReportsPage() {
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [selectedReport, setSelectedReport] = useState<PreviewReport | null>(null);
+
+  const counts = useMemo(() => {
+    const result: Record<string, number> = { all: previewReports.length };
+    STATUSES.forEach((status) => {
+      result[status] = previewReports.filter((report) => report.status === status).length;
+    });
+    return result;
+  }, []);
 
   const filteredReports = useMemo(
     () => previewReports.filter((report) => statusFilter === "all" || report.status === statusFilter),
@@ -83,86 +121,105 @@ function ReportsPage() {
 
   return (
     <AdminLayout activePage="reports">
-      <div className="adm-page-head">
-        <div>
-          <h2 className="adm-page-head__title">Player Reports</h2>
-          <p className="adm-page-head__sub">
-            Player-submitted reports awaiting review. Click a row for the full report.
-          </p>
-        </div>
-      </div>
+      <PageShell>
+        <PageHeader
+          title="Player Reports"
+          icon={<Flag />}
+          subtitle="Player-submitted reports awaiting review. Click a row for the full report."
+          actions={
+            <Chip tone="amber" dot>
+              {counts.Open + counts["Under Review"]} need attention
+            </Chip>
+          }
+        />
 
-      <PreviewDataNotice />
+        <PreviewDataNotice />
 
-      <div className="adm-toolbar">
-        <select
-          className="adm-select adm-toolbar__filter"
+        <FilterTabs<StatusFilter>
+          label="Filter reports by status"
           value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
-          aria-label="Filter reports by status"
-        >
-          <option value="all">All statuses</option>
-          <option value="Open">Open</option>
-          <option value="Under Review">Under Review</option>
-          <option value="Resolved">Resolved</option>
-          <option value="Dismissed">Dismissed</option>
-        </select>
-      </div>
+          onChange={setStatusFilter}
+          options={[
+            { value: "all", label: "All", count: counts.all },
+            ...STATUSES.map((status) => ({
+              value: status as StatusFilter,
+              label: status,
+              count: counts[status],
+              tone: toneForStatus(status),
+            })),
+          ]}
+        />
 
-      <div className="adm-table-wrap">
-        <table className="adm-table">
-          <thead>
-            <tr>
-              <th>Report</th>
-              <th>Reported Player</th>
-              <th>Reporting Player</th>
-              <th>Reason</th>
-              <th>Submission Date</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredReports.map((report) => (
-              <tr
-                key={report.id}
-                className="adm-table__row--interactive"
-                tabIndex={0}
-                role="button"
-                aria-label={`Open report ${report.id}`}
-                onClick={() => setSelectedReport(report)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    setSelectedReport(report);
-                  }
-                }}
-              >
-                <td>
-                  <span className="adm-mono">{report.id}</span>
-                </td>
-                <td className="adm-table__cell-strong">{report.reportedPlayer.username}</td>
-                <td>{report.reportingPlayer.username}</td>
-                <td>{report.reason}</td>
-                <td>{formatDate(report.submittedDate)}</td>
-                <td>
-                  <StatusBadge status={report.status} />
-                </td>
-              </tr>
-            ))}
-            {filteredReports.length === 0 ? (
+        <div className="adk-table-wrap">
+          <table className="adk-table">
+            <thead>
               <tr>
-                <td colSpan={6}>
-                  <div className="adm-empty">No reports match this filter.</div>
-                </td>
+                <th>Report</th>
+                <th>Reported Player</th>
+                <th>Reporting Player</th>
+                <th>Reason</th>
+                <th>Submitted</th>
+                <th>Status</th>
               </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filteredReports.map((report) => (
+                <tr
+                  key={report.id}
+                  className="adk-table__row--interactive"
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Open report ${report.id}`}
+                  onClick={() => setSelectedReport(report)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedReport(report);
+                    }
+                  }}
+                >
+                  <td>
+                    <span className="adk-mono">{report.id}</span>
+                  </td>
+                  <td>
+                    <Person
+                      name={report.reportedPlayer.username}
+                      sub={<span className="adk-mono">{report.reportedPlayer.playerId}</span>}
+                      tone="rose"
+                      size="sm"
+                    />
+                  </td>
+                  <td>
+                    <Person name={report.reportingPlayer.username} tone="blue" size="sm" />
+                  </td>
+                  <td>
+                    <Chip tone="violet">{report.reason}</Chip>
+                  </td>
+                  <td>{formatDate(report.submittedDate)}</td>
+                  <td>
+                    <StatusBadge status={report.status} />
+                  </td>
+                </tr>
+              ))}
+              {filteredReports.length === 0 ? (
+                <tr>
+                  <td colSpan={6}>
+                    <EmptyState
+                      icon={<Flag size={24} />}
+                      title="No reports here"
+                      hint="No reports match this filter."
+                    />
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
 
-      {selectedReport ? (
-        <ReportDetailsModal report={selectedReport} onClose={() => setSelectedReport(null)} />
-      ) : null}
+        {selectedReport ? (
+          <ReportDetailsModal report={selectedReport} onClose={() => setSelectedReport(null)} />
+        ) : null}
+      </PageShell>
     </AdminLayout>
   );
 }

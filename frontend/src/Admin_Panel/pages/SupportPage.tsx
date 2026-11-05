@@ -1,22 +1,35 @@
 /*
- * Help & Support — support request list with a Request Details modal.
- * Preview data only.
+ * Help & Support — support request list with status tabs and a Request
+ * Details modal. Preview data only.
  */
 
 import { useMemo, useState } from "react";
+import { LifeBuoy, Mail } from "lucide-react";
 import AdminLayout from "../components/AdminLayout";
 import AdminModal from "../components/AdminModal";
 import { PreviewDataNotice, StatusBadge } from "../components/AdminDisplay";
+import {
+  Avatar,
+  Chip,
+  EmptyState,
+  FilterTabs,
+  KeyValueGrid,
+  Note,
+  PageHeader,
+  PageShell,
+  Person,
+  SectionTitle,
+  toneForPriority,
+  toneForStatus,
+} from "../components/AdminKit";
 import { previewSupportRequests } from "../data/previewData";
 import { formatDate } from "../utils/formatters";
 import type { PreviewSupportRequest } from "../types/adminTypes";
-import "./ListPages.css";
+import "./AdminPages.css";
 
-const PRIORITY_TONES: Record<string, string> = {
-  High: "adm-badge--danger",
-  Normal: "adm-badge--info",
-  Low: "adm-badge--neutral",
-};
+type StatusFilter = "all" | PreviewSupportRequest["status"];
+
+const STATUSES: Array<PreviewSupportRequest["status"]> = ["New", "In Progress", "Resolved", "Closed"];
 
 function RequestDetailsModal({
   request,
@@ -33,59 +46,73 @@ function RequestDetailsModal({
       wide
       footer={
         <>
-          <button type="button" className="adm-btn" onClick={onClose}>
+          <button type="button" className="adk-btn" onClick={onClose}>
             Close
           </button>
-          <button type="button" className="adm-btn adm-btn--primary" disabled title="Requires backend integration">
+          <button
+            type="button"
+            className="adk-btn adk-btn--primary"
+            disabled
+            title="Requires backend integration"
+          >
             Mark resolved
           </button>
         </>
       }
     >
-      <div className="adm-kv-grid">
-        <div className="adm-kv">
-          <span className="adm-kv__label">User</span>
-          <span className="adm-kv__value">{request.user.username}</span>
-        </div>
-        <div className="adm-kv">
-          <span className="adm-kv__label">Player ID</span>
-          <span className="adm-kv__value">
-            <span className="adm-mono">{request.user.playerId}</span>
-          </span>
-        </div>
-        <div className="adm-kv">
-          <span className="adm-kv__label">Email</span>
-          <span className="adm-kv__value">{request.user.email}</span>
-        </div>
-        <div className="adm-kv">
-          <span className="adm-kv__label">Category</span>
-          <span className="adm-kv__value">{request.category}</span>
-        </div>
-        <div className="adm-kv">
-          <span className="adm-kv__label">Submitted</span>
-          <span className="adm-kv__value">{formatDate(request.submittedDate)}</span>
-        </div>
-        <div className="adm-kv">
-          <span className="adm-kv__label">Status</span>
-          <span className="adm-kv__value">
+      <div className="adk-identity-head">
+        <Avatar name={request.user.username} size="lg" />
+        <div>
+          <div className="adk-identity-head__row">
+            <strong>{request.user.username}</strong>
+            <Chip tone={toneForPriority(request.priority)} dot>
+              {request.priority} priority
+            </Chip>
             <StatusBadge status={request.status} />
+          </div>
+          <span className="adk-identity-head__meta">
+            <span className="adk-mono">{request.user.playerId}</span>
           </span>
         </div>
       </div>
 
-      <h4 className="adm-modal__section-title">Message</h4>
-      <p className="lp-detail-text">{request.message}</p>
+      <SectionTitle>Request</SectionTitle>
+      <KeyValueGrid
+        items={[
+          { label: "Email", value: request.user.email },
+          { label: "Category", value: request.category },
+          { label: "Submitted", value: formatDate(request.submittedDate) },
+        ]}
+      />
 
-      <p className="lp-note">
-        Reply and status-change actions are disabled in this preview pending a support backend.
-      </p>
+      <SectionTitle>Message</SectionTitle>
+      <div className="adp-message">
+        <Avatar name={request.user.username} size="sm" />
+        <div className="adp-message__bubble">
+          <div className="adp-message__meta">
+            <strong>{request.user.username}</strong>
+            <span>{formatDate(request.submittedDate)}</span>
+          </div>
+          <p>{request.message}</p>
+        </div>
+      </div>
+
+      <Note>Reply and status-change actions are disabled in this preview pending a support backend.</Note>
     </AdminModal>
   );
 }
 
 function SupportPage() {
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [selectedRequest, setSelectedRequest] = useState<PreviewSupportRequest | null>(null);
+
+  const counts = useMemo(() => {
+    const result: Record<string, number> = { all: previewSupportRequests.length };
+    STATUSES.forEach((status) => {
+      result[status] = previewSupportRequests.filter((request) => request.status === status).length;
+    });
+    return result;
+  }, []);
 
   const filteredRequests = useMemo(
     () =>
@@ -97,94 +124,103 @@ function SupportPage() {
 
   return (
     <AdminLayout activePage="support">
-      <div className="adm-page-head">
-        <div>
-          <h2 className="adm-page-head__title">Help &amp; Support</h2>
-          <p className="adm-page-head__sub">
-            Support requests submitted by players. Click a row for the full request.
-          </p>
-        </div>
-      </div>
+      <PageShell>
+        <PageHeader
+          title="Help & Support"
+          icon={<LifeBuoy />}
+          subtitle="Support requests submitted by players. Click a row for the full request."
+          actions={
+            <Chip tone="blue" dot icon={<Mail size={13} />}>
+              {counts.New} new
+            </Chip>
+          }
+        />
 
-      <PreviewDataNotice />
+        <PreviewDataNotice />
 
-      <div className="adm-toolbar">
-        <select
-          className="adm-select adm-toolbar__filter"
+        <FilterTabs<StatusFilter>
+          label="Filter support requests by status"
           value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
-          aria-label="Filter support requests by status"
-        >
-          <option value="all">All statuses</option>
-          <option value="New">New</option>
-          <option value="In Progress">In Progress</option>
-          <option value="Resolved">Resolved</option>
-          <option value="Closed">Closed</option>
-        </select>
-      </div>
+          onChange={setStatusFilter}
+          options={[
+            { value: "all", label: "All", count: counts.all },
+            ...STATUSES.map((status) => ({
+              value: status as StatusFilter,
+              label: status,
+              count: counts[status],
+              tone: toneForStatus(status),
+            })),
+          ]}
+        />
 
-      <div className="adm-table-wrap">
-        <table className="adm-table">
-          <thead>
-            <tr>
-              <th>Request</th>
-              <th>User</th>
-              <th>Subject / Category</th>
-              <th>Priority</th>
-              <th>Submission Date</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRequests.map((request) => (
-              <tr
-                key={request.id}
-                className="adm-table__row--interactive"
-                tabIndex={0}
-                role="button"
-                aria-label={`Open support request ${request.id}`}
-                onClick={() => setSelectedRequest(request)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    setSelectedRequest(request);
-                  }
-                }}
-              >
-                <td>
-                  <span className="adm-mono">{request.id}</span>
-                </td>
-                <td className="adm-table__cell-strong">{request.user.username}</td>
-                <td>
-                  {request.subject}
-                  <br />
-                  <span className="lp-sub">{request.category}</span>
-                </td>
-                <td>
-                  <span className={`adm-badge ${PRIORITY_TONES[request.priority] ?? "adm-badge--neutral"}`}>
-                    {request.priority}
-                  </span>
-                </td>
-                <td>{formatDate(request.submittedDate)}</td>
-                <td>
-                  <StatusBadge status={request.status} />
-                </td>
-              </tr>
-            ))}
-            {filteredRequests.length === 0 ? (
+        <div className="adk-table-wrap">
+          <table className="adk-table">
+            <thead>
               <tr>
-                <td colSpan={6}>
-                  <div className="adm-empty">No support requests match this filter.</div>
-                </td>
+                <th>Request</th>
+                <th>User</th>
+                <th>Subject / Category</th>
+                <th>Priority</th>
+                <th>Submitted</th>
+                <th>Status</th>
               </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filteredRequests.map((request) => (
+                <tr
+                  key={request.id}
+                  className="adk-table__row--interactive"
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Open support request ${request.id}`}
+                  onClick={() => setSelectedRequest(request)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedRequest(request);
+                    }
+                  }}
+                >
+                  <td>
+                    <span className="adk-mono">{request.id}</span>
+                  </td>
+                  <td>
+                    <Person name={request.user.username} size="sm" />
+                  </td>
+                  <td>
+                    <span className="adk-table__strong">{request.subject}</span>
+                    <span className="adk-table__sub">{request.category}</span>
+                  </td>
+                  <td>
+                    <Chip tone={toneForPriority(request.priority)} dot>
+                      {request.priority}
+                    </Chip>
+                  </td>
+                  <td>{formatDate(request.submittedDate)}</td>
+                  <td>
+                    <StatusBadge status={request.status} />
+                  </td>
+                </tr>
+              ))}
+              {filteredRequests.length === 0 ? (
+                <tr>
+                  <td colSpan={6}>
+                    <EmptyState
+                      icon={<LifeBuoy size={24} />}
+                      title="No requests here"
+                      hint="No support requests match this filter."
+                    />
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
 
-      {selectedRequest ? (
-        <RequestDetailsModal request={selectedRequest} onClose={() => setSelectedRequest(null)} />
-      ) : null}
+        {selectedRequest ? (
+          <RequestDetailsModal request={selectedRequest} onClose={() => setSelectedRequest(null)} />
+        ) : null}
+      </PageShell>
     </AdminLayout>
   );
 }

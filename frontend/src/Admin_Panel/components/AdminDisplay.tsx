@@ -4,6 +4,7 @@
  */
 
 import type { ReactNode } from "react";
+import { FlaskConical } from "lucide-react";
 import type { PreviewAccountStatus, PreviewBadge } from "../types/adminTypes";
 import { PREVIEW_DATA_NOTICE } from "../data/previewData";
 import { usePanelPreferences } from "../hooks/panelPreferences";
@@ -69,7 +70,9 @@ export function PreviewDataNotice() {
   if (!showPreviewNotices) return null;
   return (
     <div className="adm-preview-notice" role="note">
-      <span aria-hidden="true">🧪</span>
+      <span className="adm-preview-notice__icon" aria-hidden="true">
+        <FlaskConical size={16} />
+      </span>
       <span>{PREVIEW_DATA_NOTICE}</span>
     </div>
   );

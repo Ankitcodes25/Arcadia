@@ -6,6 +6,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 import { acquireModalScrollLock } from "../../auth/modalScrollLock";
 
 interface AdminModalProps {
@@ -48,7 +49,7 @@ function AdminModal({ title, subtitle, onClose, children, footer, wide }: AdminM
             {subtitle ? <p className="adm-modal__subtitle">{subtitle}</p> : null}
           </div>
           <button type="button" className="adm-modal__close" aria-label="Close dialog" onClick={onClose}>
-            ×
+            <X size={18} aria-hidden="true" />
           </button>
         </header>
         <div className="adm-modal__body">{children}</div>

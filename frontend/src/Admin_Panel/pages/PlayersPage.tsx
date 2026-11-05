@@ -29,12 +29,22 @@ import {
   Flame,
   RotateCcw,
   Search,
+  Users,
   X,
   Zap,
 } from "lucide-react";
 import AdminLayout from "../components/AdminLayout";
 import AdminModal from "../components/AdminModal";
 import { StatusBadge, TierBadge } from "../components/AdminDisplay";
+import {
+  Avatar,
+  Chip,
+  KeyValueGrid,
+  Note,
+  PageHeader,
+  PageShell,
+  SectionTitle,
+} from "../components/AdminKit";
 import { previewPlayers } from "../data/previewData";
 import { formatDate, formatNumber, formatRelativeTime } from "../utils/formatters";
 import type { PreviewPlayer } from "../types/adminTypes";
@@ -171,29 +181,27 @@ function PlayerDetailsModal({ player, onClose }: { player: AdminPlayer; onClose:
       onClose={onClose}
       wide
       footer={
-        <button type="button" className="adm-btn" onClick={onClose}>
+        <button type="button" className="adk-btn" onClick={onClose}>
           Close
         </button>
       }
     >
-      <div className="plm-identity">
-        <span className="adm-avatar plm-identity__avatar" aria-hidden="true">
-          {player.avatar}
-        </span>
+      <div className="adk-identity-head">
+        <Avatar name={name} size="lg" />
         <div>
-          <div className="plm-identity__row">
+          <div className="adk-identity-head__row">
             <strong>{name}</strong>
             <TierBadge badge={player.badge} />
             <StatusBadge status={player.status} />
           </div>
-          <span className="plm-identity__meta">
-            @{player.username} · <span className="adm-mono">{player.playerId}</span>
+          <span className="adk-identity-head__meta">
+            @{player.username} · <span className="adk-mono">{player.playerId}</span>
           </span>
         </div>
       </div>
 
-      <h4 className="adm-modal__section-title">Progression</h4>
-      <div className="adm-xp-row">
+      <SectionTitle>Progression</SectionTitle>
+      <div className="adk-row-between">
         <span>
           Level <strong>{player.level}</strong>
         </span>
@@ -201,80 +209,64 @@ function PlayerDetailsModal({ player, onClose }: { player: AdminPlayer; onClose:
           <strong>{formatNumber(player.xpIntoLevel)}</strong> / {formatNumber(player.xpPerLevel)} XP to next level
         </span>
       </div>
-      <div className="adm-progress" role="progressbar" aria-valuenow={xpPercent} aria-valuemin={0} aria-valuemax={100}>
-        <div className="adm-progress__fill" style={{ width: `${xpPercent}%` }} />
+      <div className="adk-progress" role="progressbar" aria-valuenow={xpPercent} aria-valuemin={0} aria-valuemax={100}>
+        <span style={{ width: `${xpPercent}%` }} />
       </div>
-      <div className="adm-xp-row" style={{ marginTop: 6 }}>
+      <div className="adk-row-between" style={{ marginTop: 8, marginBottom: 0 }}>
         <span>
           Total XP: <strong>{formatNumber(player.totalXp)}</strong>
         </span>
       </div>
 
-      <h4 className="adm-modal__section-title">Gaming statistics</h4>
-      <div className="adm-mini-stats">
-        <div className="adm-mini-stat">
-          <span className="adm-mini-stat__label">Matches</span>
-          <span className="adm-mini-stat__value">{formatNumber(player.stats.matchesPlayed)}</span>
+      <SectionTitle>Gaming statistics</SectionTitle>
+      <div className="adk-mini-stats">
+        <div className="adk-mini-stat">
+          <span className="adk-mini-stat__label">Matches</span>
+          <span className="adk-mini-stat__value">{formatNumber(player.stats.matchesPlayed)}</span>
         </div>
-        <div className="adm-mini-stat">
-          <span className="adm-mini-stat__label">Wins</span>
-          <span className="adm-mini-stat__value">{formatNumber(player.stats.wins)}</span>
+        <div className="adk-mini-stat">
+          <span className="adk-mini-stat__label">Wins</span>
+          <span className="adk-mini-stat__value">{formatNumber(player.stats.wins)}</span>
         </div>
-        <div className="adm-mini-stat">
-          <span className="adm-mini-stat__label">Losses</span>
-          <span className="adm-mini-stat__value">{formatNumber(player.stats.losses)}</span>
+        <div className="adk-mini-stat">
+          <span className="adk-mini-stat__label">Losses</span>
+          <span className="adk-mini-stat__value">{formatNumber(player.stats.losses)}</span>
         </div>
-        <div className="adm-mini-stat">
-          <span className="adm-mini-stat__label">Draws</span>
-          <span className="adm-mini-stat__value">{formatNumber(player.stats.draws)}</span>
+        <div className="adk-mini-stat">
+          <span className="adk-mini-stat__label">Draws</span>
+          <span className="adk-mini-stat__value">{formatNumber(player.stats.draws)}</span>
         </div>
-        <div className="adm-mini-stat">
-          <span className="adm-mini-stat__label">Win rate</span>
-          <span className="adm-mini-stat__value">{player.stats.winRate}%</span>
+        <div className="adk-mini-stat">
+          <span className="adk-mini-stat__label">Win rate</span>
+          <span className="adk-mini-stat__value">{player.stats.winRate}%</span>
         </div>
-        <div className="adm-mini-stat">
-          <span className="adm-mini-stat__label">Favourite</span>
-          <span className="adm-mini-stat__value">{player.stats.favoriteGame}</span>
-        </div>
-      </div>
-
-      <h4 className="adm-modal__section-title">Account</h4>
-      <div className="adm-kv-grid">
-        <div className="adm-kv">
-          <span className="adm-kv__label">Status</span>
-          <span className="adm-kv__value">
-            <StatusBadge status={player.status} />
-          </span>
-        </div>
-        <div className="adm-kv">
-          <span className="adm-kv__label">Joined</span>
-          <span className="adm-kv__value">{formatDate(player.joinedDate)}</span>
-        </div>
-        <div className="adm-kv">
-          <span className="adm-kv__label">Last active</span>
-          <span className="adm-kv__value">{formatRelativeTime(player.lastActive)}</span>
+        <div className="adk-mini-stat">
+          <span className="adk-mini-stat__label">Favourite</span>
+          <span className="adk-mini-stat__value">{player.stats.favoriteGame}</span>
         </div>
       </div>
 
-      <h4 className="adm-modal__section-title">Moderation</h4>
-      <div className="adm-kv-grid">
-        <div className="adm-kv">
-          <span className="adm-kv__label">Warnings</span>
-          <span className="adm-kv__value">{player.moderation.warnings}</span>
-        </div>
-        <div className="adm-kv">
-          <span className="adm-kv__label">Reports against</span>
-          <span className="adm-kv__value">{player.moderation.reportsAgainst}</span>
-        </div>
-        <div className="adm-kv">
-          <span className="adm-kv__label">Last action</span>
-          <span className="adm-kv__value">{player.moderation.lastAction ?? "None"}</span>
-        </div>
-      </div>
-      <p className="plm-note">
+      <SectionTitle>Account</SectionTitle>
+      <KeyValueGrid
+        items={[
+          { label: "Status", value: <StatusBadge status={player.status} /> },
+          { label: "Joined", value: formatDate(player.joinedDate) },
+          { label: "Last active", value: formatRelativeTime(player.lastActive) },
+        ]}
+      />
+
+      <SectionTitle>Moderation</SectionTitle>
+      <KeyValueGrid
+        items={[
+          { label: "Warnings", value: player.moderation.warnings },
+          { label: "Reports against", value: player.moderation.reportsAgainst },
+          { label: "Last action", value: player.moderation.lastAction ?? "None" },
+        ]}
+      />
+      <Note>
         Moderation actions are display-only in this preview. Suspension, deletion or banning requires
         a future backend integration and explicit authorization.
-      </p>
+      </Note>
     </AdminModal>
   );
 }
@@ -355,6 +347,15 @@ function PlayersPage() {
 
   const hasFilters = search.trim() !== "" || statusFilter !== "all" || levelFilter !== "all";
 
+  const summary = useMemo(() => {
+    const all = previewPlayers as AdminPlayer[];
+    return {
+      total: all.length,
+      active: all.filter((player) => player.status === "Active").length,
+      suspended: all.filter((player) => player.status === "Suspended").length,
+    };
+  }, []);
+
   const clearFilters = () => {
     setSearch("");
     setStatusFilter("all");
@@ -389,14 +390,25 @@ function PlayersPage() {
 
   return (
     <AdminLayout activePage="players">
-      <div className="adm-page-head">
-        <div>
-          <h2 className="adm-page-head__title">All Players</h2>
-          <p className="adm-page-head__sub">
-            Search and review Arcadia player accounts. Click a row to open full player details.
-          </p>
-        </div>
-      </div>
+      <PageShell>
+      <PageHeader
+        title="All Players"
+        icon={<Users />}
+        subtitle="Search and review Arcadia player accounts. Click a row to open full player details."
+        actions={
+          <>
+            <Chip tone="violet">{summary.total} players</Chip>
+            <Chip tone="green" dot>
+              {summary.active} active
+            </Chip>
+            {summary.suspended > 0 ? (
+              <Chip tone="rose" dot>
+                {summary.suspended} suspended
+              </Chip>
+            ) : null}
+          </>
+        }
+      />
 
       {/* Search + both filters + Clear: ek hi line me */}
       <div className="plp-toolbar" role="search" ref={toolbarRef}>
@@ -509,7 +521,7 @@ function PlayersPage() {
                 <td>
                   <StatusBadge status={player.status} />
                 </td>
-                 <td>{formatDate(player.joinedDate)}</td>
+                <td>{formatDate(player.joinedDate)}</td>
               </tr>
             ))}
             {filteredPlayers.length === 0 ? (
@@ -526,6 +538,7 @@ function PlayersPage() {
       {selectedPlayer ? (
         <PlayerDetailsModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} />
       ) : null}
+      </PageShell>
     </AdminLayout>
   );
 }

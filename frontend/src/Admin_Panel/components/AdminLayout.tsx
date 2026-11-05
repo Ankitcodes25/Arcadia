@@ -12,6 +12,7 @@ import { useAdminAuth } from "../hooks/useAdminAuth";
 import { usePanelPreferences } from "../hooks/panelPreferences";
 import { navigateTo, requestLoginOnNextMount } from "../../lib/navigation";
 import "./AdminLayout.css";
+import "./Adminchrome.css"; // look of sidebar, topbar and modal; must stay after AdminLayout.css
 
 interface AdminLayoutProps {
   activePage: AdminPageKey;

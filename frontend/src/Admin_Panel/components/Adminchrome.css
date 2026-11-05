@@ -1,0 +1,482 @@
+/* ===========================================================
+   ADMIN CHROME
+   Look for the parts around the pages: sidebar, topbar, content
+   area, modal frame, badges and the preview notice.
+
+   Load it AFTER AdminLayout.css (AdminLayout.tsx imports it right
+   below that file), so these rules win. Only .adm-* classes are
+   used here, so nothing outside the Admin Panel is touched.
+   =========================================================== */
+
+/* ---------- shell: ambient background ---------- */
+
+.adm-shell {
+  --adm-sidebar-width: 260px;
+  --adm-topbar-height: 68px;
+
+  position: relative;
+  isolation: isolate;
+}
+
+.adm-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 50% at 88% -8%, rgba(150, 70, 255, 0.24), transparent 60%),
+    radial-gradient(ellipse 50% 45% at 8% 105%, rgba(80, 40, 190, 0.22), transparent 60%),
+    linear-gradient(180deg, #07020f 0%, #0b0418 100%);
+}
+
+/* ===========================================================
+   SIDEBAR
+   =========================================================== */
+
+.adm-sidebar {
+  border-right: 1px solid rgba(170, 100, 255, 0.18);
+  background:
+    radial-gradient(ellipse 120% 40% at 50% 0%, rgba(150, 70, 255, 0.16), transparent 70%),
+    linear-gradient(185deg, rgba(26, 11, 48, 0.97), rgba(9, 4, 19, 0.99));
+  box-shadow: 20px 0 60px rgba(0, 0, 0, 0.3);
+}
+
+.adm-sidebar__brand {
+  gap: 13px;
+  padding: 22px 22px 20px;
+  border-bottom: 1px solid rgba(170, 100, 255, 0.16);
+}
+
+.adm-sidebar__logo {
+  width: 40px;
+  height: 40px;
+  filter: drop-shadow(0 0 12px rgba(166, 64, 255, 0.6));
+}
+
+.adm-sidebar__brand-name {
+  font-size: 16px;
+  letter-spacing: 0.18em;
+}
+
+.adm-sidebar__brand-sub {
+  margin-top: 1px;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.adm-sidebar__section {
+  padding: 20px 24px 6px;
+  color: rgba(200, 175, 235, 0.55);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.adm-sidebar__nav {
+  gap: 4px;
+  padding: 8px 14px 14px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(190, 130, 255, 0.3) transparent;
+}
+
+.adm-sidebar__item {
+  position: relative;
+  gap: 13px;
+  padding: 11px 14px;
+  border-radius: 13px;
+  font-size: 14px;
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.adm-sidebar__item svg {
+  flex: none;
+  opacity: 0.8;
+  transition: color 0.16s ease, opacity 0.16s ease, filter 0.16s ease;
+}
+
+.adm-sidebar__item:hover {
+  background: rgba(190, 110, 255, 0.11);
+  transform: translateX(2px);
+}
+
+.adm-sidebar__item:hover svg {
+  opacity: 1;
+  color: #d9a9ff;
+}
+
+.adm-sidebar__item--active,
+.adm-sidebar__item--active:hover {
+  border-color: rgba(205, 125, 255, 0.4);
+  background: linear-gradient(135deg, rgba(180, 80, 255, 0.28), rgba(99, 49, 255, 0.18));
+  box-shadow: inset 0 0 20px rgba(166, 64, 255, 0.14), 0 8px 22px rgba(120, 50, 220, 0.2);
+  transform: none;
+}
+
+.adm-sidebar__item--active svg {
+  opacity: 1;
+  color: #e6c2ff;
+  filter: drop-shadow(0 0 6px rgba(215, 140, 255, 0.7));
+}
+
+/* glowing marker on the active item */
+.adm-sidebar__item--active::before {
+  content: "";
+  position: absolute;
+  top: 22%;
+  bottom: 22%;
+  left: -15px;
+  width: 4px;
+  border-radius: 0 6px 6px 0;
+  background: linear-gradient(180deg, #e3a0ff, #8a5cff);
+  box-shadow: 0 0 12px rgba(200, 110, 255, 0.9);
+}
+
+.adm-sidebar__footer {
+  gap: 4px;
+  padding: 16px 22px;
+  border-top: 1px solid rgba(170, 100, 255, 0.16);
+}
+
+.adm-sidebar__footer span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(220, 200, 245, 0.8);
+  font-weight: 700;
+}
+
+.adm-sidebar__footer span:first-child::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4fe3a0;
+  box-shadow: 0 0 10px #4fe3a0;
+}
+
+/* ===========================================================
+   TOPBAR
+   =========================================================== */
+
+.adm-topbar {
+  gap: 18px;
+  padding: 0 28px;
+  border-bottom: 1px solid rgba(170, 100, 255, 0.16);
+  background: rgba(10, 4, 20, 0.72);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  backdrop-filter: blur(18px) saturate(1.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.adm-topbar__crumb {
+  color: #c98bff;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+}
+
+.adm-topbar__title {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+}
+
+.adm-topbar__right {
+  gap: 14px;
+}
+
+.adm-topbar__env {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 201, 102, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 201, 102, 0.08);
+  color: #ffd98c;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.adm-topbar__env span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffc966;
+  box-shadow: 0 0 8px #ffc966;
+}
+
+.adm-topbar__identity {
+  gap: 11px;
+  padding: 5px 14px 5px 5px;
+  border: 1px solid rgba(170, 100, 255, 0.28);
+  background: rgba(40, 18, 74, 0.55);
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.adm-topbar__identity:hover {
+  border-color: rgba(205, 125, 255, 0.55);
+  background: rgba(60, 26, 108, 0.6);
+}
+
+.adm-topbar__identity .adm-avatar {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(215, 150, 255, 0.55);
+  background: radial-gradient(circle at 30% 25%, #c46aff, #4a1f9a);
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 800;
+  box-shadow: 0 0 14px rgba(170, 80, 255, 0.45);
+}
+
+.adm-topbar__menu-btn {
+  border-color: rgba(170, 100, 255, 0.3);
+  background: rgba(40, 18, 74, 0.55);
+}
+
+/* ===========================================================
+   CONTENT AREA
+   =========================================================== */
+
+.adm-content {
+  position: relative;
+  z-index: 1;
+  max-width: 1480px;
+  padding: calc(var(--adm-topbar-height) + 28px) 32px 56px;
+}
+
+/* ===========================================================
+   MODAL FRAME
+   =========================================================== */
+
+.adm-modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse at 50% 15%, rgba(100, 45, 190, 0.28), transparent 60%),
+    rgba(4, 2, 10, 0.74);
+  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(7px);
+  animation: admLayerIn 0.2s ease-out both;
+}
+
+@keyframes admLayerIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.adm-modal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(580px, 100%);
+  max-height: min(88vh, 880px);
+  overflow: hidden;
+  border: 1px solid rgba(190, 120, 255, 0.36);
+  border-radius: 24px;
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(150, 70, 255, 0.24), transparent 55%),
+    linear-gradient(160deg, #1f0c3c, #0e0620 72%);
+  box-shadow:
+    0 40px 90px rgba(0, 0, 0, 0.65),
+    0 0 70px rgba(150, 70, 255, 0.2),
+    inset 0 1px rgba(255, 255, 255, 0.07);
+  animation: admModalIn 0.24s cubic-bezier(0.2, 0.85, 0.25, 1) both;
+}
+
+.adm-modal--wide {
+  width: min(880px, 100%);
+}
+
+@keyframes admModalIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+.adm-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 28px 18px;
+  border-bottom: 1px solid rgba(170, 100, 255, 0.2);
+}
+
+.adm-modal__title {
+  margin: 0;
+  background: linear-gradient(180deg, #ffffff 35%, #e2c2ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+  line-height: 1.25;
+}
+
+.adm-modal__subtitle {
+  margin: 5px 0 0;
+  color: var(--adm-text-muted, #a68bc4);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.adm-modal__close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(170, 100, 255, 0.3);
+  border-radius: 12px;
+  background: rgba(40, 18, 74, 0.55);
+  color: #e9d6ff;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.2s ease;
+}
+
+.adm-modal__close:hover {
+  border-color: rgba(255, 130, 160, 0.7);
+  background: rgba(255, 107, 139, 0.2);
+  transform: rotate(90deg);
+}
+
+.adm-modal__close:focus-visible {
+  outline: 2px solid rgba(224, 140, 255, 0.9);
+  outline-offset: 2px;
+}
+
+.adm-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 24px 28px 28px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(190, 130, 255, 0.35) transparent;
+}
+
+.adm-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 16px 28px;
+  border-top: 1px solid rgba(170, 100, 255, 0.2);
+  background: rgba(8, 3, 18, 0.55);
+}
+
+/* ===========================================================
+   BADGES + PREVIEW NOTICE
+   =========================================================== */
+
+.adm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.adm-badge::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.adm-badge--success { border-color: rgba(79, 227, 160, 0.32);  background: rgba(79, 227, 160, 0.12);  color: #4fe3a0; }
+.adm-badge--warning { border-color: rgba(255, 201, 102, 0.34); background: rgba(255, 201, 102, 0.12); color: #ffc966; }
+.adm-badge--danger  { border-color: rgba(255, 107, 139, 0.36); background: rgba(255, 107, 139, 0.12); color: #ff6b8b; }
+.adm-badge--info    { border-color: rgba(124, 196, 255, 0.34); background: rgba(124, 196, 255, 0.12); color: #7cc4ff; }
+.adm-badge--neutral { border-color: rgba(179, 165, 204, 0.3);  background: rgba(179, 165, 204, 0.1);  color: #bcb0d4; }
+
+/* tier chip: shape only, the colours stay as they were */
+.adm-tier {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.adm-preview-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border: 1px dashed rgba(255, 201, 102, 0.42);
+  border-radius: 14px;
+  background:
+    linear-gradient(90deg, rgba(255, 201, 102, 0.1), rgba(255, 201, 102, 0.03));
+  color: #ffd98c;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.adm-preview-notice__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 201, 102, 0.4);
+  border-radius: 9px;
+  background: rgba(255, 201, 102, 0.12);
+  color: #ffc966;
+}
+
+/* ===========================================================
+   RESPONSIVE + MOTION
+   =========================================================== */
+
+@media (max-width: 960px) {
+  .adm-sidebar__item--active::before { left: -1px; }
+  .adm-topbar { padding: 0 16px; }
+  .adm-content { padding: calc(var(--adm-topbar-height) + 22px) 18px 40px; }
+}
+
+@media (max-width: 760px) {
+  .adm-topbar__env { display: none; }
+  .adm-modal-layer { padding: 12px; }
+  .adm-modal__header { padding: 18px 18px 14px; }
+  .adm-modal__body { padding: 18px; }
+  .adm-modal__footer { padding: 14px 18px; }
+}
+
+@media (max-width: 640px) {
+  .adm-content { padding-left: 12px; padding-right: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-modal-layer,
+  .adm-modal { animation: none; }
+
+  .adm-sidebar__item,
+  .adm-sidebar__item svg,
+  .adm-modal__close { transition: none; }
+
+  .adm-sidebar__item:hover,
+  .adm-modal__close:hover { transform: none; }
+}
