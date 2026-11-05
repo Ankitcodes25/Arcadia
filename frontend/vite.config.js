@@ -23,8 +23,10 @@ function validateProductionEnvironment(mode, env) {
   } catch {
     throw new Error('VITE_API_URL must be an absolute HTTP(S) URL')
   }
-  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.search || parsed.hash) {
-    throw new Error('VITE_API_URL must be an HTTPS origin in production')
+
+  const isLocalhostOrigin = ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname)
+  if ((parsed.protocol !== 'https:' && !isLocalhostOrigin) || parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error('VITE_API_URL must be an HTTPS origin in production, except for localhost development')
   }
 }
 

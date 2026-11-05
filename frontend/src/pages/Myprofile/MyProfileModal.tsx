@@ -22,6 +22,7 @@ import {
 import CopyButton from "../../auth/CopyButton";
 import AvatarsModal from "./AvatarsModal";
 import UsernameModal from "../../components/UsernameModal";
+import { acquireModalScrollLock } from "../../auth/modalScrollLock";
 import { USERNAME_MAX_LENGTH } from "../../auth/usernameRules";
 import "./MyProfileModal.css";
 
@@ -318,6 +319,10 @@ function MyProfileModal({
   const loginMethod = getLoginMethodWithEmail(profile.authProvider, profile.email);
   const accountStatus = getAccountStatusLabel(profile.status);
   const accountStatusTone = profile.status === "ACTIVE" ? "active" : "inactive";
+
+  // The parent My Profile layer holds the shared lock; Username and Avatar
+  // children add their own hold and release it without unlocking this one.
+  useEffect(() => acquireModalScrollLock(), []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

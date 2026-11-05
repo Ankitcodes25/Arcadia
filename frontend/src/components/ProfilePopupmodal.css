@@ -18,15 +18,18 @@
   z-index: 1200;
 
   width: min(300px, calc(100vw - 28px));
-  max-height: none;
-  overflow: visible;
+  max-height: calc(100dvh - 84px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 12px 12px 9px;
 
   /*
-     The popup no longer scrolls: max-height is removed and overflow is visible,
-     so every option fits at its natural height. On short windows the compact
-     @media (max-height) rules near the end of this file shrink the spacing so
-     all options still fit. The scrollbar-hiding rules are kept as a safety net.
+     The compact @media (max-height) rules near the end of this file shrink the
+     spacing so all options normally fit at their natural height. The max-height
+     is a safety net for unusually short viewports: the menu then scrolls
+     internally instead of extending past the visible screen. Its scrollbar stays
+     hidden to preserve the original, clean menu treatment.
   */
   scrollbar-width: none;
   -ms-overflow-style: none;

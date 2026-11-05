@@ -7,6 +7,7 @@ import { getUserProgressionView } from "../auth/progression";
 import { getBadgeDisplay, getCompletedMatches } from "../auth/tierEligibility";
 import HelpSupportModal from "../pages/HelpandSupport/HelpSupportModal";
 import { authApi } from "../auth/authApi";
+import { acquireModalScrollLock } from "../auth/modalScrollLock";
 import "./ProfilePopupmodal.css";
 
 type ProfilePopupModalProps = {
@@ -136,6 +137,10 @@ function ProfilePopupModal({
   const [settingsOpen, setSettingsOpen] = useState(false);
    const [helpOpen, setHelpOpen] = useState(false);
    const isLayerOpen = isMyProfileOpen || settingsOpen || helpOpen;
+
+  // The account menu is an overlay too: keep the page fixed behind it, and
+  // count a child Settings/Help/My Profile layer without disturbing this hold.
+  useEffect(() => acquireModalScrollLock(), []);
 
   useEffect(() => {
     /*

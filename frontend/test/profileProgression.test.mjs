@@ -18,6 +18,7 @@ let MyProfileContainer;
 let UsernameOnboarding;
 let AuthContext;
 let progressionModule;
+let scrollLock;
 let authApi;
 let AuthApiError;
 let originalCheckUsernameAvailability;
@@ -151,6 +152,7 @@ before(async () => {
   UsernameOnboarding = (await vite.ssrLoadModule("/src/auth/UsernameOnboarding.tsx")).default;
   AuthContext = (await vite.ssrLoadModule("/src/auth/AuthContext.tsx")).default;
   progressionModule = await vite.ssrLoadModule("/src/auth/progression.ts");
+  scrollLock = await vite.ssrLoadModule("/src/auth/modalScrollLock.ts");
   ({ authApi, AuthApiError } = await vite.ssrLoadModule("/src/auth/authApi.ts"));
   originalCheckUsernameAvailability = authApi.checkUsernameAvailability.bind(authApi);
   // Every username surface asks the backend before accepting a name, so the
@@ -1795,25 +1797,27 @@ test("opening a child layer does not rewrite the parent dialog's geometry", asyn
   // The parent is a fixed, centred dialog. Hiding the document overflow removes
   // the scrollbar, which narrows the space it is centred in and would nudge it
   // sideways. The shared lock reserves the gutter, so the width is identical
-  // either side of the lock, and it is reference counted so a child never locks
-  // or unlocks the document a second time.
+  // either side of the lock, and it is reference counted so a child adds a hold
+  // without unlocking the parent when it closes.
   const unmount = await renderProfileModal(accountProfile());
+  assert.equal(scrollLock.activeModalScrollLocks(), 1, "the parent dialog holds the lock");
   assert.equal(
     document.documentElement.classList.contains("has-modal-scroll-lock"),
-    false,
-    "no modal is locking the document yet",
+    true,
+    "the gutter is reserved by the parent",
   );
-  assert.equal(document.body.style.overflow, "", "and the document is free to scroll");
+  assert.equal(document.body.style.overflow, "hidden", "the document is fixed");
+  assert.equal(document.body.style.position, "fixed", "the body is fixed in place");
 
   click(q('button[aria-label="Edit username"]'));
   assert.ok(q(".unm-modal"), "the child layer opened");
 
-  // The lock is engaged and the gutter reserved, which is what keeps the width
-  // (and therefore the centred parent) identical.
+  // Opening the child adds a second hold instead of re-locking the document.
+  assert.equal(scrollLock.activeModalScrollLocks(), 2, "the child adds a hold");
   assert.equal(
     document.documentElement.classList.contains("has-modal-scroll-lock"),
     true,
-    "the scrollbar gutter is reserved while a layer holds the lock",
+    "the scrollbar gutter stays reserved",
   );
   assert.equal(document.body.style.overflow, "hidden", "the page behind cannot scroll");
 
@@ -1824,33 +1828,56 @@ test("opening a child layer does not rewrite the parent dialog's geometry", asyn
   assert.equal(modal.style.left, "", "the parent's position is not rewritten");
   assert.equal(modal.style.marginLeft, "", "and it is not nudged with a margin");
 
-  // Closing releases the lock and the gutter in one step.
+  // Closing the child releases only its own hold; the parent still owns the
+  // lock until it closes.
   click(q(".unm-close"));
+  assert.equal(scrollLock.activeModalScrollLocks(), 1, "only the child's hold was released");
+  assert.equal(
+    document.documentElement.classList.contains("has-modal-scroll-lock"),
+    true,
+    "the parent still holds the gutter",
+  );
+  assert.equal(document.body.style.overflow, "hidden", "the document stays fixed");
+
+  await unmount();
+  assert.equal(scrollLock.activeModalScrollLocks(), 0, "unmounting the parent releases the lock");
   assert.equal(
     document.documentElement.classList.contains("has-modal-scroll-lock"),
     false,
     "the gutter is released",
   );
   assert.equal(document.body.style.overflow, "", "and the document scrolls again");
-  await unmount();
+  assert.equal(document.body.style.position, "", "the body is no longer fixed");
 });
 
 test("the scroll lock is released exactly once when the hierarchy unwinds", async () => {
   const unmount = await renderProfileModal(accountProfile());
+  assert.equal(scrollLock.activeModalScrollLocks(), 1, "the parent holds the lock");
 
   click(q('button[aria-label="Edit username"]'));
-  assert.equal(document.body.style.overflow, "hidden", "the child layer holds the lock");
+  assert.equal(scrollLock.activeModalScrollLocks(), 2, "the child holds a second reference");
+  assert.equal(document.body.style.overflow, "hidden", "the document is locked");
 
   // Closing the child must not leave the document locked, and must not unlock
-  // and immediately re-lock it either.
+  // the parent that is still open.
   click(q(".unm-close"));
+  assert.equal(scrollLock.activeModalScrollLocks(), 1, "the parent remains locked");
+  assert.equal(document.body.style.overflow, "hidden", "the parent still owns the lock");
+  assert.equal(
+    document.documentElement.classList.contains("has-modal-scroll-lock"),
+    true,
+    "and the gutter is still held",
+  );
+
+  // The parent's own unmount releases the final reference exactly once.
+  await unmount();
+  assert.equal(scrollLock.activeModalScrollLocks(), 0, "the hierarchy released the lock");
   assert.equal(document.body.style.overflow, "", "released when the last holder closed");
   assert.equal(
     document.documentElement.classList.contains("has-modal-scroll-lock"),
     false,
     "and the gutter went with it",
   );
-  await unmount();
 });
 
 test("a locked or unreached tier never takes the blocking cursor", async () => {

@@ -201,7 +201,7 @@ test("email logs page supports search, filters, pagination and the details modal
   assert.equal(window.location.pathname, "/admin/email-logs");
   assert.match(document.body.textContent, /Email Logs/);
   assert.match(document.body.textContent, /Total Emails/);
-  assert.equal(document.querySelectorAll(".adm-table tbody tr").length, 8, "page size is applied");
+  assert.equal(document.querySelectorAll(".adk-table tbody tr").length, 8, "page size is applied");
 
   const search = document.querySelector('input[aria-label="Search email logs by recipient"]');
   assert.ok(search, "the recipient search is present");
@@ -210,7 +210,7 @@ test("email logs page supports search, filters, pagination and the details modal
     search.dispatchEvent(new window.Event("input", { bubbles: true }));
   });
   await flush();
-  assert.equal(document.querySelectorAll(".adm-table tbody tr").length, 3, "search narrows the rows");
+  assert.equal(document.querySelectorAll(".adk-table tbody tr").length, 3, "search narrows the rows");
 
   const statusFilter = document.querySelector('select[aria-label="Filter email logs by status"]');
   assert.ok(statusFilter, "the status filter is present");
@@ -219,14 +219,14 @@ test("email logs page supports search, filters, pagination and the details modal
     statusFilter.dispatchEvent(new window.Event("change", { bubbles: true }));
   });
   await flush();
-  assert.equal(document.querySelectorAll(".adm-table tbody tr").length, 1, "only the empty-state row is shown");
+  assert.equal(document.querySelectorAll(".adk-table tbody tr").length, 1, "only the empty-state row is shown");
   assert.match(document.body.textContent, /No email logs match these filters/);
 
   await act(async () => {
     findButton("Clear filters").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   });
   await flush();
-  assert.equal(document.querySelectorAll(".adm-table tbody tr").length, 8, "clear filters restores the first page");
+  assert.equal(document.querySelectorAll(".adk-table tbody tr").length, 8, "clear filters restores the first page");
   assert.match(document.body.textContent, /Page 1 of 3/);
 
   await act(async () => {

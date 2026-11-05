@@ -20,16 +20,21 @@ const LEGAL_PAGES = [
     link: "Terms of Service",
     path: "/terms-of-service",
     title: "Terms of Service",
+    prefix: "tos",
   },
   {
     link: "Privacy Policy",
     path: "/privacy-policy",
     title: "Privacy Policy",
+    prefix: "pp",
+    intro: /This Privacy Policy explains what personal information Arcadia handles/i,
   },
   {
     link: "Cookie Policy",
     path: "/cookie-policy",
     title: "Cookie Policy",
+    prefix: "ck",
+    intro: /This Cookie Policy explains which cookies Arcadia sets/i,
   },
 ];
 
@@ -162,26 +167,31 @@ function click(node) {
   });
 }
 
-function assertLegalPage(title) {
-  if (title === "Terms of Service") {
-    const termsTitle = q(".tos-hero h1");
-    assert.ok(termsTitle, "the Terms page renders its hero");
-    assert.match(termsTitle.textContent, /TERMS OF\s+SERVICE/);
-    assert.ok(q(".tos-meta"), "the Terms page renders its date panel");
-    assert.ok(q(".tos-toc"), "the Terms page renders its contents navigation");
-    assert.ok(qa(".tos-section").length > 0, "the Terms page renders its sections");
-    assert.equal(q(".mh-hero"), null, "the legal pages do not reuse the Match History hero");
+function assertLegalPage(page) {
+  const { title, prefix } = page;
+  const hero = q(`.${prefix}-hero`);
+  assert.ok(hero, `${title} renders its hero`);
+
+  const heading = hero.querySelector("h1");
+  assert.ok(heading, `${title} renders its title`);
+  assert.match(
+    heading.textContent.replace(/\s+/g, " ").trim(),
+    new RegExp(title.toUpperCase().replace(/ /g, "\\s+")),
+  );
+
+  assert.ok(q(`.${prefix}-meta`), `${title} renders its date panel`);
+  assert.ok(q(`.${prefix}-toc`), `${title} renders its contents navigation`);
+  assert.ok(qa(`.${prefix}-section`).length > 0, `${title} renders its sections`);
+  assert.equal(q(".mh-hero"), null, "the legal pages do not reuse the Match History hero");
+
+  if (prefix === "tos") {
     return;
   }
 
-  assert.equal(q(".legal-title").textContent, title);
-  assert.match(q(".legal-eyebrow").textContent, /ARCADIA\s*•\s*LEGAL/);
-  assert.match(q(".legal-intro").textContent, /temporary introduction/i);
-  assert.equal(qa(".legal-section").length, 3);
-  assert.match(q(".legal-section p").textContent, /Temporary placeholder text/i);
-  assert.match(q(".legal-updated").textContent, /Last updated/);
-  assert.match(q(".legal-updated").textContent, /Placeholder/);
-  assert.equal(q(".mh-hero"), null, "the legal pages do not reuse the Match History hero");
+  assert.match(q(`.${prefix}-meta-intro`).textContent, page.intro);
+  const labels = qa(`.${prefix}-meta-label`).map((node) => node.textContent.trim());
+  assert.deepEqual(labels, ["Effective date", "Last updated"]);
+  assert.match(q(`.${prefix}-meta`).textContent, /\[To be added before launch\]/);
 }
 
 test("the footer keeps its existing content and adds three legal links", async () => {
@@ -213,7 +223,7 @@ test("each footer link opens its matching page", async () => {
     await flush();
 
     assert.equal(window.location.pathname, page.path);
-    assertLegalPage(page.title);
+    assertLegalPage(page);
   }
 });
 
@@ -221,11 +231,11 @@ test("each legal route works on direct access and after a remount", async () => 
   for (const page of LEGAL_PAGES) {
     await mountApp(page.path, null);
     assert.equal(window.location.pathname, page.path);
-    assertLegalPage(page.title);
+    assertLegalPage(page);
 
     // A remount is the React side of a browser refresh at the same URL.
     await mountApp(page.path, null);
-    assertLegalPage(page.title);
+    assertLegalPage(page);
   }
 });
 
@@ -294,7 +304,7 @@ test("the back button uses history when the page was reached in-app", async () =
   let backCalls = 0;
   window.history.back = () => { backCalls += 1; };
 
-  await click(q(".legal-back"));
+  await click(q(".pp-return"));
 
   assert.equal(backCalls, 1);
   assert.equal(window.location.pathname, "/privacy-policy");
@@ -306,12 +316,12 @@ test("the back button falls back to the homepage on a direct visit", async () =>
   let backCalls = 0;
   window.history.back = () => { backCalls += 1; };
 
-  await click(q(".legal-back"));
+  await click(q(".ck-return"));
   await flush();
 
   assert.equal(backCalls, 0);
   assert.equal(window.location.pathname, "/");
-  assert.equal(q(".legal-page"), null);
+  assert.equal(q(".ck-page"), null);
 });
 
 test("Terms of Service back button returns to the previous in-app page", async () => {
