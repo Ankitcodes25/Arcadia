@@ -1,0 +1,965 @@
+/* ===========================================================
+   ADMIN PAGES  (adp-)
+   Page-specific layout for the redesigned Admin Panel pages.
+   Shared pieces (cards, tables, buttons, chips...) live in
+   components/AdminKit.css.
+   =========================================================== */
+
+/* tone helper: sets --tone so children can colour themselves */
+.adp-tone-violet  { --tone: #b45cff; }
+.adp-tone-green   { --tone: #4fe3a0; }
+.adp-tone-amber   { --tone: #ffc966; }
+.adp-tone-rose    { --tone: #ff6b8b; }
+.adp-tone-blue    { --tone: #7cc4ff; }
+.adp-tone-neutral { --tone: #a99bc4; }
+
+.adp-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.adp-grid-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.adp-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--adk-muted);
+  opacity: 0.7;
+}
+
+/* ===========================================================
+   DASHBOARD
+   =========================================================== */
+
+.adp-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 30px 32px;
+  overflow: hidden;
+  border: 1px solid var(--adk-line-strong);
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 88% 0%, rgba(180, 92, 255, 0.38), transparent 55%),
+    radial-gradient(ellipse at 0% 110%, rgba(90, 40, 190, 0.38), transparent 55%),
+    linear-gradient(155deg, rgba(42, 16, 80, 0.9), rgba(14, 6, 28, 0.96));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.08), 0 26px 54px rgba(0, 0, 0, 0.32);
+}
+
+/* slow floating glow */
+.adp-hero::before {
+  content: "";
+  position: absolute;
+  top: -90px;
+  right: 12%;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(215, 140, 255, 0.28), transparent 68%);
+  filter: blur(8px);
+  animation: adpFloat 9s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes adpFloat {
+  from { transform: translate3d(0, 0, 0) scale(0.95); }
+  to   { transform: translate3d(-30px, 26px, 0) scale(1.1); }
+}
+
+.adp-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.adp-hero__text {
+  min-width: 0;
+}
+
+.adp-hero__kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #d9a9ff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.adp-hero__title {
+  margin: 10px 0 8px;
+  font-size: clamp(24px, 3.2vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.adp-hero__title span {
+  background: linear-gradient(90deg, #e3b8ff, #b45cff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.adp-hero__sub {
+  max-width: 54ch;
+  margin: 0;
+  color: var(--adk-soft);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+.adp-hero__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.adp-hero__pill {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 130px;
+  padding: 14px 18px;
+  border: 1px solid rgba(190, 130, 255, 0.35);
+  border-radius: 16px;
+  background: rgba(20, 8, 40, 0.55);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.adp-hero__pill--warn {
+  border-color: rgba(255, 201, 102, 0.4);
+}
+
+.adp-hero__pill-value {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.adp-hero__pill--warn .adp-hero__pill-value {
+  color: #ffd98c;
+}
+
+.adp-hero__pill-label {
+  color: var(--adk-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ---------- activity timeline ---------- */
+
+.adp-timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adp-timeline__item {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  padding: 11px 0;
+}
+
+.adp-timeline__item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 50px;
+  bottom: -9px;
+  left: 18px;
+  width: 1px;
+  background: linear-gradient(rgba(190, 130, 255, 0.35), transparent);
+}
+
+.adp-timeline__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 37px;
+  height: 37px;
+  border: 1px solid color-mix(in srgb, var(--tone) 40%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tone) 15%, rgba(20, 8, 40, 0.85));
+  color: var(--tone);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--tone) 22%, transparent);
+}
+
+.adp-timeline__content {
+  min-width: 0;
+}
+
+.adp-timeline__text {
+  margin: 0;
+  color: #f2e8ff;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.adp-timeline__time {
+  margin: 3px 0 0;
+  color: var(--adk-muted);
+  font-size: 12px;
+}
+
+/* ---------- registrations ---------- */
+
+.adp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adp-list__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(170, 100, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(14, 6, 28, 0.55);
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.adp-list__row:hover {
+  border-color: var(--adk-line-strong);
+  background: rgba(60, 24, 110, 0.35);
+}
+
+.adp-list__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.adp-list__name {
+  overflow: hidden;
+  color: #ffffff;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adp-list__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.adp-list__date {
+  color: var(--adk-muted);
+  font-size: 11.5px;
+}
+
+/* ---------- insights ---------- */
+
+.adp-insights {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.adp-insight {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--adk-line);
+  border-radius: 14px;
+  background: var(--adk-inset);
+  text-align: center;
+}
+
+.adp-insight__value {
+  background: linear-gradient(180deg, #ffffff, #d9a9ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.adp-insight__label {
+  color: var(--adk-muted);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+/* ===========================================================
+   REPORTS / SUPPORT MODALS
+   =========================================================== */
+
+.adp-people {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.adp-people__card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--adk-line);
+  border-radius: 16px;
+  background: var(--adk-inset);
+}
+
+.adp-people__card--reported {
+  border-color: rgba(255, 107, 139, 0.4);
+  background: linear-gradient(145deg, rgba(255, 107, 139, 0.1), rgba(14, 6, 28, 0.7));
+}
+
+.adp-people__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--adk-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.adp-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.adp-message__bubble {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--adk-line);
+  border-radius: 4px 16px 16px 16px;
+  background: linear-gradient(145deg, rgba(60, 24, 110, 0.5), rgba(14, 6, 28, 0.75));
+}
+
+.adp-message__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  color: var(--adk-muted);
+  font-size: 12px;
+}
+
+.adp-message__meta strong {
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.adp-message__bubble p {
+  margin: 0;
+  color: var(--adk-soft);
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+/* ===========================================================
+   EMAIL LOGS
+   =========================================================== */
+
+.adp-email-toolbar {
+  align-items: flex-end;
+}
+
+.adp-select {
+  width: auto;
+  min-width: 170px;
+  height: 44px;
+  border-color: rgba(180, 105, 255, 0.5);
+  border-radius: 14px;
+}
+
+.adp-date-range {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.adp-date {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.adp-date span {
+  color: var(--adk-muted);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.adp-date .adk-input {
+  width: 150px;
+  height: 44px;
+  border-radius: 14px;
+  font-size: 13px;
+}
+
+.adp-provider-id {
+  display: inline-block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.adp-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.adp-pager__summary,
+.adp-pager__page {
+  color: var(--adk-muted);
+  font-size: 12.5px;
+}
+
+.adp-pager__controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ===========================================================
+   GAME MANAGEMENT
+   =========================================================== */
+
+.adp-games {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 16px;
+}
+
+.adp-game {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--tone) 28%, rgba(170, 100, 255, 0.2));
+  border-radius: 20px;
+  background: var(--adk-card);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.05), 0 16px 36px rgba(0, 0, 0, 0.26);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.adp-game::before {
+  content: "";
+  position: absolute;
+  top: -80px;
+  right: -70px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--tone) 24%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+.adp-game > * {
+  position: relative;
+  z-index: 1;
+}
+
+.adp-game:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--tone) 60%, transparent);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.06),
+    0 22px 44px rgba(0, 0, 0, 0.32),
+    0 0 28px color-mix(in srgb, var(--tone) 16%, transparent);
+}
+
+.adp-game__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.adp-game__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 54px;
+  height: 54px;
+  border: 1px solid var(--adk-line-strong);
+  border-radius: 16px;
+  background: rgba(60, 24, 110, 0.5);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.adp-game__title {
+  flex: 1;
+  min-width: 0;
+}
+
+.adp-game__name {
+  margin: 0;
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adp-game__category {
+  color: var(--adk-muted);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.adp-game__desc {
+  margin: 0;
+  color: var(--adk-soft);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.adp-game__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.adp-game__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--adk-line);
+  border-radius: 12px;
+  background: var(--adk-inset);
+}
+
+.adp-game__stat-value {
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.adp-game__stat-label {
+  color: var(--adk-muted);
+  font-size: 11.5px;
+}
+
+.adp-game__bar {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.adp-game__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 50%, #000), var(--tone));
+  box-shadow: 0 0 10px var(--tone);
+  transition: width 0.5s ease;
+}
+
+/* segmented status control */
+.adp-seg {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--adk-line);
+  border-radius: 13px;
+  background: var(--adk-inset);
+}
+
+.adp-seg__option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--adk-soft);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+
+.adp-seg__option:hover {
+  background: rgba(190, 110, 255, 0.14);
+  color: #ffffff;
+}
+
+.adp-seg__option--active,
+.adp-seg__option--active:hover {
+  border-color: color-mix(in srgb, var(--tone) 55%, transparent);
+  background: color-mix(in srgb, var(--tone) 22%, rgba(20, 8, 40, 0.9));
+  color: #ffffff;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--tone) 28%, transparent);
+}
+
+.adp-seg__option:focus-visible {
+  outline: 2px solid rgba(224, 140, 255, 0.9);
+  outline-offset: 2px;
+}
+
+/* ===========================================================
+   MODERATION
+   =========================================================== */
+
+.adp-action-badge {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border: 1px solid color-mix(in srgb, var(--tone) 45%, transparent);
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--tone) 16%, rgba(20, 8, 40, 0.85));
+  color: var(--tone);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--tone) 28%, transparent);
+}
+
+/* ===========================================================
+   ANNOUNCEMENTS
+   =========================================================== */
+
+.adp-announcements {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.adp-announcement {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 22px 20px 26px;
+  overflow: hidden;
+  border: 1px solid var(--adk-line);
+  border-radius: 18px;
+  background: var(--adk-card);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.05), 0 14px 32px rgba(0, 0, 0, 0.22);
+  transition: border-color 0.18s ease, transform 0.18s ease;
+}
+
+/* coloured edge by status */
+.adp-announcement::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 0;
+  width: 4px;
+  border-radius: 0 6px 6px 0;
+  background: var(--tone);
+  box-shadow: 0 0 14px var(--tone);
+}
+
+.adp-announcement:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--tone) 45%, transparent);
+}
+
+.adp-announcement__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.adp-announcement__top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.adp-announcement__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.adp-announcement__body {
+  max-width: 78ch;
+  margin: 8px 0 12px;
+  color: var(--adk-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.adp-announcement__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--adk-muted);
+  font-size: 12.5px;
+}
+
+.adp-announcement__actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
+/* composer */
+.adp-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 22px;
+}
+
+.adp-composer__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.adp-composer__status {
+  max-width: 220px;
+}
+
+.adp-composer__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.adp-composer__error,
+.adp-composer__actions {
+  grid-column: 1 / -1;
+}
+
+/* what the player sees */
+.adp-ann-preview {
+  position: relative;
+  padding: 20px 22px;
+  overflow: hidden;
+  border: 1px solid var(--adk-line-strong);
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(180, 92, 255, 0.3), transparent 60%),
+    linear-gradient(155deg, rgba(48, 20, 90, 0.85), rgba(16, 7, 32, 0.95));
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3), 0 0 26px rgba(150, 70, 255, 0.18);
+}
+
+.adp-ann-preview__kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #d9a9ff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.adp-ann-preview__title {
+  margin: 10px 0 8px;
+  color: #ffffff;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.adp-ann-preview__body {
+  margin: 0;
+  color: var(--adk-soft);
+  font-size: 14px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ===========================================================
+   SETTINGS
+   =========================================================== */
+
+.adp-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.adp-profile-panel {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(180, 92, 255, 0.3), transparent 60%),
+    var(--adk-card);
+}
+
+.adp-profile-panel .adk-panel__body {
+  padding-top: 28px;
+}
+
+.adp-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.adp-profile__name {
+  margin: 4px 0 0;
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.adp-profile__chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.adp-profile__hint {
+  margin: 4px 0 8px;
+  color: var(--adk-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.adp-setting {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(170, 100, 255, 0.12);
+}
+
+.adp-setting:last-of-type {
+  border-bottom: 0;
+}
+
+.adp-setting__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--adk-line);
+  border-radius: 12px;
+  background: rgba(180, 92, 255, 0.12);
+  color: #cf9bff;
+}
+
+.adp-setting__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.adp-setting__label {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.adp-setting__hint {
+  color: var(--adk-muted);
+  font-size: 12.5px;
+}
+
+.adp-setting__control {
+  display: flex;
+  align-items: center;
+  flex: none;
+  max-width: 50%;
+}
+
+.adp-setting__value {
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===========================================================
+   RESPONSIVE + MOTION
+   =========================================================== */
+
+@media (max-width: 1100px) {
+  .adp-grid-2,
+  .adp-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .adp-hero { padding: 22px 20px; }
+  .adp-insights { grid-template-columns: minmax(0, 1fr); }
+  .adp-people,
+  .adp-composer { grid-template-columns: minmax(0, 1fr); }
+  .adp-announcement { flex-direction: column; }
+  .adp-announcement__actions { width: 100%; }
+  .adp-games { grid-template-columns: minmax(0, 1fr); }
+  .adp-select,
+  .adp-date,
+  .adp-date .adk-input { width: 100%; }
+  .adp-date-range { width: 100%; }
+  .adp-date { flex: 1 1 140px; }
+  .adp-pager { flex-direction: column; align-items: flex-start; }
+  .adp-setting__control { max-width: 45%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adp-hero::before { animation: none; }
+
+  .adp-game,
+  .adp-announcement,
+  .adp-list__row,
+  .adp-seg__option,
+  .adp-game__bar span {
+    transition: none;
+  }
+
+  .adp-game:hover,
+  .adp-announcement:hover { transform: none; }
+}

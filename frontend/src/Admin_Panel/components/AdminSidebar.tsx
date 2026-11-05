@@ -50,6 +50,8 @@ function AdminSidebar({ activePage, isOpen, onClose, onNavigate }: AdminSidebarP
           </button>
         </div>
 
+        <span className="adm-sidebar__section">Menu</span>
+
         <ul className="adm-sidebar__nav">
           {ADMIN_PAGE_PATHS.map((entry) => {
             const Icon = PAGE_ICONS[entry.key];

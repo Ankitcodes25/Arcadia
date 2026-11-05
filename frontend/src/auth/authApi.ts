@@ -39,8 +39,9 @@ export function getApiBaseUrl() {
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
     throw new Error("VITE_API_URL must be an absolute HTTP(S) origin");
   }
-  if (import.meta.env.PROD && url.protocol !== "https:") {
-    throw new Error("VITE_API_URL must use HTTPS in production");
+  const isLocalhostOrigin = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if (import.meta.env.PROD && url.protocol !== "https:" && !isLocalhostOrigin) {
+    throw new Error("VITE_API_URL must use HTTPS in production, except for localhost development");
   }
 
   return value.replace(/\/+$/, "");

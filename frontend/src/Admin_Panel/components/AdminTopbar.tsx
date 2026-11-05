@@ -38,6 +38,10 @@ function AdminTopbar({
       </div>
 
       <div className="adm-topbar__right">
+        <span className="adm-topbar__env" title="This panel shows sample data only">
+          <span aria-hidden="true" />
+          Preview build
+        </span>
         <div className="adm-topbar__identity">
           <span className="adm-avatar adm-avatar--initials" aria-hidden="true">
             {getInitials(adminDisplayName || adminUsername)}
