@@ -11,6 +11,7 @@ import { createPortal } from "react-dom";
 import { Check, ChevronDown, ShieldAlert, X } from "lucide-react";
 import type { PublicPlayerProfile } from "../auth/authTypes";
 import { getLocalAvatarOption, getSafeGoogleAvatarUrl } from "../auth/avatarCatalog";
+import { acquireModalScrollLock } from "../auth/modalScrollLock";
 import "./ReportPlayerModal.css";
 
 type ReportPlayerModalProps = {
@@ -51,6 +52,10 @@ function ReportPlayerModal({ profile, onClose }: ReportPlayerModalProps) {
   const [keyboardReasonNavigation, setKeyboardReasonNavigation] = useState(false);
   const [reasonPosition, setReasonPosition] = useState<DropdownPosition | null>(null);
   const reasonTriggerRef = useRef<HTMLButtonElement>(null);
+
+  // This dialog is a layer above the player profile; it holds the shared lock
+  // for its own lifetime, and the parent layer keeps its lock independently.
+  useEffect(() => acquireModalScrollLock(), []);
   const reasonListRef = useRef<HTMLUListElement>(null);
   const localAvatar = profile.avatar.type === "local"
     ? getLocalAvatarOption(profile.avatar.value)

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { acquireModalScrollLock } from "../auth/modalScrollLock";
 import "./ConfirmDialog.css";
 
 type ConfirmDialogProps = {
@@ -48,6 +49,8 @@ function ConfirmDialog({
     busyRef.current = busy;
     onCancelRef.current = onCancel;
   }, [busy, onCancel]);
+
+  useEffect(() => acquireModalScrollLock(), []);
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "./AuthContext";
+import { acquireModalScrollLock } from "./modalScrollLock";
 import { navigateTo } from "../lib/navigation";
 import logo from "../assets/ArcadialogoA.png";
 /*
@@ -74,6 +75,16 @@ function PasswordChangeSuccessModal() {
     navigateTo(LANDING_PATH);
     openAuthMode("login");
   }, [dismissPasswordChangeSuccess, openAuthMode]);
+
+  /*
+   * This component is mounted for the whole session and only renders the
+   * dialog while the flag is set, so the lock follows that flag rather than
+   * the component's mount lifetime.
+   */
+  useEffect(() => {
+    if (!passwordChangeSuccess) return;
+    return acquireModalScrollLock();
+  }, [passwordChangeSuccess]);
 
   /* Escape behaves like the cross, same as the other Arcadia dialogs. */
   useEffect(() => {

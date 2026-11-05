@@ -19,6 +19,7 @@ import {
   type HelpCategory,
 } from "./FAQdata";
 import { SUPPORT_EMAIL } from "./Supportconfig";
+import { acquireModalScrollLock } from "../../auth/modalScrollLock";
 import "./HelpSupportModal.css";
 
 /* ===========================================================
@@ -422,6 +423,10 @@ function HelpSupportModal({ onClose, onSubmitReport, supportEmail }: HelpSupport
       setSubmitting(false);
     }
   };
+
+  // Help & Support is a modal layer above the Profile Popup; it holds the
+  // shared lock until it unmounts.
+  useEffect(() => acquireModalScrollLock(), []);
 
   /* ---------- Closing ---------- */
   const handleClose = useCallback(() => onClose(), [onClose]);

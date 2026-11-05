@@ -36,6 +36,7 @@ let createRoot;
 let root;
 let App;
 let navigation;
+let scrollLock;
 
 // Routes matched by URL substring; each test fills the mutable fetchPlan.
 let fetchPlan = [];
@@ -126,6 +127,7 @@ before(async () => {
   // Shared module instance (vite caches SSR modules) so a login-open intent set
   // by the admin gate can be observed / drained here.
   navigation = await vite.ssrLoadModule("/src/lib/navigation.ts");
+  scrollLock = await vite.ssrLoadModule("/src/auth/modalScrollLock.ts");
 });
 
 after(async () => {
@@ -215,6 +217,43 @@ test("an authenticated /admin/dashboard renders the admin shell with zero player
   }
   // The admin identity label is present; the player XP/level header is not.
   assert.doesNotMatch(document.body.textContent, /Lv\.\s*\d/, "no player level header");
+});
+
+test("the mobile admin drawer locks the background and Escape releases it", async () => {
+  fetchPlan = [ADMIN_SESSION];
+  await renderApp("/admin/dashboard");
+
+  const menuButton = q('.adm-topbar__menu-btn');
+  assert.ok(menuButton, "the mobile menu button exists");
+
+  await act(async () => {
+    menuButton.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  });
+
+  assert.equal(scrollLock.activeModalScrollLocks(), 1, "the drawer holds the shared lock");
+  assert.equal(
+    document.documentElement.classList.contains(scrollLock.MODAL_LOCK_CLASS),
+    true,
+    "the document is locked",
+  );
+  assert.equal(document.body.style.position, "fixed", "the page behind stays fixed");
+  assert.equal(document.body.style.overflow, "hidden", "background scrolling is disabled");
+
+  await act(async () => {
+    window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  });
+
+  assert.equal(scrollLock.activeModalScrollLocks(), 0, "Escape closes the drawer and releases it");
+  assert.equal(
+    document.documentElement.classList.contains(scrollLock.MODAL_LOCK_CLASS),
+    false,
+    "the document scroll lock class is gone",
+  );
+  assert.equal(document.body.style.position, "", "the body is restored");
+  assert.equal(document.body.style.overflow, "", "background scrolling is restored");
+
+  await act(async () => { root?.unmount(); });
+  root = null;
 });
 
 test("an unauthenticated admin route leaves for the landing page and opens the shared login modal", async () => {
