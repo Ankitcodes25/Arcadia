@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import type { Game } from "../../../types/game";
 import { navigateTo } from "../../../lib/navigation";
+import { isLudoGame, requestLudoLaunch } from "../../../games/ludo/ludoLaunch";
 import GameLogo from "../../Allgames/Sections/GameLogo";
 
 type ChallengeArcadionProps = {
@@ -193,7 +194,13 @@ function ChallengeArcadion({ games }: ChallengeArcadionProps) {
             </div>
 
             {/* TODO: start the 1v1 match vs Arcadion (no route yet) */}
-            <button type="button" className="challenge-battle-button">
+            <button
+              type="button"
+              className="challenge-battle-button"
+              onClick={() => {
+                if (isLudoGame(game.name)) requestLudoLaunch(game.name);
+              }}
+            >
               <span className="battle-cross">⚔</span>
               <span>CHALLENGE</span>
               <span className="battle-arrow">→</span>

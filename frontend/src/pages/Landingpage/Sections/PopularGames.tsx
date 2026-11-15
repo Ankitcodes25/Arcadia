@@ -1,5 +1,6 @@
 import type { Game } from "../../../types/game";
 import { navigateTo } from "../../../lib/navigation";
+import { isLudoGame, requestLudoLaunch } from "../../../games/ludo/ludoLaunch";
 import GameLogo from "../../Allgames/Sections/GameLogo";
 
 type PopularGamesProps = { games: Game[] };
@@ -13,7 +14,7 @@ function PopularGames({ games }: PopularGamesProps) {
       <div className="featured-games">
         {popularGames.map((game) => <article className="big-game-card" key={game.name}>
           <div className="big-game-icon unified-game-logo"><GameLogo gameName={game.name} /></div>
-          <div className="big-game-content"><span>{game.category}</span><h3>{game.name}</h3><p>{game.description}</p><button className="card-play">Play now</button></div>
+          <div className="big-game-content"><span>{game.category}</span><h3>{game.name}</h3><p>{game.description}</p><button className="card-play" onClick={() => { if (isLudoGame(game.name)) requestLudoLaunch(game.name); }}>Play now</button></div>
         </article>)}
       </div>
     </section>

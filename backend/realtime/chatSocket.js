@@ -4,6 +4,7 @@ const { isAllowedOrigin } = require('../config/cors');
 const { User, USER_ROLES, ACCOUNT_STATUSES } = require('../models/User');
 const { verifyAccessToken, ACCESS_TOKEN_TYPE } = require('../utils/jwt');
 const chatService = require('../services/chatService');
+const { registerLudoHandlers, resetLudoLobbies } = require('./ludoLobby');
 
 const TYPING_BUDGET_WINDOW_MS = 10 * 1000;
 const TYPING_BUDGET_MAX = 24;
@@ -149,6 +150,14 @@ function emitDeliveryReceipt(updatedMessages, receiverId) {
 function registerConnection(socket) {
   const userId = socket.data.userId;
   socket.join(userRoom(userId));
+
+  /*
+   * Temporary Ludo lobbies share this authenticated transport so they inherit
+   * its token refresh, session revalidation and user-room delivery. Nothing
+   * here writes to MongoDB; every lobby and message lives in memory and is
+   * cleaned up on leave, host exit or disconnect.
+   */
+  registerLudoHandlers(socket, { emitToUser });
 
   // A newly authenticated device receives any messages that were persisted
   // while it was offline. The device must acknowledge them; connecting alone
@@ -367,6 +376,7 @@ function attachChatSocket(httpServer) {
 }
 
 function closeChatSocket() {
+  resetLudoLobbies();
   if (sessionRecheckTimer) {
     clearInterval(sessionRecheckTimer);
     sessionRecheckTimer = null;

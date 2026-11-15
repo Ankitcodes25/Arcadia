@@ -26,6 +26,7 @@ import AuthLoading from "./auth/AuthLoading";
 import UsernameOnboarding from "./auth/UsernameOnboarding";
 import AdminPanelApp from "./Admin_Panel/AdminPanelApp";
 import { isAdminPath } from "./Admin_Panel/hooks/adminRouting";
+import LudoLaunchController from "./games/ludo/LudoLaunchController";
 
 function AuthNotice() {
   const { authError, authErrorKind, authMode, clearError } = useAuth();
@@ -135,6 +136,7 @@ function AppContent() {
       <Navbar isVisible={!isMatchHistoryPage && !isLegalPage} />
       <AccountActionPanel />
       <AuthNotice />
+      <LudoLaunchController />
       <div
         key={isMatchHistoryPage
           ? "match-history-page"

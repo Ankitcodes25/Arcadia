@@ -1,5 +1,6 @@
 import type { Game } from "../../../types/game";
 import { navigateTo } from "../../../lib/navigation";
+import { isLudoGame, requestLudoLaunch } from "../../../games/ludo/ludoLaunch";
 import GameLogo from "./GameLogo";
 
 import arcadionPick from "../../../assets/Arcadionpick.png";
@@ -147,7 +148,13 @@ function ArcadionPick({ games }: ArcadionPickProps) {
               <button
                 type="button"
                 className="arcadion-pick-button"
-                onClick={(event) => navigateTo("/games", event)}
+                onClick={(event) => {
+                  if (isLudoGame(game.name)) {
+                    requestLudoLaunch(game.name);
+                    return;
+                  }
+                  navigateTo("/games", event);
+                }}
               >
                 PLAY NOW
                 <span aria-hidden="true">→</span>

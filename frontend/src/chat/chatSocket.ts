@@ -10,6 +10,19 @@ import type {
   ChatTypingEvent,
   FriendsChangedEvent,
 } from "./chatTypes";
+import type {
+  LudoChatPayload,
+  LudoColour,
+  LudoErrorPayload,
+  LudoInvitationDeclinedPayload,
+  LudoInvitationExpiredPayload,
+  LudoInvitationPayload,
+  LudoInvitationSentPayload,
+  LudoLobbyClosedPayload,
+  LudoLobbyStatePayload,
+  LudoPlayerJoinedPayload,
+  LudoPlayerCount,
+} from "../games/ludo/types";
 
 type ChatEventMap = {
   "chat:message": ChatMessageEvent;
@@ -21,6 +34,16 @@ type ChatEventMap = {
   "chat:clear-request": ChatClearRequestEvent;
   "chat:cleared": ChatClearedEvent;
   "friends:changed": FriendsChangedEvent;
+  "ludo:lobby-state": LudoLobbyStatePayload;
+  "ludo:lobby-joined": LudoLobbyStatePayload;
+  "ludo:player-joined": LudoPlayerJoinedPayload;
+  "ludo:lobby-closed": LudoLobbyClosedPayload;
+  "ludo:invitation": LudoInvitationPayload;
+  "ludo:invitation-sent": LudoInvitationSentPayload;
+  "ludo:invitation-declined": LudoInvitationDeclinedPayload;
+  "ludo:invitation-expired": LudoInvitationExpiredPayload;
+  "ludo:lobby-chat": LudoChatPayload;
+  "ludo:error": LudoErrorPayload;
 };
 
 type ChatEventName = keyof ChatEventMap;
@@ -36,6 +59,16 @@ const SOCKET_EVENTS: ChatEventName[] = [
   "chat:clear-request",
   "chat:cleared",
   "friends:changed",
+  "ludo:lobby-state",
+  "ludo:lobby-joined",
+  "ludo:player-joined",
+  "ludo:lobby-closed",
+  "ludo:invitation",
+  "ludo:invitation-sent",
+  "ludo:invitation-declined",
+  "ludo:invitation-expired",
+  "ludo:lobby-chat",
+  "ludo:error",
 ];
 
 const ACK_BATCH_MS = 30;
@@ -236,3 +269,62 @@ export function sendChatTyping(friendId: string, typing: boolean) {
 export function isChatSocketConnected() {
   return Boolean(socket && socket.connected);
 }
+
+/* ------------------------------------------------------------------
+   Temporary Ludo lobby transport
+
+   These events share the authenticated chat socket and its user rooms. They
+   never touch MongoDB: a lobby, its invitations and its chat bubbles live only
+   for the lifetime of the in-memory backend registry. Keeping the transport
+   here means the existing reconnect, token refresh and session revalidation
+   paths already apply to the lobby.
+   ------------------------------------------------------------------ */
+
+function emitLudo(event: string, payload: unknown): boolean {
+  if (!socket || !socket.connected) return false;
+  socket.emit(event, payload);
+  return true;
+}
+
+export const ludoSocket = {
+  createLobby(input: {
+    playerCount: LudoPlayerCount;
+    colour: LudoColour;
+  }) {
+    return emitLudo("ludo:lobby-create", input);
+  },
+
+  inviteFriend(lobbyId: string, friendId: string, colour?: LudoColour) {
+    return emitLudo("ludo:invite", { lobbyId, friendId, ...(colour ? { colour } : {}) });
+  },
+
+  respondToInvitation(inviteId: string, accept: boolean) {
+    return emitLudo("ludo:invitation-response", { inviteId, accept });
+  },
+
+  updateConfig(lobbyId: string, input: {
+    playerCount: LudoPlayerCount;
+  }) {
+    return emitLudo("ludo:lobby-config", { lobbyId, ...input });
+  },
+
+  toggleBot(lobbyId: string, colour: LudoColour, enabled: boolean) {
+    return emitLudo("ludo:lobby-bot", { lobbyId, colour, enabled });
+  },
+
+  removePlayer(lobbyId: string, playerId: string) {
+    return emitLudo("ludo:lobby-remove-player", { lobbyId, playerId });
+  },
+
+  setColour(lobbyId: string, colour: LudoColour) {
+    return emitLudo("ludo:lobby-colour", { lobbyId, colour });
+  },
+
+  sendLobbyChat(lobbyId: string, text: string) {
+    return emitLudo("ludo:lobby-chat", { lobbyId, text });
+  },
+
+  leaveLobby(lobbyId: string) {
+    return emitLudo("ludo:lobby-leave", { lobbyId });
+  },
+};
