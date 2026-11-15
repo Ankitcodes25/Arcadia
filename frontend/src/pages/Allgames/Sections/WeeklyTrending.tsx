@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { Game } from "../../../types/game";
+import { isLudoGame, requestLudoLaunch } from "../../../games/ludo/ludoLaunch";
 import GameLogo from "./GameLogo";
 import arcadionFull from "../../../assets/ArcadionFull.png";
 import heroBg from "../../../assets/HeroBg.webp";
@@ -232,6 +233,9 @@ function WeeklyTrending({ games }: WeeklyTrendingProps) {
                       type="button"
                       className="weekly-play"
                       tabIndex={isActive ? 0 : -1}
+                      onClick={() => {
+                        if (isLudoGame(game.name)) requestLudoLaunch(game.name);
+                      }}
                     >
                       <svg className="weekly-play-icon" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M7 4.5v15l12-7.5-12-7.5Z" />

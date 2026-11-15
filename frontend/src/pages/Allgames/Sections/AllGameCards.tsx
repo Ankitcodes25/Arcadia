@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Game } from "../../../types/game";
+import { isLudoGame, requestLudoLaunch } from "../../../games/ludo/ludoLaunch";
 import GameLogo from "./GameLogo";
 
 type AllGameCardsProps = {
@@ -58,7 +59,15 @@ function AllGameCards({ games, heading }: AllGameCardsProps) {
             <div className="library-icon unified-game-logo"><GameLogo gameName={game.name} /></div>
             <h3>{game.name}</h3>
             <p>{game.description}</p>
-            <button type="button" className="library-play">Play now</button>
+            <button
+              type="button"
+              className="library-play"
+              onClick={() => {
+                if (isLudoGame(game.name)) requestLudoLaunch(game.name);
+              }}
+            >
+              Play now
+            </button>
           </article>
         ))}
       </div>
